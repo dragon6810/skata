@@ -11,6 +11,17 @@ token_t* tokens = NULL;
 token_t* tokenstail = NULL;
 char* curpos = NULL;
 
+void lex_pushtok(token_t* tok)
+{
+    if(tokenstail)
+    {
+        tokenstail->next = tok;
+        tokenstail = tok;
+    }
+    else
+        tokenstail = tokens = tok;
+}
+
 int lex_matchpunc(punc_e type)
 {
     int len;
@@ -45,47 +56,45 @@ bool lex_trypunc(void)
         return false;
 
     tok = malloc(sizeof(token_t));
-
     tok->line = tok->column = 0;
     tok->form = TOKEN_PUNC;
     tok->punc = besttype;
     tok->next = NULL;
-
-    if(tokenstail)
-    {
-        tokenstail->next = tok;
-        tokenstail = tok;
-    }
-    else
-        tokenstail = tokens = tok;
+    lex_pushtok(tok);
 
     curpos += bestlen;
 
     return true;
 }
 
-void lex_nexttok(void)
+bool lex_tryeof(void)
 {
     token_t *tok;
-    
-    if(!*curpos)
-    {
-        tok = malloc(sizeof(token_t));
 
-        tok->line = tok->column = 0;
-        tok->form = TOKEN_EOF;
-        tok->next = NULL;
+    if(*curpos)
+        return false;
 
-        if(tokenstail)
-        {
-            tokenstail->next = tok;
-            tokenstail = tok;
-        }
-        else
-            tokenstail = tokens = tok;
-        
+    tok = malloc(sizeof(token_t));
+    tok->line = tok->column = 0;
+    tok->form = TOKEN_EOF;
+    tok->next = NULL;
+    lex_pushtok(tok);
+
+    return true;
+}
+
+void lex_skipwhitespace(void)
+{
+    while(*curpos && *curpos <= 32)
+        curpos++;
+}
+
+void lex_nexttok(void)
+{
+    lex_skipwhitespace();
+
+    if(lex_tryeof())
         return;
-    }
 
     if(lex_trypunc())
         return;
