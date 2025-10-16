@@ -22,6 +22,35 @@ void lex_pushtok(token_t* tok)
         tokenstail = tokens = tok;
 }
 
+bool lex_trynumber(void)
+{
+    char* c;
+    int len;
+    token_t *tok;
+
+    c = curpos;
+    while(*c >= '0' && *c <= '9')
+        c++;
+
+    if(c == curpos)
+        return false;
+
+    len = c - curpos;
+
+    tok = malloc(sizeof(token_t));
+    tok->line = tok->column = 0;
+    tok->form = TOKEN_NUMBER;
+    tok->msg = malloc(len + 1);
+    memcpy(tok->msg, curpos, len);
+    tok->msg[len] = 0;
+    tok->next = NULL;
+    lex_pushtok(tok);
+
+    curpos += len;
+
+    return true;
+}
+
 bool lex_tryident(void)
 {
     rid_e rid;
@@ -156,6 +185,9 @@ void lex_nexttok(void)
         return;
 
     if(lex_tryident())
+        return;
+
+    if(lex_trynumber())
         return;
 
     printf("bad input.\n");
