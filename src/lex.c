@@ -22,6 +22,62 @@ void lex_pushtok(token_t* tok)
         tokenstail = tokens = tok;
 }
 
+bool lex_tryident(void)
+{
+    rid_e rid;
+
+    char* c;
+    int len;
+    token_t *tok;
+
+    c = curpos;
+    while
+    (
+        (*c >= 'a' && *c <= 'z')
+        || (*c >= 'a' && *c <= 'z')
+        || (c != curpos && *c >= '0' && *c <= '9')
+        || *c == '_'
+        || *c == '$'
+    )
+        c++;
+
+    if(c == curpos)
+        return false;
+
+    for(rid=0; rid<RID_COUNT; rid++)
+    {
+        len = strlen(rid_strs[rid]);
+        if(strncmp(curpos, rid_strs[rid], len))
+            continue;
+
+        tok = malloc(sizeof(token_t));
+        tok->line = tok->column = 0;
+        tok->form = TOKEN_RID;
+        tok->rid = rid;
+        tok->next = NULL;
+        lex_pushtok(tok);
+
+        curpos += len;
+
+        return true;
+    }
+
+    len = c - curpos;
+
+    tok = malloc(sizeof(token_t));
+    tok->line = tok->column = 0;
+    tok->form = TOKEN_IDENT;
+    tok->msg = malloc(len + 1);
+    memcpy(tok->msg, curpos, len);
+    tok->msg[len] = 0;
+    tok->next = NULL;
+    lex_pushtok(tok);
+
+    curpos += len;
+
+    return true;
+}
+
 int lex_matchpunc(punc_e type)
 {
     int len;
@@ -98,6 +154,12 @@ void lex_nexttok(void)
 
     if(lex_trypunc())
         return;
+
+    if(lex_tryident())
+        return;
+
+    printf("bad input.\n");
+    exit(1);
 }
 
 void lex(void)
