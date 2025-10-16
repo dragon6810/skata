@@ -1,1 +1,4 @@
-int asdsa oj1_23+fdsf$$d; 1234
+int main(void)
+{
+    return 0;
+}

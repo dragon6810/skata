@@ -10,6 +10,7 @@ token_t* tokens = NULL;
 
 token_t* tokenstail = NULL;
 char* curpos = NULL;
+int line = 0, column = 0;
 
 void lex_pushtok(token_t* tok)
 {
@@ -38,7 +39,8 @@ bool lex_trynumber(void)
     len = c - curpos;
 
     tok = malloc(sizeof(token_t));
-    tok->line = tok->column = 0;
+    tok->line = line;
+    tok->column = column;
     tok->form = TOKEN_NUMBER;
     tok->msg = malloc(len + 1);
     memcpy(tok->msg, curpos, len);
@@ -47,6 +49,7 @@ bool lex_trynumber(void)
     lex_pushtok(tok);
 
     curpos += len;
+    column += len;
 
     return true;
 }
@@ -80,13 +83,15 @@ bool lex_tryident(void)
             continue;
 
         tok = malloc(sizeof(token_t));
-        tok->line = tok->column = 0;
+        tok->line = line;
+        tok->column = column;
         tok->form = TOKEN_RID;
         tok->rid = rid;
         tok->next = NULL;
         lex_pushtok(tok);
 
         curpos += len;
+        column += len;
 
         return true;
     }
@@ -94,7 +99,8 @@ bool lex_tryident(void)
     len = c - curpos;
 
     tok = malloc(sizeof(token_t));
-    tok->line = tok->column = 0;
+    tok->line = line;
+    tok->column = column;
     tok->form = TOKEN_IDENT;
     tok->msg = malloc(len + 1);
     memcpy(tok->msg, curpos, len);
@@ -103,6 +109,7 @@ bool lex_tryident(void)
     lex_pushtok(tok);
 
     curpos += len;
+    column += len;
 
     return true;
 }
@@ -141,13 +148,15 @@ bool lex_trypunc(void)
         return false;
 
     tok = malloc(sizeof(token_t));
-    tok->line = tok->column = 0;
+    tok->line = line;
+    tok->column = column;
     tok->form = TOKEN_PUNC;
     tok->punc = besttype;
     tok->next = NULL;
     lex_pushtok(tok);
 
     curpos += bestlen;
+    column += bestlen;
 
     return true;
 }
@@ -160,7 +169,8 @@ bool lex_tryeof(void)
         return false;
 
     tok = malloc(sizeof(token_t));
-    tok->line = tok->column = 0;
+    tok->line = line;
+    tok->column = column;
     tok->form = TOKEN_EOF;
     tok->next = NULL;
     lex_pushtok(tok);
@@ -171,7 +181,16 @@ bool lex_tryeof(void)
 void lex_skipwhitespace(void)
 {
     while(*curpos && *curpos <= 32)
+    {
+        column++;
+        if(*curpos == '\n')
+        {
+            line++;
+            column = 0;
+        }
+
         curpos++;
+    }
 }
 
 void lex_nexttok(void)
@@ -199,6 +218,7 @@ void lex(void)
     token_t *curtok;
 
     curpos = srctext;
+    line = column = 0;
 
     do
         lex_nexttok();
@@ -209,21 +229,23 @@ void lex(void)
         switch(curtok->form)
         {
         case TOKEN_EOF:
-            printf("EOF\n");
+            printf("EOF");
             break;
         case TOKEN_IDENT:
         case TOKEN_NUMBER:
         case TOKEN_STRING:
-            printf("%s\n", curtok->msg);
+            printf("%s", curtok->msg);
             break;
         case TOKEN_RID:
-            printf("%s\n", rid_strs[curtok->rid]);
+            printf("%s", rid_strs[curtok->rid]);
             break;
         case TOKEN_PUNC:
-            printf("%s\n", punc_strs[curtok->punc]);
+            printf("%s", punc_strs[curtok->punc]);
             break;
         default:
             break;
         }
+
+        printf(" (%d:%d)\n", curtok->line + 1, curtok->column + 1);
     }
 }
