@@ -16,6 +16,7 @@ typedef enum
 typedef enum
 {
 #include "tokens.def"
+RID_COUNT,
 } rid_e;
 #undef DECL_RID
 
@@ -32,6 +33,7 @@ static const char* rid_strs[] =
 typedef enum
 {
 #include "tokens.def"
+PUNC_COUNT,
 } punc_e;
 #undef DECL_PUNC
 
@@ -45,6 +47,9 @@ static const char* punc_strs[] =
 
 typedef struct token_s
 {
+    int line;
+    int column;
+
     token_e form;
     union
     {
@@ -55,9 +60,12 @@ typedef struct token_s
         // TOKEN_PUNC
         punc_e punc;
     };
+
+    struct token_s *next;
 } token_t;
 
 extern char* srctext;
+extern token_t* tokens;
 
 void lex(void);
 
