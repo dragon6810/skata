@@ -5,6 +5,23 @@
 #include <stdlib.h>
 #include <string.h>
 
+static void lex_freetok(token_t* tok)
+{
+    switch(tok->form)
+    {
+    case TOKEN_IDENT:
+    case TOKEN_NUMBER:
+    case TOKEN_STRING:
+        free(tok->msg);
+        break;
+    default:
+        break;
+    }
+}
+
+LIST_DEF(token)
+LIST_DEF_FREE_DECONSTRUCT(token, lex_freetok)
+
 char* srctext = NULL;
 token_t* tokens = NULL;
 

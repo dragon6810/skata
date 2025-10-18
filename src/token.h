@@ -1,6 +1,8 @@
 #ifndef _TOKEN_H
 #define _TOKEN_H
 
+#include "list.h"
+
 typedef enum
 {
     TOKEN_EOF=0,
@@ -63,6 +65,8 @@ typedef struct token_s
 
     struct token_s *next;
 } token_t;
+
+LIST_DECL(token_t, token)
 
 extern char* srctext;
 extern token_t* tokens;
