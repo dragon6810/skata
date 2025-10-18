@@ -32,6 +32,7 @@ void compile(void)
     lex();
 
     free(srctext);
+    list_token_free(&tokens);
 }
 
 void usage(char* program)

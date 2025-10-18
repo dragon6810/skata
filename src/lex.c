@@ -23,28 +23,16 @@ LIST_DEF(token)
 LIST_DEF_FREE_DECONSTRUCT(token, lex_freetok)
 
 char* srctext = NULL;
-token_t* tokens = NULL;
+list_token_t tokens;
 
-token_t* tokenstail = NULL;
 char* curpos = NULL;
 int line = 0, column = 0;
-
-void lex_pushtok(token_t* tok)
-{
-    if(tokenstail)
-    {
-        tokenstail->next = tok;
-        tokenstail = tok;
-    }
-    else
-        tokenstail = tokens = tok;
-}
 
 bool lex_trynumber(void)
 {
     char* c;
     int len;
-    token_t *tok;
+    token_t tok;
 
     c = curpos;
     while(*c >= '0' && *c <= '9')
@@ -55,15 +43,13 @@ bool lex_trynumber(void)
 
     len = c - curpos;
 
-    tok = malloc(sizeof(token_t));
-    tok->line = line;
-    tok->column = column;
-    tok->form = TOKEN_NUMBER;
-    tok->msg = malloc(len + 1);
-    memcpy(tok->msg, curpos, len);
-    tok->msg[len] = 0;
-    tok->next = NULL;
-    lex_pushtok(tok);
+    tok.line = line;
+    tok.column = column;
+    tok.form = TOKEN_NUMBER;
+    tok.msg = malloc(len + 1);
+    memcpy(tok.msg, curpos, len);
+    tok.msg[len] = 0;
+    list_token_ppush(&tokens, &tok);
 
     curpos += len;
     column += len;
@@ -77,7 +63,7 @@ bool lex_tryident(void)
 
     char* c;
     int len;
-    token_t *tok;
+    token_t tok;
 
     c = curpos;
     while
@@ -99,13 +85,11 @@ bool lex_tryident(void)
         if(strncmp(curpos, rid_strs[rid], len))
             continue;
 
-        tok = malloc(sizeof(token_t));
-        tok->line = line;
-        tok->column = column;
-        tok->form = TOKEN_RID;
-        tok->rid = rid;
-        tok->next = NULL;
-        lex_pushtok(tok);
+        tok.line = line;
+        tok.column = column;
+        tok.form = TOKEN_RID;
+        tok.rid = rid;
+        list_token_ppush(&tokens, &tok);
 
         curpos += len;
         column += len;
@@ -115,15 +99,13 @@ bool lex_tryident(void)
 
     len = c - curpos;
 
-    tok = malloc(sizeof(token_t));
-    tok->line = line;
-    tok->column = column;
-    tok->form = TOKEN_IDENT;
-    tok->msg = malloc(len + 1);
-    memcpy(tok->msg, curpos, len);
-    tok->msg[len] = 0;
-    tok->next = NULL;
-    lex_pushtok(tok);
+    tok.line = line;
+    tok.column = column;
+    tok.form = TOKEN_IDENT;
+    tok.msg = malloc(len + 1);
+    memcpy(tok.msg, curpos, len);
+    tok.msg[len] = 0;
+    list_token_ppush(&tokens, &tok);
 
     curpos += len;
     column += len;
@@ -149,7 +131,7 @@ bool lex_trypunc(void)
     int bestlen;
     punc_e besttype;
     int len;
-    token_t *tok;
+    token_t tok;
 
     for(p=0, bestlen=0; p<PUNC_COUNT; p++)
     {
@@ -164,13 +146,11 @@ bool lex_trypunc(void)
     if(!bestlen)
         return false;
 
-    tok = malloc(sizeof(token_t));
-    tok->line = line;
-    tok->column = column;
-    tok->form = TOKEN_PUNC;
-    tok->punc = besttype;
-    tok->next = NULL;
-    lex_pushtok(tok);
+    tok.line = line;
+    tok.column = column;
+    tok.form = TOKEN_PUNC;
+    tok.punc = besttype;
+    list_token_ppush(&tokens, &tok);
 
     curpos += bestlen;
     column += bestlen;
@@ -180,17 +160,15 @@ bool lex_trypunc(void)
 
 bool lex_tryeof(void)
 {
-    token_t *tok;
+    token_t tok;
 
     if(*curpos)
         return false;
 
-    tok = malloc(sizeof(token_t));
-    tok->line = line;
-    tok->column = column;
-    tok->form = TOKEN_EOF;
-    tok->next = NULL;
-    lex_pushtok(tok);
+    tok.line = line;
+    tok.column = column;
+    tok.form = TOKEN_EOF;
+    list_token_ppush(&tokens, &tok);
 
     return true;
 }
@@ -232,18 +210,20 @@ void lex_nexttok(void)
 
 void lex(void)
 {
-    token_t *curtok;
+    int i;
+
+    list_token_init(&tokens, 0);
 
     curpos = srctext;
     line = column = 0;
 
     do
         lex_nexttok();
-    while(tokenstail->form != TOKEN_EOF);
+    while(tokens.data[tokens.len-1].form != TOKEN_EOF);
 
-    for(curtok=tokens; curtok; curtok=curtok->next)
+    for(i=0; i<tokens.len; i++)
     {
-        switch(curtok->form)
+        switch(tokens.data[i].form)
         {
         case TOKEN_EOF:
             printf("EOF");
@@ -251,18 +231,18 @@ void lex(void)
         case TOKEN_IDENT:
         case TOKEN_NUMBER:
         case TOKEN_STRING:
-            printf("%s", curtok->msg);
+            printf("%s", tokens.data[i].msg);
             break;
         case TOKEN_RID:
-            printf("%s", rid_strs[curtok->rid]);
+            printf("%s", rid_strs[tokens.data[i].rid]);
             break;
         case TOKEN_PUNC:
-            printf("%s", punc_strs[curtok->punc]);
+            printf("%s", punc_strs[tokens.data[i].punc]);
             break;
         default:
             break;
         }
 
-        printf(" (%d:%d)\n", curtok->line + 1, curtok->column + 1);
+        printf(" (%d:%d)\n", tokens.data[i].line + 1, tokens.data[i].column + 1);
     }
 }

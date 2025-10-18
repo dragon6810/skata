@@ -62,14 +62,12 @@ typedef struct token_s
         // TOKEN_PUNC
         punc_e punc;
     };
-
-    struct token_s *next;
 } token_t;
 
 LIST_DECL(token_t, token)
 
 extern char* srctext;
-extern token_t* tokens;
+extern list_token_t tokens;
 
 void lex(void);
 
