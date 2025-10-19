@@ -3,7 +3,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "ast.h"
 #include "token.h"
+#include "type.h"
 
 char srcpath[PATH_MAX];
 
@@ -29,10 +31,14 @@ void compile(void)
     
     fclose(ptr);
 
+    type_init();
+
     lex();
+    parse();
 
     free(srctext);
     list_token_free(&tokens);
+    type_free();
 }
 
 void usage(char* program)

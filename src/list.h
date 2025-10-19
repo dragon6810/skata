@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define LIST_DECL(T, name) \
 \
@@ -83,5 +84,7 @@ void list_##name##_free(list_##name##_t* list)\
     free(list->data);\
     list->data = NULL;\
 }
+
+LIST_DECL(char*, string)
 
 #endif

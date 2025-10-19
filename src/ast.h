@@ -1,11 +1,13 @@
 #ifndef _AST_H
 #define _AST_H
 
+#include "list.h"
+
 typedef enum
 {
     TOPLEV_DECL=0,
     TOPLEV_FUNCDEF,
-} toplevtype_e;
+} globaltype_e;
 
 typedef struct funcdef_s
 {
@@ -24,6 +26,8 @@ typedef struct typedvar_s
     char* ident;
 } typedvar_t;
 
+LIST_DECL(typedvar_t, typedvar)
+
 typedef struct decl_s
 {
     decltype_e form;
@@ -31,26 +35,24 @@ typedef struct decl_s
     int type;
     char *ident;
 
-    int nargs;
-    typedvar_t *args;
+    list_typedvar_t args;
 } decl_t;
 
-typedef struct toplevdecl_s
+typedef struct globaldecl_s
 {
-    toplevtype_e form;
+    globaltype_e form;
 
     union
     {
         decl_t decl;
         funcdef_t funcdef;
     };
+} globaldecl_t;
 
-    struct toplevdecl_s *next;
-} toplevdecl_t;
+LIST_DECL(globaldecl_t, globaldecl)
 
-typedef struct ast_s
-{
+extern list_globaldecl_t ast;
 
-} ast_t;
+void parse(void);
 
 #endif
