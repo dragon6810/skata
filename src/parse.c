@@ -5,6 +5,8 @@
 #include "token.h"
 #include "type.h"
 
+list_globaldecl_t ast;
+
 token_t *curtok;
 
 static void parse_freetypedvar(typedvar_t* var)
@@ -65,39 +67,40 @@ static const char* parse_peekstr(int offs)
     }
 }
 
-static void parse_eatform(token_e form)
+static const char* parse_eatform(token_e form)
 {
-    const char *formname;
+    const char *str;
 
     if(parse_peekform(0) != form)
     {
         switch(form)
         {
         case TOKEN_EOF:
-            formname = "eof";
+            str = "eof";
             break;
         case TOKEN_IDENT:
         case TOKEN_RID:
-            formname = "identifier";
+            str = "identifier";
             break;
         case TOKEN_NUMBER:
-            formname = "number";
+            str = "number";
             break;
         case TOKEN_STRING:
-            formname = "string";
+            str = "string";
             break;
         case TOKEN_PUNC:
-            formname = "puncuation";
+            str = "puncuation";
             break;
         case TOKEN_TYPE:
-            formname = "type";
+            str = "type";
             break;
         }
-        printf("expected %s\n", formname);
+        printf("expected %s\n", str);
         exit(1);
     }
 
     curtok++;
+    return parse_peekstr(-1);
 }
 
 static void parse_eatstr(const char* str)
@@ -116,15 +119,26 @@ static void parse_eatstr(const char* str)
 
 static void parse_globaldecl(void)
 {
-    parse_eatform(TOKEN_TYPE);
-    parse_eatform(TOKEN_IDENT);
+    globaldecl_t decl;
+
+    decl.form = TOPLEV_DECL;
+
+    decl.decl.type = type_find(parse_eatform(TOKEN_TYPE));
+    decl.decl.ident = strdup(parse_eatform(TOKEN_IDENT));
     parse_eatstr(";");
+    
+    list_globaldecl_ppush(&ast, &decl);
 }
 
 void parse(void)
 {
+    int i;
+
     curtok = tokens.data;
 
     while(curtok->form != TOKEN_EOF)
         parse_globaldecl();
+
+    for(i=0; i<ast.len; i++)
+        printf("type: %d, name: %s.\n", ast.data[i].decl.type, ast.data[i].decl.ident);
 }
