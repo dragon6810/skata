@@ -11,11 +11,6 @@ typedef enum
     TOPLEV_FUNCDEF,
 } globaltype_e;
 
-typedef struct funcdef_s
-{
-
-} funcdef_t;
-
 typedef enum
 {
     DECL_VAR=0,
@@ -39,6 +34,13 @@ typedef struct decl_s
 
     list_typedvar_t args;
 } decl_t;
+
+LIST_DECL(decl_t, decl)
+
+typedef struct funcdef_s
+{
+    list_decl_t decls;
+} funcdef_t;
 
 typedef struct globaldecl_s
 {

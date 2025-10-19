@@ -9,6 +9,12 @@ list_globaldecl_t ast;
 
 token_t *curtok;
 
+static void parse_freedecl(decl_t* decl)
+{
+    free(decl->ident);
+    list_typedvar_free(&decl->args);
+}
+
 static void parse_freetypedvar(typedvar_t* var)
 {
     free(var->ident);
@@ -16,9 +22,13 @@ static void parse_freetypedvar(typedvar_t* var)
 
 static void parse_freeglobaldecl(globaldecl_t* decl)
 {
-    free(decl->decl.ident);
-    list_typedvar_free(&decl->decl.args);
+    parse_freedecl(&decl->decl);
+    if(decl->hasfuncdef)
+        list_decl_free(&decl->funcdef.decls);
 }
+
+LIST_DEF(decl)
+LIST_DEF_FREE_DECONSTRUCT(decl, parse_freedecl)
 
 LIST_DEF(typedvar)
 LIST_DEF_FREE_DECONSTRUCT(typedvar, parse_freetypedvar)
@@ -110,6 +120,27 @@ static void parse_eatstr(const char* str)
     curtok++;
 }
 
+static void parse_funcdef(funcdef_t* func)
+{
+    decl_t decl;
+
+    list_decl_init(&func->decls, 0);
+
+    parse_eatstr("{");
+
+    while(strcmp(parse_peekstr(0), "}"))
+    {
+        decl.form = DECL_VAR;
+        decl.type = type_find(parse_eatform(TOKEN_TYPE));
+        decl.ident = strdup(parse_eatform(TOKEN_IDENT));
+        parse_eatstr(";");
+        
+        list_decl_ppush(&func->decls, &decl);
+    }
+
+    parse_eatstr("}");
+}
+
 static void parse_arglist(decl_t* decl)
 {
     typedvar_t arg;
@@ -143,15 +174,39 @@ static void parse_globaldecl(void)
         decl.decl.form = DECL_FUNC;
 
         parse_eatstr("(");
-
         parse_arglist(&decl.decl);
-        
         parse_eatstr(")");
     }
 
-    parse_eatstr(";");
+    if(decl.decl.form == DECL_FUNC && !strcmp(parse_peekstr(0), "{"))
+    {   
+        decl.hasfuncdef = true;
+        parse_funcdef(&decl.funcdef);
+    }
+    else
+        parse_eatstr(";");
     
     list_globaldecl_ppush(&ast, &decl);
+}
+
+static void parse_printfuncdef(funcdef_t* def)
+{
+    int i;
+
+    printf("`- <function-definition>\n");
+    
+    for(i=0; i<def->decls.len; i++)
+        printf(" %c- <declaration> (type: %s), (name: %s)\n", 
+        i < def->decls.len - 1 ? '|' : '`', types.data[def->decls.data[i].type], def->decls.data[i].ident);
+}
+
+static void parse_printglobaldecl(globaldecl_t* decl)
+{
+    printf("- <external-decl>\n");
+    printf("%c- <declaration> (type: %s), (name: %s)\n", 
+        decl->hasfuncdef ? '|' : '`', types.data[decl->decl.type], decl->decl.ident);
+    if(decl->hasfuncdef)
+        parse_printfuncdef(&decl->funcdef);   
 }
 
 void parse(void)
@@ -164,5 +219,5 @@ void parse(void)
         parse_globaldecl();
 
     for(i=0; i<ast.len; i++)
-        printf("type: %d, name: %s.\n", ast.data[i].decl.type, ast.data[i].decl.ident);
+        parse_printglobaldecl(&ast.data[i]);
 }
