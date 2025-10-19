@@ -210,8 +210,6 @@ void lex_nexttok(void)
 
 void lex(void)
 {
-    int i;
-
     list_token_init(&tokens, 0);
 
     curpos = srctext;
@@ -220,29 +218,4 @@ void lex(void)
     do
         lex_nexttok();
     while(tokens.data[tokens.len-1].form != TOKEN_EOF);
-
-    for(i=0; i<tokens.len; i++)
-    {
-        switch(tokens.data[i].form)
-        {
-        case TOKEN_EOF:
-            printf("EOF");
-            break;
-        case TOKEN_IDENT:
-        case TOKEN_NUMBER:
-        case TOKEN_STRING:
-            printf("%s", tokens.data[i].msg);
-            break;
-        case TOKEN_RID:
-            printf("%s", rid_strs[tokens.data[i].rid]);
-            break;
-        case TOKEN_PUNC:
-            printf("%s", punc_strs[tokens.data[i].punc]);
-            break;
-        default:
-            break;
-        }
-
-        printf(" (%d:%d)\n", tokens.data[i].line + 1, tokens.data[i].column + 1);
-    }
 }

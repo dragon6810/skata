@@ -11,6 +11,10 @@ typedef enum
     TOKEN_NUMBER,
     TOKEN_STRING,
     TOKEN_PUNC,
+    
+    // no tokens will have these types
+    // these are discovered during parsing
+    TOKEN_TYPE,
 } token_e;
 
 #define DECL_PUNC(id, str)
