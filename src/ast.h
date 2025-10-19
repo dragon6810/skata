@@ -1,6 +1,8 @@
 #ifndef _AST_H
 #define _AST_H
 
+#include <stdbool.h>
+
 #include "list.h"
 
 typedef enum
@@ -40,13 +42,10 @@ typedef struct decl_s
 
 typedef struct globaldecl_s
 {
-    globaltype_e form;
+    bool hasfuncdef;
 
-    union
-    {
-        decl_t decl;
-        funcdef_t funcdef;
-    };
+    decl_t decl;
+    funcdef_t funcdef;
 } globaldecl_t;
 
 LIST_DECL(globaldecl_t, globaldecl)

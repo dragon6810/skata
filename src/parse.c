@@ -16,15 +16,8 @@ static void parse_freetypedvar(typedvar_t* var)
 
 static void parse_freeglobaldecl(globaldecl_t* decl)
 {
-    switch(decl->form)
-    {
-    case DECL_VAR:
-        free(decl->decl.ident);
-        list_typedvar_free(&decl->decl.args);
-        break;
-    default:
-        break;
-    }
+    free(decl->decl.ident);
+    list_typedvar_free(&decl->decl.args);
 }
 
 LIST_DEF(typedvar)
@@ -117,14 +110,45 @@ static void parse_eatstr(const char* str)
     curtok++;
 }
 
+static void parse_arglist(decl_t* decl)
+{
+    typedvar_t arg;
+
+    while(1)
+    {
+        if(!strcmp(parse_peekstr(0), ")"))
+            break;
+
+        arg.type = type_find(parse_eatform(TOKEN_TYPE));
+        arg.ident = strdup(parse_eatform(TOKEN_IDENT));
+        list_typedvar_ppush(&decl->args, &arg);
+
+        if(strcmp(parse_peekstr(0), ")"))
+            parse_eatstr(",");
+    }
+}
+
 static void parse_globaldecl(void)
 {
     globaldecl_t decl;
 
-    decl.form = TOPLEV_DECL;
-
+    decl.hasfuncdef = false;
+    decl.decl.form = DECL_VAR;
     decl.decl.type = type_find(parse_eatform(TOKEN_TYPE));
     decl.decl.ident = strdup(parse_eatform(TOKEN_IDENT));
+    list_typedvar_init(&decl.decl.args, 0);
+
+    if(!strcmp(parse_peekstr(0), "("))
+    {   
+        decl.decl.form = DECL_FUNC;
+
+        parse_eatstr("(");
+
+        parse_arglist(&decl.decl);
+        
+        parse_eatstr(")");
+    }
+
     parse_eatstr(";");
     
     list_globaldecl_ppush(&ast, &decl);
