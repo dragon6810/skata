@@ -7,35 +7,23 @@
 
 typedef enum
 {
-    TOPLEV_DECL=0,
-    TOPLEV_FUNCDEF,
-} globaltype_e;
-
-typedef enum
-{
     DECL_VAR=0,
     DECL_FUNC,
 } decltype_e;
 
-typedef struct typedvar_s
-{
-    int type;
-    char* ident;
-} typedvar_t;
+typedef struct decl_s decl_t;
 
-LIST_DECL(typedvar_t, typedvar)
+LIST_DECL(decl_t, decl)
 
-typedef struct decl_s
+struct decl_s
 {
     decltype_e form;
 
     int type;
     char *ident;
 
-    list_typedvar_t args;
-} decl_t;
-
-LIST_DECL(decl_t, decl)
+    list_decl_t args;
+};
 
 typedef struct funcdef_s
 {

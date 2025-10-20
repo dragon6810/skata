@@ -12,12 +12,7 @@ token_t *curtok;
 static void parse_freedecl(decl_t* decl)
 {
     free(decl->ident);
-    list_typedvar_free(&decl->args);
-}
-
-static void parse_freetypedvar(typedvar_t* var)
-{
-    free(var->ident);
+    list_decl_free(&decl->args);
 }
 
 static void parse_freeglobaldecl(globaldecl_t* decl)
@@ -29,9 +24,6 @@ static void parse_freeglobaldecl(globaldecl_t* decl)
 
 LIST_DEF(decl)
 LIST_DEF_FREE_DECONSTRUCT(decl, parse_freedecl)
-
-LIST_DEF(typedvar)
-LIST_DEF_FREE_DECONSTRUCT(typedvar, parse_freetypedvar)
 
 LIST_DEF(globaldecl)
 LIST_DEF_FREE_DECONSTRUCT(globaldecl, parse_freeglobaldecl)
@@ -143,7 +135,7 @@ static void parse_funcdef(funcdef_t* func)
 
 static void parse_arglist(decl_t* decl)
 {
-    typedvar_t arg;
+    decl_t arg;
 
     while(1)
     {
@@ -152,7 +144,9 @@ static void parse_arglist(decl_t* decl)
 
         arg.type = type_find(parse_eatform(TOKEN_TYPE));
         arg.ident = strdup(parse_eatform(TOKEN_IDENT));
-        list_typedvar_ppush(&decl->args, &arg);
+        list_decl_init(&arg.args, 0);
+
+        list_decl_ppush(&decl->args, &arg);
 
         if(strcmp(parse_peekstr(0), ")"))
             parse_eatstr(",");
@@ -167,7 +161,7 @@ static void parse_globaldecl(void)
     decl.decl.form = DECL_VAR;
     decl.decl.type = type_find(parse_eatform(TOKEN_TYPE));
     decl.decl.ident = strdup(parse_eatform(TOKEN_IDENT));
-    list_typedvar_init(&decl.decl.args, 0);
+    list_decl_init(&decl.decl.args, 0);
 
     if(!strcmp(parse_peekstr(0), "("))
     {   
