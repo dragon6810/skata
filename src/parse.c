@@ -22,11 +22,49 @@ static void parse_freeglobaldecl(globaldecl_t* decl)
         list_decl_free(&decl->funcdef.decls);
 }
 
+static void parse_freeexpr(expr_t* expr)
+{
+    switch(expr->op)
+    {
+    case EXPROP_ATOM:
+        free(expr->msg);
+        break;
+    case EXPROP_ADD:
+    case EXPROP_MULT:
+        parse_freeexpr(expr->terms[0]);
+        parse_freeexpr(expr->terms[1]);
+        break;
+    default:
+        break;
+    }
+
+    free(expr);
+}
+
+static void parse_freestmnt(stmnt_t* stmnt)
+{
+    switch(stmnt->form)
+    {
+    case STMNT_EXPR:
+        parse_freeexpr(stmnt->expr);
+        break;
+    case STMNT_COMPOUND:
+        list_decl_free(&stmnt->compound.decls);
+        list_stmnt_free(&stmnt->compound.stmnts);
+        break;
+    default:
+        break;
+    }
+}
+
 LIST_DEF(decl)
 LIST_DEF_FREE_DECONSTRUCT(decl, parse_freedecl)
 
 LIST_DEF(globaldecl)
 LIST_DEF_FREE_DECONSTRUCT(globaldecl, parse_freeglobaldecl)
+
+LIST_DEF(stmnt)
+LIST_DEF_FREE_DECONSTRUCT(stmnt, parse_freestmnt)
 
 static token_e parse_peekform(int offs)
 {
@@ -112,11 +150,12 @@ static void parse_eatstr(const char* str)
     curtok++;
 }
 
-static void parse_funcdef(funcdef_t* func)
+static void parse_compound(compound_t* cmpnd)
 {
     decl_t decl;
 
-    list_decl_init(&func->decls, 0);
+    list_decl_init(&cmpnd->decls, 0);
+    list_stmnt_init(&cmpnd->stmnts, 0);
 
     parse_eatstr("{");
 
@@ -127,7 +166,7 @@ static void parse_funcdef(funcdef_t* func)
         decl.ident = strdup(parse_eatform(TOKEN_IDENT));
         parse_eatstr(";");
         
-        list_decl_ppush(&func->decls, &decl);
+        list_decl_ppush(&cmpnd->decls, &decl);
     }
 
     parse_eatstr("}");
@@ -175,7 +214,7 @@ static void parse_globaldecl(void)
     if(decl.decl.form == DECL_FUNC && !strcmp(parse_peekstr(0), "{"))
     {   
         decl.hasfuncdef = true;
-        parse_funcdef(&decl.funcdef);
+        parse_compound(&decl.funcdef);
     }
     else
         parse_eatstr(";");
@@ -183,7 +222,7 @@ static void parse_globaldecl(void)
     list_globaldecl_ppush(&ast, &decl);
 }
 
-static void parse_printfuncdef(funcdef_t* def)
+static void parse_printcompound(compound_t* def)
 {
     int i;
 
@@ -192,6 +231,16 @@ static void parse_printfuncdef(funcdef_t* def)
     for(i=0; i<def->decls.len; i++)
         printf(" %c- <declaration> (type: %s), (name: %s)\n", 
         i < def->decls.len - 1 ? '|' : '`', types.data[def->decls.data[i].type], def->decls.data[i].ident);
+
+    for(i=0; i<def->stmnts.len; i++)
+    {
+        if(def->stmnts.data[i].form != STMNT_EXPR)
+            continue;
+
+        printf(" %c- <expression> ", 
+        i < def->decls.len - 1 ? '|' : '`');
+        parse_printexpr(def->stmnts.data[i].expr);
+    }
 }
 
 static void parse_printglobaldecl(globaldecl_t* decl)
@@ -200,7 +249,7 @@ static void parse_printglobaldecl(globaldecl_t* decl)
     printf("%c- <declaration> (type: %s), (name: %s)\n", 
         decl->hasfuncdef ? '|' : '`', types.data[decl->decl.type], decl->decl.ident);
     if(decl->hasfuncdef)
-        parse_printfuncdef(&decl->funcdef);   
+        parse_printcompound(&decl->funcdef);   
 }
 
 void parse(void)
