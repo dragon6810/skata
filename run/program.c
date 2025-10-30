@@ -8,5 +8,5 @@ void func(int x, int y)
     int b;
     int c;
 
-    10 + 3 + 4 * a + 3;
+    a = b = c = 10 * 4 + 2;
 }

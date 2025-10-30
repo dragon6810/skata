@@ -24,11 +24,20 @@ static void parse_printexpr_r(const expr_t* expr)
     case EXPROP_ATOM:
         printf("%s", expr->msg);
         return;
+    case EXPROP_ASSIGN:
+        op = '=';
+        break;
     case EXPROP_ADD:
         op = '+';
         break;
+    case EXPROP_SUB:
+        op = '-';
+        break;
     case EXPROP_MULT:
         op = '*';
+        break;
+    case EXPROP_DIV:
+        op = '/';
         break;
     default:
         return;
@@ -51,13 +60,19 @@ static void parse_infixopbp(exprop_e op, int bp[2])
 {
     switch(op)
     {
-    case EXPROP_ADD:
-        bp[0] = 1;
-        bp[1] = 2;
+    case EXPROP_ASSIGN:
+        bp[0] = 2;
+        bp[1] = 1;
         break;
-    case EXPROP_MULT:
+    case EXPROP_ADD:
+    case EXPROP_SUB:
         bp[0] = 3;
         bp[1] = 4;
+        break;
+    case EXPROP_MULT:
+    case EXPROP_DIV:
+        bp[0] = 5;
+        bp[1] = 6;
         break;
     default:
         bp[0] = bp[1] = 0;
@@ -84,10 +99,16 @@ static expr_t* parse_expr_r(int minbp)
     while(1)
     {
         tokstr = parse_peekstr(0);
-        if(!strcmp(tokstr, "+"))
+        if(!strcmp(tokstr, "="))
+            op = EXPROP_ASSIGN;
+        else if(!strcmp(tokstr, "+"))
             op = EXPROP_ADD;
+        else if(!strcmp(tokstr, "-"))
+            op = EXPROP_SUB;
         else if(!strcmp(tokstr, "*"))
             op = EXPROP_MULT;
+        else if(!strcmp(tokstr, "/"))
+            op = EXPROP_DIV;
         else
             break;
 

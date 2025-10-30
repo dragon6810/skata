@@ -21,8 +21,11 @@ typedef enum
 typedef enum
 {
     EXPROP_ATOM=0,
+    EXPROP_ASSIGN,
     EXPROP_ADD,
+    EXPROP_SUB,
     EXPROP_MULT,
+    EXPROP_DIV,
 } exprop_e;
 
 typedef struct expr_s
