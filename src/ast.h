@@ -16,6 +16,7 @@ typedef enum
 {
     STMNT_EXPR=0,
     STMNT_COMPOUND,
+    STMNT_RETURN,
 } stmnttype_e;
 
 typedef enum

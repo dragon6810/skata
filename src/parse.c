@@ -185,6 +185,25 @@ static void parse_decl(decl_t* decl)
     parse_eatstr(";");
 }
 
+static void parse_statement(stmnt_t* stmnt)
+{
+    if(!strcmp(parse_peekstr(0), "return"))
+    {
+        parse_eat();
+
+        stmnt->form = STMNT_RETURN;
+        stmnt->expr = parse_expr();
+        parse_eatstr(";");
+        return;
+    }
+
+    stmnt->form = STMNT_EXPR;
+    stmnt->expr = parse_expr();
+    parse_eatstr(";");
+
+    return;
+}
+
 static void parse_compound(compound_t* cmpnd)
 {
     decl_t decl;
@@ -204,10 +223,7 @@ static void parse_compound(compound_t* cmpnd)
         }
         else
         {
-            stmnt.form = STMNT_EXPR;
-            stmnt.expr = parse_expr();
-            parse_eatstr(";");
-            
+            parse_statement(&stmnt);
             list_stmnt_ppush(&cmpnd->stmnts, &stmnt);
         }
     }
@@ -291,6 +307,50 @@ static void parse_printexprast(expr_t* expr, int depth, bool last, char* leftstr
     free(newleft);
 }
 
+static void parse_printexprstatement(stmnt_t* stmnt, int depth, bool last, char* leftstr)
+{
+    char* newleft;
+
+    newleft = parse_printprefix(depth, last, leftstr);
+
+    printf("\e[1;32m<expression-statement>\e[0m\n");
+    if(stmnt->expr)
+        parse_printexprast(stmnt->expr, depth + 1, true, newleft);
+
+    free(newleft);
+}
+
+static void parse_printreturnstatement(stmnt_t* stmnt, int depth, bool last, char* leftstr)
+{
+    char* newleft;
+
+    newleft = parse_printprefix(depth, last, leftstr);
+
+    printf("\e[1;32m<return-statement>\e[0m\n");
+    if(stmnt->expr)
+        parse_printexprast(stmnt->expr, depth + 1, true, newleft);
+
+    free(newleft);
+}
+
+static void parse_printcompound(compound_t* def, int depth, bool last, char* leftstr);
+
+static void parse_printstatement(stmnt_t* stmnt, int depth, bool last, char* leftstr)
+{
+    switch(stmnt->form)
+    {
+    case STMNT_COMPOUND:
+        parse_printcompound(&stmnt->compound, depth, last, leftstr);
+        break;
+    case STMNT_EXPR:
+        parse_printexprstatement(stmnt, depth, last, leftstr);
+        break;
+    case STMNT_RETURN:
+        parse_printreturnstatement(stmnt, depth, last, leftstr);
+        break;
+    }
+}
+
 static void parse_printdecl(decl_t* decl, int depth, bool last, char* leftstr)
 {
     char* newleft;
@@ -318,12 +378,7 @@ static void parse_printcompound(compound_t* def, int depth, bool last, char* lef
         parse_printdecl(&def->decls.data[i], depth + 1, i == def->decls.len - 1 && !def->stmnts.len, newleft);
 
     for(i=0; i<def->stmnts.len; i++)
-    {
-        if(def->stmnts.data[i].form != STMNT_EXPR)
-            continue;
-
-        parse_printexprast(def->stmnts.data[i].expr, depth + 1, i == def->stmnts.len - 1, newleft);
-    }
+        parse_printstatement(&def->stmnts.data[i], depth + 1, i == def->stmnts.len - 1, newleft);
 
     free(newleft);
 }

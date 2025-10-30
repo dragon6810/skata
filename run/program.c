@@ -1,13 +1,4 @@
-int global;
-
-void func(int x, int y);
-
-void func(int x, int y)
+int main()
 {
-    int a;
-    int b;
-    int c = x + 3;
-
-    a = (1 + 3) * 2;
-    b = (((a)));
+    return 0;
 }
