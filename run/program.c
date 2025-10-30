@@ -8,7 +8,6 @@ void func(int x, int y)
     int b;
     int c;
 
-    a = b = c = -10 * -4 - -2;
-    a = b++;
-    c = -++a;
+    a = (1 + 3) * 2;
+    b = (((a)));
 }

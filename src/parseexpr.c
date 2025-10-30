@@ -171,6 +171,13 @@ static expr_t* parse_expr_r(int minbp)
             op = EXPROP_PREINC;
         else if(!strcmp(parse_peekstr(0), "--"))
             op = EXPROP_POSTINC;
+        else if(!strcmp(parse_peekstr(0), "("))
+        {
+            parse_eat();
+            expr = parse_expr_r(0);
+            parse_eatstr(")");
+            break;
+        }
         else
             return expr;
 
