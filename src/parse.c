@@ -253,34 +253,78 @@ static void parse_globaldecl(void)
     list_globaldecl_ppush(&ast, &decl);
 }
 
-static void parse_printcompound(compound_t* def)
+static char* parse_printprefix(int depth, bool last, char* prefix)
+{
+    char *newprefix;
+
+    printf("\033[1;35m%s%s\033[0m", prefix, (depth ? (last ? "`-" : "|-") : "-"));
+
+    newprefix = malloc(strlen(prefix) + 3);
+    snprintf(newprefix, strlen(prefix) + 3, "%s%s ", prefix, (last ? " " : "|"));
+
+    return newprefix;
+}
+
+static void parse_printexprast(expr_t* expr, int depth, bool last, char* leftstr)
+{
+    char* newleft;
+
+    newleft = parse_printprefix(depth, last, leftstr);
+
+    printf("\e[1;32m<expression> \e[0;96m");
+    parse_printexpr(expr);
+    printf("\e[0m");
+
+    free(newleft);
+}
+
+static void parse_printdecl(decl_t* decl, int depth, bool last, char* leftstr)
+{
+    char* newleft;
+
+    newleft = parse_printprefix(depth, last, leftstr);
+
+    printf("\e[1;32m<declaration> \e[0;96m(type: %s), (name: %s)\e[0m\n", types.data[decl->type], decl->ident);
+
+    free(newleft);
+}
+
+static void parse_printcompound(compound_t* def, int depth, bool last, char* leftstr)
 {
     int i;
 
-    printf("`- <function-definition>\n");
-    
+    char *newleft;
+
+    newleft = parse_printprefix(depth, last, leftstr);
+
+    printf("\e[1;32m<compound-statement>\e[0m\n");
+
     for(i=0; i<def->decls.len; i++)
-        printf(" %c- <declaration> (type: %s), (name: %s)\n", 
-        i < def->decls.len - 1 ? '|' : '`', types.data[def->decls.data[i].type], def->decls.data[i].ident);
+        parse_printdecl(&def->decls.data[i], depth + 1, i == def->decls.len - 1 && !def->stmnts.len, newleft);
 
     for(i=0; i<def->stmnts.len; i++)
     {
         if(def->stmnts.data[i].form != STMNT_EXPR)
             continue;
 
-        printf(" %c- <expression> ", 
-        i < def->decls.len - 1 ? '|' : '`');
-        parse_printexpr(def->stmnts.data[i].expr);
+        parse_printexprast(def->stmnts.data[i].expr, depth + 1, i == def->stmnts.len - 1, newleft);
     }
+
+    free(newleft);
 }
 
-static void parse_printglobaldecl(globaldecl_t* decl)
+static void parse_printglobaldecl(globaldecl_t* decl, int depth, bool last, char* leftstr)
 {
-    printf("- <external-decl>\n");
-    printf("%c- <declaration> (type: %s), (name: %s)\n", 
-        decl->hasfuncdef ? '|' : '`', types.data[decl->decl.type], decl->decl.ident);
+    char *newleft;
+
+    newleft = parse_printprefix(depth, last, leftstr);
+
+    printf("\e[1;32m<external-decl>\e\n");
+    parse_printdecl(&decl->decl, depth + 1, !decl->hasfuncdef, newleft);
     if(decl->hasfuncdef)
-        parse_printcompound(&decl->funcdef);   
+        parse_printcompound(&decl->funcdef, depth + 1, true, newleft); 
+
+    free(newleft);  
 }
 
 void parse(void)
@@ -293,5 +337,5 @@ void parse(void)
         parse_globaldecl();
 
     for(i=0; i<ast.len; i++)
-        parse_printglobaldecl(&ast.data[i]);
+        parse_printglobaldecl(&ast.data[i], 1, i == ast.len - 1, "");
 }
