@@ -169,6 +169,22 @@ const char* parse_eat(void)
     }
 }
 
+static void parse_decl(decl_t* decl)
+{
+    decl->form = DECL_VAR;
+    decl->type = type_find(parse_eatform(TOKEN_TYPE));
+    decl->ident = strdup(parse_eatform(TOKEN_IDENT));
+    decl->expr = NULL;
+
+    if(!strcmp(parse_peekstr(0), "="))
+    {
+        curtok--;
+        decl->expr = parse_expr();
+    }
+
+    parse_eatstr(";");
+}
+
 static void parse_compound(compound_t* cmpnd)
 {
     decl_t decl;
@@ -183,11 +199,7 @@ static void parse_compound(compound_t* cmpnd)
     {
         if(parse_peekform(0) == TOKEN_TYPE)
         {
-            decl.form = DECL_VAR;
-            decl.type = type_find(parse_eatform(TOKEN_TYPE));
-            decl.ident = strdup(parse_eatform(TOKEN_IDENT));
-            parse_eatstr(";");
-            
+            parse_decl(&decl);
             list_decl_ppush(&cmpnd->decls, &decl);
         }
         else
@@ -231,6 +243,7 @@ static void parse_globaldecl(void)
     decl.decl.form = DECL_VAR;
     decl.decl.type = type_find(parse_eatform(TOKEN_TYPE));
     decl.decl.ident = strdup(parse_eatform(TOKEN_IDENT));
+    decl.decl.expr = NULL;
     list_decl_init(&decl.decl.args, 0);
 
     if(!strcmp(parse_peekstr(0), "("))
@@ -285,6 +298,8 @@ static void parse_printdecl(decl_t* decl, int depth, bool last, char* leftstr)
     newleft = parse_printprefix(depth, last, leftstr);
 
     printf("\e[1;32m<declaration> \e[0;96m(type: %s), (name: %s)\e[0m\n", types.data[decl->type], decl->ident);
+    if(decl->expr)
+        parse_printexprast(decl->expr, depth + 1, true, newleft);
 
     free(newleft);
 }

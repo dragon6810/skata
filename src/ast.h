@@ -61,6 +61,7 @@ struct decl_s
     int type;
     char *ident;
 
+    expr_t *expr;
     list_decl_t args;
 };
 

@@ -6,7 +6,7 @@ void func(int x, int y)
 {
     int a;
     int b;
-    int c;
+    int c = x + 3;
 
     a = (1 + 3) * 2;
     b = (((a)));
