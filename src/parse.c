@@ -30,8 +30,8 @@ static void parse_freeexpr(expr_t* expr)
         break;
     case EXPROP_ADD:
     case EXPROP_MULT:
-        parse_freeexpr(expr->terms[0]);
-        parse_freeexpr(expr->terms[1]);
+        parse_freeexpr(expr->operands[0]);
+        parse_freeexpr(expr->operands[1]);
         break;
     default:
         break;

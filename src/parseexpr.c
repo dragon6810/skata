@@ -4,56 +4,79 @@
 
 #include "token.h"
 
-static bool parse_tokenisatom(void)
-{
-    if(parse_peekform(0) == TOKEN_NUMBER)
-        return true;
-
-    if(parse_peekform(0) == TOKEN_IDENT)
-        return true;
-
-    return false;
-}
-
 static void parse_printexpr_r(const expr_t* expr)
 {
-    char op;
+    int i;
 
+    char op;
+    int nterms;
+
+    if(!expr)
+        return;
+
+    nterms = 0;
     switch(expr->op)
     {
     case EXPROP_ATOM:
         printf("%s", expr->msg);
         return;
     case EXPROP_ASSIGN:
+        nterms = 2;
         op = '=';
         break;
     case EXPROP_ADD:
+        nterms = 2;
         op = '+';
         break;
     case EXPROP_SUB:
+        nterms = 2;
         op = '-';
         break;
     case EXPROP_MULT:
+        nterms = 2;
         op = '*';
         break;
     case EXPROP_DIV:
+        nterms = 2;
         op = '/';
+        break;
+    case EXPROP_NEG:
+        nterms = 1;
+        op = '-';
+        break;
+    case EXPROP_POS:
+        nterms = 1;
+        op = '+';
         break;
     default:
         return;
     }
 
     printf("( %c ", op);
-    parse_printexpr_r(expr->terms[0]);
-    printf(" ");
-    parse_printexpr_r(expr->terms[1]);
-    printf(" )");
+    for(i=0; i<nterms; i++)
+    {
+        parse_printexpr_r(expr->operands[i]);
+        printf(" ");
+    }
+    printf(")");
 }
 
 void parse_printexpr(const expr_t* expr)
 {
     parse_printexpr_r(expr);
     puts("");
+}
+
+static int parse_prefixopbp(exprop_e op)
+{
+    switch(op)
+    {
+    case EXPROP_NEG:
+    case EXPROP_POS:
+        return 7;
+    default:
+        return 0;
+    }
 }
 
 static void parse_infixopbp(exprop_e op, int bp[2])
@@ -89,12 +112,32 @@ static expr_t* parse_expr_r(int minbp)
 
     expr = NULL;
 
-    if(!parse_tokenisatom())
-        return expr;
+    switch(parse_peekform(0))
+    {
+    case TOKEN_NUMBER:
+    case TOKEN_IDENT:
+        expr = malloc(sizeof(expr_t));
+        expr->op = EXPROP_ATOM;
+        expr->msg = strdup(parse_eat());
+        break;
+    case TOKEN_PUNC:
+        if(!strcmp(parse_peekstr(0), "-"))
+            op = EXPROP_NEG;
+        else if(!strcmp(parse_peekstr(0), "+"))
+            op = EXPROP_POS;
+        else
+            return expr;
 
-    expr = malloc(sizeof(expr_t));
-    expr->op = EXPROP_ATOM;
-    expr->msg = strdup(parse_eat());
+        parse_eat();
+
+        expr = malloc(sizeof(expr_t));
+        expr->op = op;
+        expr->operand = parse_expr_r(parse_prefixopbp(op));
+
+        break;
+    default:
+        return expr;
+    }
 
     while(1)
     {
@@ -126,8 +169,8 @@ static expr_t* parse_expr_r(int minbp)
 
         expr = malloc(sizeof(expr_t));
         expr->op = op;
-        expr->terms[0] = lhs;
-        expr->terms[1] = rhs;
+        expr->operands[0] = lhs;
+        expr->operands[1] = rhs;
     }
 
     return expr;
