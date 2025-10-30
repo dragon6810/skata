@@ -2,6 +2,19 @@
 
 #include <stdio.h>
 
+#include "token.h"
+
+static bool parse_tokenisatom(void)
+{
+    if(parse_peekform(0) == TOKEN_NUMBER)
+        return true;
+
+    if(parse_peekform(0) == TOKEN_IDENT)
+        return true;
+
+    return false;
+}
+
 static void parse_printexpr_r(const expr_t* expr)
 {
     char op;
@@ -34,7 +47,72 @@ void parse_printexpr(const expr_t* expr)
     puts("");
 }
 
+static void parse_infixopbp(exprop_e op, int bp[2])
+{
+    switch(op)
+    {
+    case EXPROP_ADD:
+        bp[0] = 1;
+        bp[1] = 2;
+        break;
+    case EXPROP_MULT:
+        bp[0] = 3;
+        bp[1] = 4;
+        break;
+    default:
+        bp[0] = bp[1] = 0;
+        break;
+    }
+}
+
+static expr_t* parse_expr_r(int minbp)
+{
+    expr_t *expr, *lhs, *rhs;
+    const char *tokstr;
+    exprop_e op;
+    int bp[2];
+
+    expr = NULL;
+
+    if(!parse_tokenisatom())
+        return expr;
+
+    expr = malloc(sizeof(expr_t));
+    expr->op = EXPROP_ATOM;
+    expr->msg = strdup(parse_eat());
+
+    while(1)
+    {
+        tokstr = parse_peekstr(0);
+        if(!strcmp(tokstr, "+"))
+            op = EXPROP_ADD;
+        else if(!strcmp(tokstr, "*"))
+            op = EXPROP_MULT;
+        else
+            break;
+
+        parse_infixopbp(op, bp);
+        if(bp[0] < minbp)
+            break;
+
+        parse_eat();
+        
+        rhs = parse_expr_r(bp[1]);
+        if(!rhs)
+            break;
+
+        lhs = expr;
+
+        expr = malloc(sizeof(expr_t));
+        expr->op = op;
+        expr->terms[0] = lhs;
+        expr->terms[1] = rhs;
+    }
+
+    return expr;
+}
+
 expr_t* parse_expr(void)
 {
-    return NULL;
+    return parse_expr_r(0);
 }

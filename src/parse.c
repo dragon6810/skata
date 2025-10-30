@@ -2,7 +2,6 @@
 
 #include <stdio.h>
 
-#include "token.h"
 #include "type.h"
 
 list_globaldecl_t ast;
@@ -66,7 +65,7 @@ LIST_DEF_FREE_DECONSTRUCT(globaldecl, parse_freeglobaldecl)
 LIST_DEF(stmnt)
 LIST_DEF_FREE_DECONSTRUCT(stmnt, parse_freestmnt)
 
-static token_e parse_peekform(int offs)
+token_e parse_peekform(int offs)
 {
     token_t *tok;
 
@@ -78,7 +77,7 @@ static token_e parse_peekform(int offs)
     return tok->form;
 }
 
-static const char* parse_peekstr(int offs)
+const char* parse_peekstr(int offs)
 {
     token_t *tok;
 
@@ -100,7 +99,7 @@ static const char* parse_peekstr(int offs)
     }
 }
 
-static const char* parse_eatform(token_e form)
+const char* parse_eatform(token_e form)
 {
     const char *str;
 
@@ -136,7 +135,7 @@ static const char* parse_eatform(token_e form)
     return parse_peekstr(-1);
 }
 
-static void parse_eatstr(const char* str)
+void parse_eatstr(const char* str)
 {
     const char *tokstr;
 
@@ -150,9 +149,30 @@ static void parse_eatstr(const char* str)
     curtok++;
 }
 
+const char* parse_eat(void)
+{
+    token_t *oldtok;
+
+    oldtok = curtok++;
+    switch(oldtok->form)
+    {
+    case TOKEN_IDENT:
+    case TOKEN_NUMBER:
+    case TOKEN_STRING:
+        return oldtok->msg;
+    case TOKEN_PUNC:
+        return punc_strs[oldtok->punc];
+    case TOKEN_RID:
+        return rid_strs[oldtok->rid];
+    default:
+        return "";
+    }
+}
+
 static void parse_compound(compound_t* cmpnd)
 {
     decl_t decl;
+    stmnt_t stmnt;
 
     list_decl_init(&cmpnd->decls, 0);
     list_stmnt_init(&cmpnd->stmnts, 0);
@@ -161,12 +181,23 @@ static void parse_compound(compound_t* cmpnd)
 
     while(strcmp(parse_peekstr(0), "}"))
     {
-        decl.form = DECL_VAR;
-        decl.type = type_find(parse_eatform(TOKEN_TYPE));
-        decl.ident = strdup(parse_eatform(TOKEN_IDENT));
-        parse_eatstr(";");
-        
-        list_decl_ppush(&cmpnd->decls, &decl);
+        if(parse_peekform(0) == TOKEN_TYPE)
+        {
+            decl.form = DECL_VAR;
+            decl.type = type_find(parse_eatform(TOKEN_TYPE));
+            decl.ident = strdup(parse_eatform(TOKEN_IDENT));
+            parse_eatstr(";");
+            
+            list_decl_ppush(&cmpnd->decls, &decl);
+        }
+        else
+        {
+            stmnt.form = STMNT_EXPR;
+            stmnt.expr = parse_expr();
+            parse_eatstr(";");
+            
+            list_stmnt_ppush(&cmpnd->stmnts, &stmnt);
+        }
     }
 
     parse_eatstr("}");
