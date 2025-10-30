@@ -33,6 +33,10 @@ typedef enum
     // unary operators
     EXPROP_NEG,
     EXPROP_POS,
+    EXPROP_PREINC,
+    EXPROP_PREDEC,
+    EXPROP_POSTINC,
+    EXPROP_POSTDEC,
 } exprop_e;
 
 typedef struct expr_s

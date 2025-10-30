@@ -8,13 +8,15 @@ static void parse_printexpr_r(const expr_t* expr)
 {
     int i;
 
-    char op;
+    const char *op;
     int nterms;
+    bool postfix;
 
     if(!expr)
         return;
 
     nterms = 0;
+    postfix = false;
     switch(expr->op)
     {
     case EXPROP_ATOM:
@@ -22,43 +24,69 @@ static void parse_printexpr_r(const expr_t* expr)
         return;
     case EXPROP_ASSIGN:
         nterms = 2;
-        op = '=';
+        op = "=";
         break;
     case EXPROP_ADD:
         nterms = 2;
-        op = '+';
+        op = "+";
         break;
     case EXPROP_SUB:
         nterms = 2;
-        op = '-';
+        op = "-";
         break;
     case EXPROP_MULT:
         nterms = 2;
-        op = '*';
+        op = "*";
         break;
     case EXPROP_DIV:
         nterms = 2;
-        op = '/';
+        op = "/";
         break;
     case EXPROP_NEG:
         nterms = 1;
-        op = '-';
+        op = "-";
         break;
     case EXPROP_POS:
         nterms = 1;
-        op = '+';
+        op = "+";
+        break;
+    case EXPROP_PREINC:
+        nterms = 1;
+        op = "++";
+        break;
+    case EXPROP_PREDEC:
+        nterms = 1;
+        op = "--";
+        break;
+    case EXPROP_POSTINC:
+        nterms = 1;
+        op = "++";
+        postfix = true;
+        break;
+    case EXPROP_POSTDEC:
+        nterms = 1;
+        op = "--";
+        postfix = true;
         break;
     default:
         return;
     }
 
-    printf("( %c ", op);
+    if(!postfix)
+        printf("( %s ", op);
+    else
+        printf("( ");
+
     for(i=0; i<nterms; i++)
     {
         parse_printexpr_r(expr->operands[i]);
         printf(" ");
     }
-    printf(")");
+
+    if(!postfix)
+        printf(")");
+    else
+        printf("%s )", op);
 }
 
 void parse_printexpr(const expr_t* expr)
@@ -67,12 +95,26 @@ void parse_printexpr(const expr_t* expr)
     puts("");
 }
 
+static int parse_postfixopbp(exprop_e op)
+{
+    switch(op)
+    {
+    case EXPROP_POSTINC:
+    case EXPROP_POSTDEC:
+        return 8;
+    default:
+        return 0;
+    }
+}
+
 static int parse_prefixopbp(exprop_e op)
 {
     switch(op)
     {
     case EXPROP_NEG:
     case EXPROP_POS:
+    case EXPROP_PREINC:
+    case EXPROP_PREDEC:
         return 7;
     default:
         return 0;
@@ -125,6 +167,10 @@ static expr_t* parse_expr_r(int minbp)
             op = EXPROP_NEG;
         else if(!strcmp(parse_peekstr(0), "+"))
             op = EXPROP_POS;
+        else if(!strcmp(parse_peekstr(0), "++"))
+            op = EXPROP_PREINC;
+        else if(!strcmp(parse_peekstr(0), "--"))
+            op = EXPROP_POSTINC;
         else
             return expr;
 
@@ -152,18 +198,43 @@ static expr_t* parse_expr_r(int minbp)
             op = EXPROP_MULT;
         else if(!strcmp(tokstr, "/"))
             op = EXPROP_DIV;
+        else if(!strcmp(tokstr, "++"))
+            op = EXPROP_POSTINC;
+        else if(!strcmp(tokstr, "--"))
+            op = EXPROP_POSTDEC;
         else
             break;
 
+        switch(op)
+        {
+        case EXPROP_POSTINC:
+        case EXPROP_POSTDEC:
+            bp[0] = parse_postfixopbp(op);
+            if(bp[0] < minbp)
+                goto done;
+
+            parse_eat();
+
+            lhs = expr;
+
+            expr = malloc(sizeof(expr_t));
+            expr->op = op;
+            expr->operand = lhs;
+
+            goto continueloop;
+        default:
+            break;
+        }
+
         parse_infixopbp(op, bp);
         if(bp[0] < minbp)
-            break;
+            goto done;
 
         parse_eat();
         
         rhs = parse_expr_r(bp[1]);
         if(!rhs)
-            break;
+            goto done;
 
         lhs = expr;
 
@@ -171,8 +242,12 @@ static expr_t* parse_expr_r(int minbp)
         expr->op = op;
         expr->operands[0] = lhs;
         expr->operands[1] = rhs;
+
+continueloop:
+        continue;
     }
 
+done:
     return expr;
 }
 
