@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "ast.h"
+#include "map.h"
 #include "token.h"
 #include "type.h"
 
@@ -48,6 +49,21 @@ void usage(char* program)
 
 int main(int argc, char** argv)
 {
+    int key, val;
+    map_int_int_t map;
+
+    map_int_int_alloc(&map);
+    key = 4; val = 2;
+    map_int_int_set(&map, &key, &val);
+    printf("map[%d]: %d\n", key, *map_int_int_get(&map, &key));
+    key = 2; val = 3;
+    map_int_int_set(&map, &key, &val);
+    printf("map[%d]: %d\n", key, *map_int_int_get(&map, &key));
+    key = 99999; val = 63;
+    map_int_int_set(&map, &key, &val);
+    printf("map[%d]: %d\n", key, *map_int_int_get(&map, &key));
+    map_int_int_free(&map);
+
     if(argc != 2)
     {
         usage(argv[0]);
