@@ -7,6 +7,12 @@
         "string_view": "c",
         "vector": "c",
         "__tree": "cpp",
-        "map": "cpp"
+        "map": "cpp",
+        "__locale": "c",
+        "bitset": "c",
+        "memory": "c",
+        "optional": "c",
+        "variant": "c",
+        "__node_handle": "c"
     }
 }

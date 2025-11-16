@@ -25,8 +25,8 @@ typedef struct map_##keyname##_##valname##_s \
 } map_##keyname##_##valname##_t; \
  \
 void map_##keyname##_##valname##_alloc(map_##keyname##_##valname##_t* map); \
-Tval* map_##keyname##_##valname##_set(map_##keyname##_##valname##_t* map, const Tkey* key, const Tval* val); \
-Tval* map_##keyname##_##valname##_get(map_##keyname##_##valname##_t* map, const Tkey* key); \
+Tval* map_##keyname##_##valname##_set(map_##keyname##_##valname##_t* map, Tkey* key, Tval* val); \
+Tval* map_##keyname##_##valname##_get(map_##keyname##_##valname##_t* map, Tkey* key); \
 void map_##keyname##_##valname##_free(map_##keyname##_##valname##_t* map); \
 void map_##keyname##_##valname##_freeel(map_##keyname##_##valname##_el_t* el);
 
@@ -71,12 +71,12 @@ void map_##keyname##_##valname##_resize(map_##keyname##_##valname##_t* map) \
     map->bins = newbins; \
 } \
  \
-Tval* map_##keyname##_##valname##_set(map_##keyname##_##valname##_t* map, const Tkey* key, const Tval* val) \
+Tval* map_##keyname##_##valname##_set(map_##keyname##_##valname##_t* map, Tkey* key, Tval* val) \
 { \
-    map_hash_t (*hashfn)(const Tkey*) = (hashfunc); \
-    bool (*keycmpfn)(const Tkey*, const Tkey*) = (keycmp); \
-    void (*keycpyfn)(Tkey*, const Tkey*) = (keycpy); \
-    void (*valcpyfn)(Tval*, const Tval*) = (valcpy); \
+    map_hash_t (*hashfn)(Tkey*) = (hashfunc); \
+    bool (*keycmpfn)(Tkey*, Tkey*) = (keycmp); \
+    void (*keycpyfn)(Tkey*, Tkey*) = (keycpy); \
+    void (*valcpyfn)(Tval*, Tval*) = (valcpy); \
     void (*valfreefn)(Tval*) = (valfreefunc); \
  \
     map_hash_t hash; \
@@ -85,7 +85,7 @@ Tval* map_##keyname##_##valname##_set(map_##keyname##_##valname##_t* map, const 
     if(hashfn) \
         hash = hashfn(key); \
     else \
-        hash = *key; \
+        hash = (map_hash_t) *key; \
      \
 startsearch: \
     idx = hash % map->nbin; \
@@ -98,11 +98,11 @@ startsearch: \
             if(keycpyfn) \
                 keycpyfn(&map->bins[idx%map->nbin].key, key); \
             else \
-                map->bins[idx%map->nbin].key = *key; \
+                memcpy(&map->bins[idx%map->nbin].key, key, sizeof(*key)); \
             if(valcpyfn) \
                 valcpyfn(&map->bins[idx%map->nbin].val, val); \
             else \
-                map->bins[idx%map->nbin].val = *val; \
+                memcpy(&map->bins[idx%map->nbin].val, val, sizeof(*val)); \
             map->bins[idx%map->nbin].hash = hash; \
  \
             return &map->bins[idx%map->nbin].val; \
@@ -133,10 +133,10 @@ startsearch: \
     goto startsearch; \
 } \
  \
-Tval* map_##keyname##_##valname##_get(map_##keyname##_##valname##_t* map, const Tkey* key) \
+Tval* map_##keyname##_##valname##_get(map_##keyname##_##valname##_t* map, Tkey* key) \
 { \
-    map_hash_t (*hashfn)(const Tkey*) = (hashfunc); \
-    bool (*keycmpfn)(const Tkey*, const Tkey*) = (keycmp); \
+    map_hash_t (*hashfn)(Tkey*) = (hashfunc); \
+    bool (*keycmpfn)(Tkey*, Tkey*) = (keycmp); \
  \
     map_hash_t hash; \
     uint64_t idx; \
@@ -144,7 +144,7 @@ Tval* map_##keyname##_##valname##_get(map_##keyname##_##valname##_t* map, const 
     if(hashfn) \
         hash = hashfn(key); \
     else \
-        hash = *key; \
+        hash = (map_hash_t) *key; \
      \
     for(idx=hash%map->nbin; idx<hash%map->nbin+map->nbin; idx++) \
     { \
@@ -194,5 +194,6 @@ void map_##keyname##_##valname##_freeel(map_##keyname##_##valname##_el_t* el) \
 } \
 
 MAP_DECL(int, int, int, int)
+MAP_DECL(char*, char*, str, str)
 
 #endif
