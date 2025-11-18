@@ -35,7 +35,7 @@ static ir_reg_t* ir_gen_alloctemp(ir_funcdef_t *funcdef)
     ir_reg_t reg, *preg;
     char name[16];
 
-    snprintf(name, 16, "%llu", funcdef->ntempreg++);
+    snprintf(name, 16, "%llu", (unsigned long long) funcdef->ntempreg++);
     reg.name = strdup(name);
     preg = map_str_ir_reg_set(&funcdef->regs, &reg.name, &reg);
     free(reg.name);

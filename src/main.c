@@ -6,6 +6,7 @@
 #include "ast.h"
 #include "ir.h"
 #include "map.h"
+#include "regalloc.h"
 #include "token.h"
 #include "type.h"
 
@@ -39,6 +40,7 @@ void compile(void)
     parse();
     ir_gen();
     ir_dump();
+    regalloc();
     ir_free();
 
     free(srctext);
