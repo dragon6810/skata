@@ -17,14 +17,23 @@ void ir_dump_inst(ir_inst_t* inst)
     case IR_OP_MOVE:
         printf("  ");
         ir_print_operand(&inst->binary[0]);
-        printf(" \e[0;95m=\e[0m ");
+        printf(" \e[0;95m:=\e[0m ");
         ir_print_operand(&inst->binary[1]);
+        printf("\n");
+        break;
+    case IR_OP_ADD:
+        printf("  ");
+        ir_print_operand(&inst->trinary[0]);
+        printf(" \e[0;95m:=\e[0m ");
+        ir_print_operand(&inst->trinary[1]);
+        printf(" \e[0;95m+\e[0m ");
+        ir_print_operand(&inst->trinary[2]);
         printf("\n");
         break;
     case IR_OP_SUB:
         printf("  ");
         ir_print_operand(&inst->trinary[0]);
-        printf(" \e[0;95m=\e[0m ");
+        printf(" \e[0;95m:=\e[0m ");
         ir_print_operand(&inst->trinary[1]);
         printf(" \e[0;95m-\e[0m ");
         ir_print_operand(&inst->trinary[2]);
@@ -33,7 +42,7 @@ void ir_dump_inst(ir_inst_t* inst)
     case IR_OP_MUL:
         printf("  ");
         ir_print_operand(&inst->trinary[0]);
-        printf(" \e[0;95m=\e[0m ");
+        printf(" \e[0;95m:=\e[0m ");
         ir_print_operand(&inst->trinary[1]);
         printf(" \e[0;95m*\e[0m ");
         ir_print_operand(&inst->trinary[2]);

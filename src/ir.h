@@ -9,6 +9,9 @@ typedef struct ir_reg_s
 {
     // '%' prefix implicit
     char *name;
+
+    uint64_t life[2];
+    int hardreg;
 } ir_reg_t;
 
 MAP_DECL(char*, ir_reg_t, str, ir_reg)
@@ -16,6 +19,7 @@ MAP_DECL(char*, ir_reg_t, str, ir_reg)
 typedef enum
 {
     IR_OP_MOVE=0,
+    IR_OP_ADD,
     IR_OP_SUB,
     IR_OP_MUL,
     IR_OP_RET,

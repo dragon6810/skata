@@ -14,6 +14,7 @@
         "optional": "c",
         "variant": "c",
         "__node_handle": "c",
-        "sstream": "c"
+        "sstream": "c",
+        "regalloc.h": "c"
     }
 }

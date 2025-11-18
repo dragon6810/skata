@@ -48,19 +48,20 @@ static ir_reg_t* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr)
     ir_reg_t *res;
     ir_inst_t inst;
 
-    res = ir_gen_alloctemp(funcdef);
-
     switch(expr->op)
     {
     case EXPROP_ATOM:
         inst.op = IR_OP_MOVE;
         inst.binary[0].constant = false;
-        inst.binary[0].reg = res;
+        inst.binary[0].reg = res = ir_gen_alloctemp(funcdef);
         inst.binary[1].constant = true;
         inst.binary[1].literal.type = IR_PRIM_I32;
         inst.binary[1].literal.i32 = atoi(expr->msg);
         list_ir_inst_ppush(&funcdef->insts, &inst);
         return res;
+    case EXPROP_ADD:
+        inst.op = IR_OP_ADD;
+        break;
     case EXPROP_SUB:
         inst.op = IR_OP_SUB;
         break;
@@ -72,12 +73,12 @@ static ir_reg_t* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr)
         break;
     }
 
-    inst.trinary[0].constant = false;
-    inst.trinary[0].reg = res;
     inst.trinary[1].constant = false;
     inst.trinary[1].reg = ir_gen_expr(funcdef, expr->operands[0]);
     inst.trinary[2].constant = false;
     inst.trinary[2].reg = ir_gen_expr(funcdef, expr->operands[1]);
+    inst.trinary[0].constant = false;
+    inst.trinary[0].reg = res = ir_gen_alloctemp(funcdef);
     list_ir_inst_ppush(&funcdef->insts, &inst);
 
     return res;
