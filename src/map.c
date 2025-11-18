@@ -1,8 +1,9 @@
 #include "map.h"
 
 #include <math.h>
+#include <stdio.h>
 
-uint64_t map_u64pow(uint64_t base, uint64_t exp)
+static uint64_t map_u64pow(uint64_t base, uint64_t exp)
 {
     uint16_t res;
 

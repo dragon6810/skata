@@ -13,6 +13,7 @@
         "memory": "c",
         "optional": "c",
         "variant": "c",
-        "__node_handle": "c"
+        "__node_handle": "c",
+        "sstream": "c"
     }
 }

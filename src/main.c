@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "ast.h"
+#include "ir.h"
 #include "map.h"
 #include "token.h"
 #include "type.h"
@@ -36,6 +37,8 @@ void compile(void)
 
     lex();
     parse();
+    ir_gen();
+    ir_free();
 
     free(srctext);
     list_token_free(&tokens);
