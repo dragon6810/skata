@@ -52,6 +52,7 @@ typedef struct ir_inst_s
     {
         ir_operand_t unary;
         ir_operand_t binary[2];
+        ir_operand_t trinary[3];
     };
 } ir_inst_t;
 
@@ -75,7 +76,10 @@ typedef struct ir_s
     list_ir_funcdef_t defs;
 } ir_t;
 
+extern ir_t ir;
+
 void ir_gen(void);
 void ir_free(void);
+void ir_dump(void);
 
 #endif

@@ -38,6 +38,7 @@ void compile(void)
     lex();
     parse();
     ir_gen();
+    ir_dump();
     ir_free();
 
     free(srctext);

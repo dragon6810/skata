@@ -72,10 +72,13 @@ static ir_reg_t* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr)
         break;
     }
 
-    inst.binary[0].constant = false;
-    inst.binary[0].reg = ir_gen_expr(funcdef, expr->operands[0]);
-    inst.binary[1].constant = false;
-    inst.binary[1].reg = ir_gen_expr(funcdef, expr->operands[1]);
+    inst.trinary[0].constant = false;
+    inst.trinary[0].reg = res;
+    inst.trinary[1].constant = false;
+    inst.trinary[1].reg = ir_gen_expr(funcdef, expr->operands[0]);
+    inst.trinary[2].constant = false;
+    inst.trinary[2].reg = ir_gen_expr(funcdef, expr->operands[1]);
+    list_ir_inst_ppush(&funcdef->insts, &inst);
 
     return res;
 }
