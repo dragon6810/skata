@@ -10,6 +10,8 @@ int regalloc_getnoperands(ir_inst_e opcode)
     switch (opcode)
     {
     case IR_OP_MOVE:
+    case IR_OP_STORE:
+    case IR_OP_LOAD:
         return 2;
     case IR_OP_RET:
         return 1;
@@ -18,7 +20,7 @@ int regalloc_getnoperands(ir_inst_e opcode)
     case IR_OP_MUL:
         return 3;
     default:
-        return 0;
+        assert(0);
     }
 }
 
