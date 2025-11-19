@@ -14,7 +14,16 @@ typedef struct ir_reg_s
     int hardreg;
 } ir_reg_t;
 
+typedef struct ir_var_s
+{
+    // '$' prefix implicit
+    char *name;
+
+    int stackloc;
+} ir_var_t;
+
 MAP_DECL(char*, ir_reg_t, str, ir_reg)
+MAP_DECL(char*, ir_var_t, str, ir_var)
 
 typedef enum
 {
@@ -23,6 +32,8 @@ typedef enum
     IR_OP_SUB,
     IR_OP_MUL,
     IR_OP_RET,
+    IR_OP_STORE,
+    IR_OP_LOAD,
     IR_OP_COUNT,
 } ir_inst_e;
 
@@ -38,14 +49,21 @@ typedef struct ir_constant_s
     int32_t i32;
 } ir_constant_t;
 
+typedef enum
+{
+    IR_OPERAND_REG=0,
+    IR_OPERAND_LIT,
+    IR_OPERAND_VAR,
+} ir_operand_e;
+
 typedef struct ir_operand_s
 {
-    // false: register, true: constant
-    bool constant;
+    ir_operand_e type;
     union
     {
         ir_reg_t *reg;
         ir_constant_t literal;
+        ir_var_t *var;
     };
 } ir_operand_t;
 
@@ -69,6 +87,8 @@ typedef struct ir_funcdef_s
 
     uint64_t ntempreg;
     map_str_ir_reg_t regs;
+    uint64_t varframe; // size of stack frame if it was purely vars
+    map_str_ir_var_t vars;
     
     list_ir_inst_t insts;
 } ir_funcdef_t;

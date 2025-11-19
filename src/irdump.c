@@ -1,13 +1,24 @@
 #include "ir.h"
 
+#include <assert.h>
 #include <stdio.h>
 
 void ir_print_operand(ir_operand_t* operand)
 {
-    if(operand->constant)
-        printf("\e[0;93m%d\e[0m", operand->literal.i32);
-    else
+    switch(operand->type)
+    {
+    case IR_OPERAND_REG:
         printf("\e[0;31m%%%s\e[0m", operand->reg->name);
+        break;
+    case IR_OPERAND_LIT:
+        printf("\e[0;93m%d\e[0m", operand->literal.i32);
+        break;
+    case IR_OPERAND_VAR:
+        printf("\e[0;31m$%s\e[0m", operand->var->name);
+        break;
+    default:
+        break;
+    }
 }
 
 void ir_dump_inst(ir_inst_t* inst)
@@ -55,7 +66,22 @@ void ir_dump_inst(ir_inst_t* inst)
             ir_print_operand(&inst->unary);
         printf("\n");
         break;
+    case IR_OP_STORE:
+        printf("  ");
+        ir_print_operand(&inst->binary[0]);
+        printf(" \e[0;95m=\e[0m ");
+        ir_print_operand(&inst->binary[1]);
+        printf("\n");
+        break;
+    case IR_OP_LOAD:
+        printf("  ");
+        ir_print_operand(&inst->binary[0]);
+        printf(" \e[0;95m:=\e[0m ");
+        ir_print_operand(&inst->binary[1]);
+        printf("\n");
+        break;
     default:
+        assert(0 && "unkown ir opcode");
         break;
     }
 }

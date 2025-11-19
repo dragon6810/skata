@@ -19,7 +19,8 @@ static void parse_printexpr_r(const expr_t* expr)
     postfix = false;
     switch(expr->op)
     {
-    case EXPROP_ATOM:
+    case EXPROP_RVAL:
+    case EXPROP_LVAL:
         printf("%s", expr->msg);
         return;
     case EXPROP_ASSIGN:
@@ -157,9 +158,13 @@ static expr_t* parse_expr_r(int minbp)
     switch(parse_peekform(0))
     {
     case TOKEN_NUMBER:
+        expr = malloc(sizeof(expr_t));
+        expr->op = EXPROP_RVAL;
+        expr->msg = strdup(parse_eat());
+        break;
     case TOKEN_IDENT:
         expr = malloc(sizeof(expr_t));
-        expr->op = EXPROP_ATOM;
+        expr->op = EXPROP_LVAL;
         expr->msg = strdup(parse_eat());
         break;
     case TOKEN_PUNC:

@@ -8,6 +8,9 @@
 void ir_regcpy(ir_reg_t* dst, ir_reg_t* src)
 {
     dst->name = strdup(src->name);
+    dst->life[0] = src->life[0];
+    dst->life[1] = src->life[1];
+    dst->hardreg = src->hardreg;
 }
 
 void ir_regfree(ir_reg_t* reg)
@@ -15,14 +18,27 @@ void ir_regfree(ir_reg_t* reg)
     free(reg->name);
 }
 
+void ir_varcpy(ir_var_t* dst, ir_var_t* src)
+{
+    dst->name = strdup(src->name);
+    dst->stackloc = src->stackloc;
+}
+
+void ir_varfree(ir_var_t* var)
+{
+    free(var->name);
+}
+
 void ir_freefuncdef(ir_funcdef_t* funcdef)
 {
     free(funcdef->name);
     map_str_ir_reg_free(&funcdef->regs);
+    map_str_ir_var_free(&funcdef->vars);
     list_ir_inst_free(&funcdef->insts);
 }
 
 MAP_DEF(char*, ir_reg_t, str, ir_reg, map_strhash, map_strcmp, map_strcpy, ir_regcpy, map_freestr, ir_regfree)
+MAP_DEF(char*, ir_var_t, str, ir_var, map_strhash, map_strcmp, map_strcpy, ir_varcpy, map_freestr, ir_varfree)
 LIST_DEF(ir_inst)
 LIST_DEF_FREE(ir_inst)
 LIST_DEF(ir_funcdef)
@@ -50,13 +66,31 @@ static ir_reg_t* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr)
 
     switch(expr->op)
     {
-    case EXPROP_ATOM:
+    case EXPROP_RVAL:
         inst.op = IR_OP_MOVE;
-        inst.binary[0].constant = false;
+        inst.binary[0].type = IR_OPERAND_REG;
         inst.binary[0].reg = res = ir_gen_alloctemp(funcdef);
-        inst.binary[1].constant = true;
+
+        inst.binary[1].type = IR_OPERAND_LIT;
         inst.binary[1].literal.type = IR_PRIM_I32;
         inst.binary[1].literal.i32 = atoi(expr->msg);
+        list_ir_inst_ppush(&funcdef->insts, &inst);
+        return res;
+    case EXPROP_LVAL:
+        inst.op = IR_OP_LOAD;
+
+        inst.binary[0].type = IR_OPERAND_REG;
+        inst.binary[0].reg = res = ir_gen_alloctemp(funcdef);
+
+        inst.binary[1].type = IR_OPERAND_VAR;
+        inst.binary[1].var = map_str_ir_var_get(&funcdef->vars, &expr->msg);
+
+        if(!inst.binary[1].var)
+        {
+            printf("variable %s does not exist.\n", expr->msg);
+            exit(1);
+        }
+
         list_ir_inst_ppush(&funcdef->insts, &inst);
         return res;
     case EXPROP_ADD:
@@ -68,16 +102,28 @@ static ir_reg_t* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr)
     case EXPROP_MULT:
         inst.op = IR_OP_MUL;
         break;
+    case EXPROP_ASSIGN:
+        inst.op = IR_OP_STORE;
+        inst.binary[0].type = IR_OPERAND_VAR;
+        inst.binary[0].var = map_str_ir_var_get(&funcdef->vars, &expr->operands[0]->msg);
+
+        inst.binary[1].type = IR_OPERAND_REG;
+        inst.binary[1].reg = ir_gen_expr(funcdef, expr->operands[1]);
+        
+        list_ir_inst_ppush(&funcdef->insts, &inst);
+        return inst.binary[1].reg;
     default:
         assert(0 && "unsupported op by IR");
         break;
     }
 
-    inst.trinary[1].constant = false;
+    inst.trinary[1].type = IR_OPERAND_REG;
     inst.trinary[1].reg = ir_gen_expr(funcdef, expr->operands[0]);
-    inst.trinary[2].constant = false;
+
+    inst.trinary[2].type = IR_OPERAND_REG;
     inst.trinary[2].reg = ir_gen_expr(funcdef, expr->operands[1]);
-    inst.trinary[0].constant = false;
+    
+    inst.trinary[0].type = IR_OPERAND_REG;
     inst.trinary[0].reg = res = ir_gen_alloctemp(funcdef);
     list_ir_inst_ppush(&funcdef->insts, &inst);
 
@@ -89,7 +135,7 @@ static void ir_gen_return(ir_funcdef_t *funcdef, expr_t *expr)
     ir_inst_t inst;
 
     inst.op = IR_OP_RET;
-    inst.unary.constant = false;
+    inst.unary.type = IR_OPERAND_REG;
     inst.unary.reg = ir_gen_expr(funcdef, expr);
 
     list_ir_inst_ppush(&funcdef->insts, &inst);
@@ -101,12 +147,26 @@ static void ir_gen_statement(ir_funcdef_t *funcdef, stmnt_t *stmnt)
     {
     case STMNT_EXPR:
         ir_gen_expr(funcdef, stmnt->expr);
+        break;
     case STMNT_RETURN:
         ir_gen_return(funcdef, stmnt->expr);
         break;
     default:
         break;
     }
+}
+
+static void ir_gen_decl(ir_funcdef_t* funcdef, decl_t* decl)
+{
+    ir_var_t var;
+
+    var.name = strdup(decl->ident);
+    var.stackloc = funcdef->varframe;
+    funcdef->varframe += 4;
+
+    map_str_ir_var_set(&funcdef->vars, &decl->ident, &var);
+
+    free(var.name);
 }
 
 static void ir_gen_globaldecl(globaldecl_t *globdecl)
@@ -120,9 +180,13 @@ static void ir_gen_globaldecl(globaldecl_t *globdecl)
 
     funcdef.name = strdup(globdecl->decl.ident);
     funcdef.ntempreg = 0;
+    funcdef.varframe = 0;
     list_ir_inst_init(&funcdef.insts, 0);
     map_str_ir_reg_alloc(&funcdef.regs);
+    map_str_ir_var_alloc(&funcdef.vars);
 
+    for(i=0; i<globdecl->funcdef.decls.len; i++)
+        ir_gen_decl(&funcdef, &globdecl->funcdef.decls.data[i]);
     for(i=0; i<globdecl->funcdef.stmnts.len; i++)
         ir_gen_statement(&funcdef, &globdecl->funcdef.stmnts.data[i]);
 

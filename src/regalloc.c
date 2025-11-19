@@ -39,7 +39,7 @@ void regalloc_color(ir_funcdef_t* funcdef)
 
         for(j=0; j<noperand; j++)
         {
-            if(funcdef->insts.data[i].trinary[j].constant)
+            if(funcdef->insts.data[i].trinary[j].type != IR_OPERAND_REG)
                 continue;
 
             reg = funcdef->insts.data[i].trinary[j].reg;
@@ -62,7 +62,7 @@ void regalloc_color(ir_funcdef_t* funcdef)
 
         for(j=0; j<noperand; j++)
         {
-            if(funcdef->insts.data[i].trinary[j].constant)
+            if(funcdef->insts.data[i].trinary[j].type != IR_OPERAND_REG)
                 continue;
 
             reg = funcdef->insts.data[i].trinary[j].reg;
@@ -86,7 +86,7 @@ void regalloc_reglifetime(ir_funcdef_t* funcdef, ir_reg_t* reg)
     {
         noperand = regalloc_getnoperands(funcdef->insts.data[i].op);
         for(j=0; j<noperand; j++)
-            if(!funcdef->insts.data[i].trinary[j].constant && funcdef->insts.data[i].trinary[j].reg == reg)
+            if((funcdef->insts.data[i].trinary[j].type == IR_OPERAND_REG) && (funcdef->insts.data[i].trinary[j].reg == reg))
                 break;
         if(j >= noperand)
             continue;

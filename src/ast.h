@@ -21,7 +21,9 @@ typedef enum
 
 typedef enum
 {
-    EXPROP_ATOM=0,
+    // atoms
+    EXPROP_RVAL=0,
+    EXPROP_LVAL,
 
     // binary operators
     // use terms[0] and terms[1]
