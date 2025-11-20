@@ -87,6 +87,19 @@ static void armgen_inst(ir_funcdef_t* funcdef, ir_inst_t* inst)
     }
 }
 
+static void armgen_block(ir_funcdef_t* funcdef, ir_block_t* block)
+{
+    int i;
+
+    if(funcdef->varframe % stackpad)
+        funcdef->varframe += stackpad - (funcdef->varframe % stackpad);
+
+    printf("%s:\n", block->name);
+
+    for(i=0; i<block->insts.len; i++)
+        armgen_inst(funcdef, &block->insts.data[i]);
+}
+
 static void armgen_funcdef(ir_funcdef_t* funcdef)
 {
     int i;
@@ -98,8 +111,8 @@ static void armgen_funcdef(ir_funcdef_t* funcdef)
 
     printf("  SUB sp, sp, #%d\n", (int) funcdef->varframe);
 
-    for(i=0; i<funcdef->insts.len; i++)
-        armgen_inst(funcdef, &funcdef->insts.data[i]);
+    for(i=0; i<funcdef->blocks.len; i++)
+        armgen_block(funcdef, &funcdef->blocks.data[i]);
 
     printf("\n");
 }

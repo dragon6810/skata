@@ -110,5 +110,6 @@ void parse_printexpr(const expr_t* expr);
 
 expr_t* parse_expr(void);
 void parse(void);
+void dumpast(void);
 
 #endif

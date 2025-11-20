@@ -11,7 +11,8 @@ token_t *curtok;
 static void parse_freedecl(decl_t* decl)
 {
     free(decl->ident);
-    list_decl_free(&decl->args);
+    if(decl->form == DECL_FUNC)
+        list_decl_free(&decl->args);
 }
 
 static void parse_freeglobaldecl(globaldecl_t* decl)
@@ -400,12 +401,14 @@ static void parse_printglobaldecl(globaldecl_t* decl, int depth, bool last, char
 
 void parse(void)
 {
-    int i;
-
     curtok = tokens.data;
-
     while(curtok->form != TOKEN_EOF)
         parse_globaldecl();
+}
+
+void dumpast(void)
+{
+    int i;
 
     for(i=0; i<ast.len; i++)
         parse_printglobaldecl(&ast.data[i], 1, i == ast.len - 1, "");

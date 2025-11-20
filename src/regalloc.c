@@ -24,27 +24,23 @@ int regalloc_getnoperands(ir_inst_e opcode)
     }
 }
 
-void regalloc_color(ir_funcdef_t* funcdef)
+void regalloc_colorblock(ir_funcdef_t* funcdef, ir_block_t* block, bool* hardocc)
 {
     int i, j, k;
 
     int noperand;
     ir_reg_t *reg;
-    bool hardocc[nreg];
 
-    for(i=0; i<nreg; i++)
-        hardocc[i] = false;
-
-    for(i=0; i<funcdef->insts.len; i++)
+    for(i=0; i<block->insts.len; i++)
     {
-        noperand = regalloc_getnoperands(funcdef->insts.data[i].op);
+        noperand = regalloc_getnoperands(block->insts.data[i].op);
 
         for(j=0; j<noperand; j++)
         {
-            if(funcdef->insts.data[i].trinary[j].type != IR_OPERAND_REG)
+            if(block->insts.data[i].trinary[j].type != IR_OPERAND_REG)
                 continue;
 
-            reg = funcdef->insts.data[i].trinary[j].reg;
+            reg = block->insts.data[i].trinary[j].reg;
 
             if(reg->life[0] != i)
                 continue;
@@ -55,7 +51,6 @@ void regalloc_color(ir_funcdef_t* funcdef)
                     continue;
                 hardocc[k] = true;
                 reg->hardreg = k;
-                printf("%%%s -> %d\n", reg->name, k);
                 break;
             }
 
@@ -64,10 +59,10 @@ void regalloc_color(ir_funcdef_t* funcdef)
 
         for(j=0; j<noperand; j++)
         {
-            if(funcdef->insts.data[i].trinary[j].type != IR_OPERAND_REG)
+            if(block->insts.data[i].trinary[j].type != IR_OPERAND_REG)
                 continue;
 
-            reg = funcdef->insts.data[i].trinary[j].reg;
+            reg = block->insts.data[i].trinary[j].reg;
             
             if(reg->life[1] != i)
                 continue;
@@ -77,9 +72,23 @@ void regalloc_color(ir_funcdef_t* funcdef)
     }
 }
 
+void regalloc_color(ir_funcdef_t* funcdef)
+{
+    int i;
+
+    bool hardocc[nreg];
+
+    for(i=0; i<nreg; i++)
+        hardocc[i] = false;
+
+    for(i=0; i<funcdef->blocks.len; i++)
+        regalloc_colorblock(funcdef, &funcdef->blocks.data[i], hardocc);
+}
+
 void regalloc_reglifetime(ir_funcdef_t* funcdef, ir_reg_t* reg)
 {
-    int i, j;
+    /*
+    int b, i, j;
 
     int noperand;
 
@@ -99,6 +108,7 @@ void regalloc_reglifetime(ir_funcdef_t* funcdef, ir_reg_t* reg)
             reg->life[0] = i;
         reg->life[1] = i;
     }
+    */
 }
 
 void regalloc_funcdef(ir_funcdef_t* funcdef)

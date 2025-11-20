@@ -86,13 +86,22 @@ void ir_dump_inst(ir_inst_t* inst)
     }
 }
 
+void ir_dump_block(ir_block_t* block)
+{
+    int i;
+
+    printf("\e[0;92m%s\e[0m:\n", block->name);
+    for(i=0; i<block->insts.len; i++)
+        ir_dump_inst(&block->insts.data[i]);
+}
+
 void ir_dump_funcdef(ir_funcdef_t* funcdef)
 {
     int i;
 
     printf("\e[0;96mfunc \e[1;93m@%s\e[0m:\n", funcdef->name);
-    for(i=0; i<funcdef->insts.len; i++)
-        ir_dump_inst(&funcdef->insts.data[i]);
+    for(i=0; i<funcdef->blocks.len; i++)
+        ir_dump_block(&funcdef->blocks.data[i]);
 }
 
 void ir_dump(void)

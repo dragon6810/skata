@@ -80,6 +80,14 @@ typedef struct ir_inst_s
 
 LIST_DECL(ir_inst_t, ir_inst)
 
+typedef struct ir_block_s
+{
+    char* name;
+    list_ir_inst_t insts;
+} ir_block_t;
+
+LIST_DECL(ir_block_t, ir_block)
+
 typedef struct ir_funcdef_s
 {
     // '@' prefix implicit
@@ -90,7 +98,7 @@ typedef struct ir_funcdef_s
     uint64_t varframe; // size of stack frame if it was purely vars
     map_str_ir_var_t vars;
     
-    list_ir_inst_t insts;
+    list_ir_block_t blocks;
 } ir_funcdef_t;
 
 LIST_DECL(ir_funcdef_t, ir_funcdef)
