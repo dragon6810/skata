@@ -93,7 +93,6 @@ static void parse_printexpr_r(const expr_t* expr)
 void parse_printexpr(const expr_t* expr)
 {
     parse_printexpr_r(expr);
-    puts("");
 }
 
 static int parse_postfixopbp(exprop_e op)

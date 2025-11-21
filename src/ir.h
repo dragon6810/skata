@@ -34,6 +34,7 @@ typedef enum
     IR_OP_RET,
     IR_OP_STORE,
     IR_OP_LOAD,
+    IR_OP_BZ,
     IR_OP_COUNT,
 } ir_inst_e;
 
@@ -54,6 +55,7 @@ typedef enum
     IR_OPERAND_REG=0,
     IR_OPERAND_LIT,
     IR_OPERAND_VAR,
+    IR_OPERAND_LABEL,
 } ir_operand_e;
 
 typedef struct ir_operand_s
@@ -61,9 +63,12 @@ typedef struct ir_operand_s
     ir_operand_e type;
     union
     {
+        // TODO: reg and var become dangling
+        // switch them to be names soon
         ir_reg_t *reg;
         ir_constant_t literal;
         ir_var_t *var;
+        uint64_t ilabel;
     };
 } ir_operand_t;
 

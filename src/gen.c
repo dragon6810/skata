@@ -149,6 +149,37 @@ static void ir_gen_return(ir_funcdef_t *funcdef, expr_t *expr)
     list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
 }
 
+static void ir_gen_statement(ir_funcdef_t *funcdef, stmnt_t *stmnt);
+
+static void ir_newblock(ir_funcdef_t* funcdef)
+{
+    ir_block_t blk;
+    char blkname[64];
+
+    snprintf(blkname, 64, "%d", (int) funcdef->blocks.len);
+    blk.name = strdup(blkname);
+    list_ir_inst_init(&blk.insts, 0);
+    list_ir_block_ppush(&funcdef->blocks, &blk);
+}
+
+static void ir_gen_if(ir_funcdef_t* funcdef, ifstmnt_t* ifstmnt)
+{
+    ir_inst_t inst;
+
+    inst.op = IR_OP_BZ;
+    inst.binary[0].type = IR_OPERAND_REG;
+    inst.binary[0].reg = ir_gen_expr(funcdef, ifstmnt->expr);
+    inst.binary[1].type = IR_OPERAND_LABEL;
+    inst.binary[1].ilabel = funcdef->blocks.len+1;
+    list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
+    
+    ir_newblock(funcdef);
+
+    ir_gen_statement(funcdef, ifstmnt->ifblk);
+
+    ir_newblock(funcdef);
+}
+
 static void ir_gen_statement(ir_funcdef_t *funcdef, stmnt_t *stmnt)
 {
     switch(stmnt->form)
@@ -159,6 +190,8 @@ static void ir_gen_statement(ir_funcdef_t *funcdef, stmnt_t *stmnt)
     case STMNT_RETURN:
         ir_gen_return(funcdef, stmnt->expr);
         break;
+    case STMNT_IF:
+        ir_gen_if(funcdef, &stmnt->ifstmnt);
     default:
         break;
     }

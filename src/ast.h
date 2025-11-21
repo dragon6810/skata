@@ -17,6 +17,7 @@ typedef enum
     STMNT_EXPR=0,
     STMNT_COMPOUND,
     STMNT_RETURN,
+    STMNT_IF,
 } stmnttype_e;
 
 typedef enum
@@ -78,6 +79,12 @@ typedef struct compound_s
     list_stmnt_t stmnts;
 } compound_t;
 
+typedef struct ifstmnt_s
+{
+    expr_t *expr;
+    stmnt_t *ifblk;
+} ifstmnt_t;
+
 typedef struct stmnt_s
 {
     stmnttype_e form;
@@ -86,6 +93,7 @@ typedef struct stmnt_s
     {
         expr_t *expr;
         compound_t compound;
+        ifstmnt_t ifstmnt;
     };
 } stmnt_t;
 

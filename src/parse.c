@@ -53,6 +53,13 @@ static void parse_freestmnt(stmnt_t* stmnt)
         list_decl_free(&stmnt->compound.decls);
         list_stmnt_free(&stmnt->compound.stmnts);
         break;
+    case STMNT_IF:
+        parse_freeexpr(stmnt->ifstmnt.expr);
+        if(stmnt->ifstmnt.ifblk)
+        {
+            parse_freestmnt(stmnt->ifstmnt.ifblk);
+            free(stmnt->ifstmnt.ifblk);
+        }
     default:
         break;
     }
@@ -199,6 +206,29 @@ static void parse_statement(stmnt_t* stmnt)
         return;
     }
 
+    if(!strcmp(parse_peekstr(0), "if"))
+    {
+        parse_eat();
+
+        stmnt->form = STMNT_IF;
+
+        parse_eatstr("(");
+        
+        stmnt->expr = parse_expr();
+        if(!stmnt->expr)
+        {
+            printf("expected expression\n");
+            exit(1);
+        }
+        
+        parse_eatstr(")");
+
+        stmnt->ifstmnt.ifblk = malloc(sizeof(stmnt_t));
+        parse_statement(stmnt->ifstmnt.ifblk);
+
+        return;
+    }
+
     stmnt->form = STMNT_EXPR;
     stmnt->expr = parse_expr();
     parse_eatstr(";");
@@ -304,7 +334,7 @@ static void parse_printexprast(expr_t* expr, int depth, bool last, char* leftstr
 
     printf("\e[1;32m<expression> \e[0;96m");
     parse_printexpr(expr);
-    printf("\e[0m");
+    printf("\e[0m\n");
 
     free(newleft);
 }
@@ -328,9 +358,27 @@ static void parse_printreturnstatement(stmnt_t* stmnt, int depth, bool last, cha
 
     newleft = parse_printprefix(depth, last, leftstr);
 
-    printf("\e[1;32m<return-statement>\e[0m\n");
+    printf("\e[1;32m<return-statement> \e[0;96m");
     if(stmnt->expr)
-        parse_printexprast(stmnt->expr, depth + 1, true, newleft);
+        parse_printexpr(stmnt->expr);
+    printf("\e[0m\n");
+
+    free(newleft);
+}
+
+static void parse_printstatement(stmnt_t* stmnt, int depth, bool last, char* leftstr);
+
+static void parse_printifstatement(stmnt_t* stmnt, int depth, bool last, char* leftstr)
+{
+    char* newleft;
+
+    newleft = parse_printprefix(depth, last, leftstr);
+
+    printf("\e[1;32m<if-statement> \e[0;96m");
+    parse_printexpr(stmnt->expr);
+    printf("\e[0m\n");
+
+    parse_printstatement(stmnt->ifstmnt.ifblk, depth + 1, true, newleft);
 
     free(newleft);
 }
@@ -349,6 +397,9 @@ static void parse_printstatement(stmnt_t* stmnt, int depth, bool last, char* lef
         break;
     case STMNT_RETURN:
         parse_printreturnstatement(stmnt, depth, last, leftstr);
+        break;
+    case STMNT_IF:
+        parse_printifstatement(stmnt, depth, last, leftstr);
         break;
     }
 }
