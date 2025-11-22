@@ -28,7 +28,7 @@ int regalloc_hardregatinst(ir_funcdef_t* funcdef, uint64_t iblk, uint64_t iinst,
 
 void regalloc_colorreg(ir_funcdef_t* funcdef, ir_reg_t* reg)
 {
-    int i;
+    int i, j;
 
     bool openreg[nreg];
     int hardreg;
@@ -43,15 +43,15 @@ void regalloc_colorreg(ir_funcdef_t* funcdef, ir_reg_t* reg)
         if(!reg->life.bins[i].val.start)
             continue;
 
-        for(i=0; i<funcdef->regs.nbin; i++)
+        for(j=0; j<funcdef->regs.nbin; j++)
         {
-            if(!funcdef->regs.bins[i].full)
+            if(!funcdef->regs.bins[j].full)
                 continue;
             hardreg = regalloc_hardregatinst(funcdef, 
                 reg->life.bins[i].key, reg->life.bins[i].val.span[0], 
-                &funcdef->regs.bins[i].val);
+                &funcdef->regs.bins[j].val);
             if(hardreg >= 0)
-                openreg[i] = false;
+                openreg[funcdef->regs.bins[j].val.hardreg] = false;
         }
     }
 
