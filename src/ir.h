@@ -34,6 +34,7 @@ typedef enum
     IR_OP_RET,
     IR_OP_STORE,
     IR_OP_LOAD,
+    IR_OP_BR,
     IR_OP_BZ,
     IR_OP_COUNT,
 } ir_inst_e;

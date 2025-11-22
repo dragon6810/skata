@@ -82,6 +82,11 @@ void ir_dump_inst(ir_funcdef_t* funcdef, ir_inst_t* inst)
         ir_print_operand(funcdef, &inst->binary[1]);
         printf("\n");
         break;
+    case IR_OP_BR:
+        printf("  \e[0;95mbr\e[0m ");
+        ir_print_operand(funcdef, &inst->unary);
+        printf("\n");
+        break;
     case IR_OP_BZ:
         printf("  \e[0;95mbz\e[0m ");
         ir_print_operand(funcdef, &inst->binary[0]);

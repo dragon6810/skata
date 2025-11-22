@@ -67,6 +67,67 @@ static ir_reg_t* ir_gen_alloctemp(ir_funcdef_t *funcdef)
     return preg;
 }
 
+static void ir_newblock(ir_funcdef_t* funcdef)
+{
+    ir_block_t blk;
+    char blkname[64];
+
+    snprintf(blkname, 64, "%d", (int) funcdef->blocks.len);
+    blk.name = strdup(blkname);
+    list_ir_inst_init(&blk.insts, 0);
+    list_ir_block_ppush(&funcdef->blocks, &blk);
+}
+
+static ir_reg_t* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr);
+
+static ir_reg_t* ir_gen_ternary(ir_funcdef_t* funcdef, expr_t* expr)
+{
+    ir_reg_t *finalreg, *reg;
+    ir_inst_t inst;
+
+    inst.op = IR_OP_BZ;
+    inst.binary[0].type = IR_OPERAND_REG;
+    inst.binary[0].reg = ir_gen_expr(funcdef, expr->operands[0]);
+    inst.binary[1].type = IR_OPERAND_LABEL;
+    inst.binary[1].ilabel = funcdef->blocks.len+1;
+    list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
+
+    finalreg = ir_gen_alloctemp(funcdef);
+    
+    // if block
+    ir_newblock(funcdef);
+
+    reg = ir_gen_expr(funcdef, expr->operands[1]);
+    inst.op = IR_OP_MOVE;
+    inst.binary[0].type = IR_OPERAND_REG;
+    inst.binary[0].reg = finalreg;
+    inst.binary[1].type = IR_OPERAND_REG;
+    inst.binary[1].reg = reg;
+    list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
+
+    // skip over else block
+    inst.op = IR_OP_BR;
+    inst.binary[0].type = IR_OPERAND_LABEL;
+    inst.binary[0].ilabel = funcdef->blocks.len+1;
+    list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
+
+    // else block
+    ir_newblock(funcdef);
+
+    reg = ir_gen_expr(funcdef, expr->operands[2]);
+    inst.op = IR_OP_MOVE;
+    inst.binary[0].type = IR_OPERAND_REG;
+    inst.binary[0].reg = finalreg;
+    inst.binary[1].type = IR_OPERAND_REG;
+    inst.binary[1].reg = reg;
+    list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
+
+    // rest of function continues from here
+    ir_newblock(funcdef);
+
+    return finalreg;
+}
+
 static ir_reg_t* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr)
 {
     ir_reg_t *res;
@@ -101,6 +162,8 @@ static ir_reg_t* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr)
 
         list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
         return res;
+    case EXPROP_COND:
+        return ir_gen_ternary(funcdef, expr);
     case EXPROP_ADD:
         inst.op = IR_OP_ADD;
         break;
@@ -150,17 +213,6 @@ static void ir_gen_return(ir_funcdef_t *funcdef, expr_t *expr)
 }
 
 static void ir_gen_statement(ir_funcdef_t *funcdef, stmnt_t *stmnt);
-
-static void ir_newblock(ir_funcdef_t* funcdef)
-{
-    ir_block_t blk;
-    char blkname[64];
-
-    snprintf(blkname, 64, "%d", (int) funcdef->blocks.len);
-    blk.name = strdup(blkname);
-    list_ir_inst_init(&blk.insts, 0);
-    list_ir_block_ppush(&funcdef->blocks, &blk);
-}
 
 static void ir_gen_if(ir_funcdef_t* funcdef, ifstmnt_t* ifstmnt)
 {
@@ -214,6 +266,7 @@ static void ir_gen_globaldecl(globaldecl_t *globdecl)
 {
     int i;
 
+    ir_block_t blk;
     ir_funcdef_t funcdef;
 
     if(!globdecl->hasfuncdef)
@@ -232,6 +285,10 @@ static void ir_gen_globaldecl(globaldecl_t *globdecl)
         ir_gen_decl(&funcdef, &globdecl->funcdef.decls.data[i]);
     for(i=0; i<globdecl->funcdef.stmnts.len; i++)
         ir_gen_statement(&funcdef, &globdecl->funcdef.stmnts.data[i]);
+
+    blk.name = strdup("exit");
+    list_ir_inst_init(&blk.insts, 0);
+    list_ir_block_ppush(&funcdef.blocks, &blk);
 
     list_ir_funcdef_ppush(&ir.defs, &funcdef);
 }
