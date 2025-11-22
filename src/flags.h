@@ -5,5 +5,6 @@
 
 extern bool emitast;
 extern bool emitir;
+extern bool emitflow;
 
 #endif

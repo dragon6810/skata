@@ -33,6 +33,8 @@ void ir_freeblock(ir_block_t* block)
 {
     free(block->name);
     list_ir_inst_free(&block->insts);
+    list_pir_block_free(&block->in);
+    list_pir_block_free(&block->out);
 }
 
 void ir_freefuncdef(ir_funcdef_t* funcdef)
@@ -75,6 +77,8 @@ static void ir_newblock(ir_funcdef_t* funcdef)
     snprintf(blkname, 64, "%d", (int) funcdef->blocks.len);
     blk.name = strdup(blkname);
     list_ir_inst_init(&blk.insts, 0);
+    list_pir_block_init(&blk.in, 0);
+    list_pir_block_init(&blk.out, 0);
     list_ir_block_ppush(&funcdef->blocks, &blk);
 }
 
@@ -278,6 +282,8 @@ static void ir_gen_globaldecl(globaldecl_t *globdecl)
     list_ir_block_init(&funcdef.blocks, 1);
     funcdef.blocks.data[0].name = strdup("entry");
     list_ir_inst_init(&funcdef.blocks.data[0].insts, 0);
+    list_pir_block_init(&funcdef.blocks.data[0].in, 0);
+    list_pir_block_init(&funcdef.blocks.data[0].out, 0);
     map_str_ir_reg_alloc(&funcdef.regs);
     map_str_ir_var_alloc(&funcdef.vars);
 
@@ -288,7 +294,11 @@ static void ir_gen_globaldecl(globaldecl_t *globdecl)
 
     blk.name = strdup("exit");
     list_ir_inst_init(&blk.insts, 0);
+    list_pir_block_init(&blk.in, 0);
+    list_pir_block_init(&blk.out, 0);
     list_ir_block_ppush(&funcdef.blocks, &blk);
+    list_pir_block_init(&funcdef.blocks.data[0].in, 0);
+    list_pir_block_init(&funcdef.blocks.data[0].out, 0);
 
     list_ir_funcdef_ppush(&ir.defs, &funcdef);
 }
@@ -301,6 +311,8 @@ void ir_gen(void)
 
     for(i=0; i<ast.len; i++)
         ir_gen_globaldecl(&ast.data[i]);
+
+    ir_flow();
 }
 
 void ir_free(void)

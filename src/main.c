@@ -13,6 +13,7 @@
 
 bool emitast = false;
 bool emitir = false;
+bool emitflow = false;
 
 char srcpath[PATH_MAX];
 
@@ -65,6 +66,16 @@ void compile(void)
         type_free();
         return;
     }
+    if(emitflow)
+    {
+        ir_dumpflow();
+
+        ir_free();
+        list_globaldecl_free(&ast);
+        list_token_free(&tokens);
+        type_free();
+        return;
+    }
     
     asmgen_arm();
     
@@ -96,6 +107,8 @@ int main(int argc, char** argv)
             emitast = true;
         else if(!strcmp(argv[i], "-emit-ir"))
             emitir = true;
+        else if(!strcmp(argv[i], "-emit-flow"))
+            emitflow = true;
         else
         {
             usage(argv[0]);

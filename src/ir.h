@@ -86,11 +86,18 @@ typedef struct ir_inst_s
 
 LIST_DECL(ir_inst_t, ir_inst)
 
-typedef struct ir_block_s
+typedef struct ir_block_s ir_block_t;
+
+LIST_DECL(ir_block_t*, pir_block)
+
+struct ir_block_s
 {
     char* name;
     list_ir_inst_t insts;
-} ir_block_t;
+
+    // control flow edges
+    list_pir_block_t in, out;
+};
 
 LIST_DECL(ir_block_t, ir_block)
 
@@ -117,7 +124,9 @@ typedef struct ir_s
 extern ir_t ir;
 
 void ir_gen(void);
+void ir_flow(void);
 void ir_free(void);
 void ir_dump(void);
+void ir_dumpflow(void);
 
 #endif

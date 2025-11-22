@@ -69,7 +69,8 @@ void list_##name##_push(list_##name##_t* list, typeof(*list->data) val)\
 void list_##name##_free(list_##name##_t* list)\
 {\
     list->len = list->cap = 0;\
-    free(list->data);\
+    if(list->data)\
+        free(list->data);\
     list->data = NULL;\
 }
 
@@ -81,7 +82,8 @@ void list_##name##_free(list_##name##_t* list)\
     for(i=0; i<list->len; i++)\
         deconstructor(&list->data[i]);\
     list->len = list->cap = 0;\
-    free(list->data);\
+    if(list->data)\
+        free(list->data);\
     list->data = NULL;\
 }
 
