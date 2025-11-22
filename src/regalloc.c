@@ -5,24 +5,36 @@
 
 MAP_DEF(uint64_t, ir_regspan_t, u64, ir_regspan, NULL, NULL, NULL, NULL, NULL, NULL)
 
-int nreg = 31;
+int nreg = 8;
 
-void regalloc_colorblock(ir_funcdef_t* funcdef, ir_block_t* block, bool* hardocc)
+void regalloc_colorreg(ir_funcdef_t* funcdef, ir_reg_t* reg)
 {
+    int i;
 
+    bool openreg[nreg];
+
+    for(i=0; i<nreg; i++)
+        openreg[i] = true;
+
+    for(i=0; i<reg->life.nbin; i++)
+    {
+        if(!reg->life.bins[i].full)
+            continue;
+        if(!reg->life.bins[i].val.start)
+            continue;
+
+        printf("%%%s starts in bin %llu\n", reg->name, reg->life.bins[i].key);
+    }
 }
 
 void regalloc_color(ir_funcdef_t* funcdef)
 {
     int i;
+\
 
-    bool hardocc[nreg];
-
-    for(i=0; i<nreg; i++)
-        hardocc[i] = false;
-
-    for(i=0; i<funcdef->blocks.len; i++)
-        regalloc_colorblock(funcdef, &funcdef->blocks.data[i], hardocc);
+    for(i=0; i<funcdef->regs.nbin; i++)
+        if(funcdef->regs.bins[i].full)
+            regalloc_colorreg(funcdef, &funcdef->regs.bins[i].val);
 }
 
 bool regalloc_iswritten(ir_inst_t* inst, ir_reg_t* reg)
@@ -48,12 +60,12 @@ bool regalloc_isread(ir_inst_t* inst, ir_reg_t* reg)
 {
     switch(inst->op)
     {
+    case IR_OP_RET:
     case IR_OP_BZ:
         if(inst->unary.type == IR_OPERAND_REG && inst->unary.reg == reg)
             return true;
         break;
     case IR_OP_MOVE:
-    case IR_OP_RET:
     case IR_OP_STORE:
         if(inst->binary[1].type == IR_OPERAND_REG && inst->binary[1].reg == reg)
             return true;

@@ -16,6 +16,7 @@
         "__node_handle": "c",
         "sstream": "c",
         "regalloc.h": "c",
-        "map.h": "c"
+        "map.h": "c",
+        "ios": "c"
     }
 }
