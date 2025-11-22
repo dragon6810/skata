@@ -7,11 +7,31 @@ MAP_DEF(uint64_t, ir_regspan_t, u64, ir_regspan, NULL, NULL, NULL, NULL, NULL, N
 
 int nreg = 8;
 
+// at this instruction, what hardware register is reg occupying?
+// if none/unallocated, -1
+int regalloc_hardregatinst(ir_funcdef_t* funcdef, uint64_t iblk, uint64_t iinst, ir_reg_t* reg)
+{
+    ir_regspan_t *span;
+
+    if(reg->hardreg == -1)
+        return -1;
+
+    span = map_u64_ir_regspan_get(&reg->life, &iblk);
+    if(!span)
+        return -1;
+
+    if(iinst < span->span[0] || iinst >= span->span[1])
+        return -1;
+
+    return reg->hardreg;
+}
+
 void regalloc_colorreg(ir_funcdef_t* funcdef, ir_reg_t* reg)
 {
     int i;
 
     bool openreg[nreg];
+    int hardreg;
 
     for(i=0; i<nreg; i++)
         openreg[i] = true;
@@ -23,14 +43,32 @@ void regalloc_colorreg(ir_funcdef_t* funcdef, ir_reg_t* reg)
         if(!reg->life.bins[i].val.start)
             continue;
 
-        printf("%%%s starts in bin %llu\n", reg->name, reg->life.bins[i].key);
+        for(i=0; i<funcdef->regs.nbin; i++)
+        {
+            if(!funcdef->regs.bins[i].full)
+                continue;
+            hardreg = regalloc_hardregatinst(funcdef, 
+                reg->life.bins[i].key, reg->life.bins[i].val.span[0], 
+                &funcdef->regs.bins[i].val);
+            if(hardreg >= 0)
+                openreg[i] = false;
+        }
     }
+
+    for(i=0; i<nreg; i++)
+    {
+        if(!openreg[i])
+            continue;
+        reg->hardreg = i;
+        return;
+    }
+
+    assert(0 && "TODO: spilling");
 }
 
 void regalloc_color(ir_funcdef_t* funcdef)
 {
     int i;
-\
 
     for(i=0; i<funcdef->regs.nbin; i++)
         if(funcdef->regs.bins[i].full)
