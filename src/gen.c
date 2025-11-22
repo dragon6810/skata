@@ -243,6 +243,39 @@ static void ir_gen_if(ir_funcdef_t* funcdef, ifstmnt_t* ifstmnt)
     pinst->binary[1].ilabel = funcdef->blocks.len-1;
 }
 
+static void ir_gen_while(ir_funcdef_t* funcdef, whilestmnt_t* whilestmnt)
+{
+    int iblk, iinst;
+    ir_block_t *pblk;
+    ir_inst_t inst, *pinst;
+
+    iblk = funcdef->blocks.len;
+    ir_newblock(funcdef);
+
+    // check for condition
+    inst.op = IR_OP_BZ;
+    inst.binary[0].type = IR_OPERAND_REG;
+    inst.binary[0].reg = ir_gen_expr(funcdef, whilestmnt->expr, NULL);
+    iinst = funcdef->blocks.data[iblk].insts.len;
+    list_ir_inst_ppush(&funcdef->blocks.data[iblk].insts, &inst);
+    
+    // body
+    ir_gen_statement(funcdef, whilestmnt->body);
+
+    // jump back to beginning
+    inst.op = IR_OP_BR;
+    inst.unary.type = IR_OPERAND_LABEL;
+    inst.unary.ilabel = iblk;
+    list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
+
+    // rest of function
+    ir_newblock(funcdef);
+    pblk = &funcdef->blocks.data[iblk];
+    pinst = &pblk->insts.data[iinst];
+    pinst->binary[1].type = IR_OPERAND_LABEL;
+    pinst->binary[1].ilabel = funcdef->blocks.len-1;
+}
+
 static void ir_gen_statement(ir_funcdef_t *funcdef, stmnt_t *stmnt)
 {
     switch(stmnt->form)
@@ -255,6 +288,8 @@ static void ir_gen_statement(ir_funcdef_t *funcdef, stmnt_t *stmnt)
         break;
     case STMNT_IF:
         ir_gen_if(funcdef, &stmnt->ifstmnt);
+    case STMNT_WHILE:
+        ir_gen_while(funcdef, &stmnt->whilestmnt);
     default:
         break;
     }

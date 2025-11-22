@@ -70,7 +70,7 @@ static void armgen_inst(ir_funcdef_t* funcdef, ir_inst_t* inst)
         printf("\n");
         break;
     case IR_OP_RET:
-        if(inst->unary.reg)
+        if(inst->unary.reg && inst->unary.reg->hardreg)
         {
             printf("  MOV %s, ", armregs[0]);
             armgen_operand(funcdef, &inst->unary);

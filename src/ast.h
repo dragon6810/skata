@@ -18,6 +18,7 @@ typedef enum
     STMNT_COMPOUND,
     STMNT_RETURN,
     STMNT_IF,
+    STMNT_WHILE,
 } stmnttype_e;
 
 typedef enum
@@ -88,6 +89,12 @@ typedef struct ifstmnt_s
     stmnt_t *ifblk;
 } ifstmnt_t;
 
+typedef struct whilestmnt_s
+{
+    expr_t *expr;
+    stmnt_t *body;
+} whilestmnt_t;
+
 typedef struct stmnt_s
 {
     stmnttype_e form;
@@ -97,6 +104,7 @@ typedef struct stmnt_s
         expr_t *expr;
         compound_t compound;
         ifstmnt_t ifstmnt;
+        whilestmnt_t whilestmnt;
     };
 } stmnt_t;
 

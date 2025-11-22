@@ -60,6 +60,13 @@ static void parse_freestmnt(stmnt_t* stmnt)
             parse_freestmnt(stmnt->ifstmnt.ifblk);
             free(stmnt->ifstmnt.ifblk);
         }
+    case STMNT_WHILE:
+        parse_freeexpr(stmnt->whilestmnt.expr);
+        if(stmnt->whilestmnt.body)
+        {
+            parse_freestmnt(stmnt->whilestmnt.body);
+            free(stmnt->whilestmnt.body);
+        }
     default:
         break;
     }
@@ -214,8 +221,8 @@ static void parse_statement(stmnt_t* stmnt)
 
         parse_eatstr("(");
         
-        stmnt->expr = parse_expr();
-        if(!stmnt->expr)
+        stmnt->ifstmnt.expr = parse_expr();
+        if(!stmnt->ifstmnt.expr)
         {
             printf("expected expression\n");
             exit(1);
@@ -225,6 +232,29 @@ static void parse_statement(stmnt_t* stmnt)
 
         stmnt->ifstmnt.ifblk = malloc(sizeof(stmnt_t));
         parse_statement(stmnt->ifstmnt.ifblk);
+
+        return;
+    }
+
+    if(!strcmp(parse_peekstr(0), "while"))
+    {
+        parse_eat();
+
+        stmnt->form = STMNT_WHILE;
+
+        parse_eatstr("(");
+        
+        stmnt->whilestmnt.expr = parse_expr();
+        if(!stmnt->expr)
+        {
+            printf("expected expression\n");
+            exit(1);
+        }
+        
+        parse_eatstr(")");
+
+        stmnt->whilestmnt.body = malloc(sizeof(stmnt_t));
+        parse_statement(stmnt->whilestmnt.body);
 
         return;
     }
@@ -383,6 +413,21 @@ static void parse_printifstatement(stmnt_t* stmnt, int depth, bool last, char* l
     free(newleft);
 }
 
+static void parse_printwhilestatement(stmnt_t* stmnt, int depth, bool last, char* leftstr)
+{
+    char* newleft;
+
+    newleft = parse_printprefix(depth, last, leftstr);
+
+    printf("\e[1;32m<while-statement> \e[0;96m");
+    parse_printexpr(stmnt->expr);
+    printf("\e[0m\n");
+
+    parse_printstatement(stmnt->ifstmnt.ifblk, depth + 1, true, newleft);
+
+    free(newleft);
+}
+
 static void parse_printcompound(compound_t* def, int depth, bool last, char* leftstr);
 
 static void parse_printstatement(stmnt_t* stmnt, int depth, bool last, char* leftstr)
@@ -400,6 +445,9 @@ static void parse_printstatement(stmnt_t* stmnt, int depth, bool last, char* lef
         break;
     case STMNT_IF:
         parse_printifstatement(stmnt, depth, last, leftstr);
+        break;
+    case STMNT_WHILE:
+        parse_printwhilestatement(stmnt, depth, last, leftstr);
         break;
     }
 }

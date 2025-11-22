@@ -1,6 +1,10 @@
 int main()
 {
-	if(1 + 0)
-		return 1 - (1 ? 0 : 1);
-	return 1;
+	int x;
+
+	x = 16535;
+	while(x)
+		x = x - 1;
+
+	return x;
 }
