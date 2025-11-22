@@ -3,73 +3,13 @@
 #include <assert.h>
 #include <stdio.h>
 
-int nreg = 31;
+MAP_DEF(uint64_t, ir_regspan_t, u64, ir_regspan, NULL, NULL, NULL, NULL, NULL, NULL)
 
-int regalloc_getnoperands(ir_inst_e opcode)
-{
-    switch (opcode)
-    {
-    case IR_OP_MOVE:
-    case IR_OP_STORE:
-    case IR_OP_LOAD:
-        return 2;
-    case IR_OP_RET:
-        return 1;
-    case IR_OP_ADD:
-    case IR_OP_SUB:
-    case IR_OP_MUL:
-        return 3;
-    default:
-        assert(0);
-    }
-}
+int nreg = 31;
 
 void regalloc_colorblock(ir_funcdef_t* funcdef, ir_block_t* block, bool* hardocc)
 {
-    int i, j, k;
 
-    int noperand;
-    ir_reg_t *reg;
-
-    for(i=0; i<block->insts.len; i++)
-    {
-        noperand = regalloc_getnoperands(block->insts.data[i].op);
-
-        for(j=0; j<noperand; j++)
-        {
-            if(block->insts.data[i].trinary[j].type != IR_OPERAND_REG)
-                continue;
-
-            reg = block->insts.data[i].trinary[j].reg;
-
-            if(reg->life[0] != i)
-                continue;
-
-            for(k=0; k<nreg; k++)
-            {
-                if(hardocc[k])
-                    continue;
-                hardocc[k] = true;
-                reg->hardreg = k;
-                break;
-            }
-
-            assert(k < nreg && "TODO: spilling\n");
-        }
-
-        for(j=0; j<noperand; j++)
-        {
-            if(block->insts.data[i].trinary[j].type != IR_OPERAND_REG)
-                continue;
-
-            reg = block->insts.data[i].trinary[j].reg;
-            
-            if(reg->life[1] != i)
-                continue;
-
-            hardocc[reg->hardreg] = false;
-        }
-    }
 }
 
 void regalloc_color(ir_funcdef_t* funcdef)
@@ -85,30 +25,116 @@ void regalloc_color(ir_funcdef_t* funcdef)
         regalloc_colorblock(funcdef, &funcdef->blocks.data[i], hardocc);
 }
 
+bool regalloc_iswritten(ir_inst_t* inst, ir_reg_t* reg)
+{
+    switch(inst->op)
+    {
+    case IR_OP_ADD:
+    case IR_OP_SUB:
+    case IR_OP_MUL:
+    case IR_OP_MOVE:
+    case IR_OP_LOAD:
+        if(inst->unary.type == IR_OPERAND_REG && inst->unary.reg == reg)
+            return true;
+        break;
+    default:
+        break;
+    }
+
+    return false;
+}
+
+bool regalloc_isread(ir_inst_t* inst, ir_reg_t* reg)
+{
+    switch(inst->op)
+    {
+    case IR_OP_BZ:
+        if(inst->unary.type == IR_OPERAND_REG && inst->unary.reg == reg)
+            return true;
+        break;
+    case IR_OP_MOVE:
+    case IR_OP_RET:
+    case IR_OP_STORE:
+        if(inst->binary[1].type == IR_OPERAND_REG && inst->binary[1].reg == reg)
+            return true;
+        break;
+    case IR_OP_ADD:
+    case IR_OP_SUB:
+    case IR_OP_MUL:
+        if(inst->trinary[1].type == IR_OPERAND_REG && inst->trinary[1].reg == reg)
+            return true;
+        if(inst->trinary[2].type == IR_OPERAND_REG && inst->trinary[2].reg == reg)
+            return true;
+        break;
+    default:
+        break;
+    }
+
+    return false;
+}
+
+void regalloc_reglifetime_r(ir_funcdef_t* funcdef, ir_reg_t* reg, uint64_t iblk, bool alive)
+{
+    int i;
+
+    ir_block_t *blk;
+
+    ir_inst_t *inst;
+    ir_regspan_t span;
+
+    blk = &funcdef->blocks.data[iblk];
+    if(blk->marked)
+        return;
+    blk->marked = true;
+
+    span.start = false;
+    span.span[0] = 0;
+    span.span[1] = alive ? blk->insts.len : 0;
+
+    for(i=blk->insts.len-1; i>=0; i--)
+    {
+        inst = &blk->insts.data[i];
+
+        // last time the register is ever used
+        if(!alive && regalloc_isread(inst, reg))
+        {
+            alive = true;
+            span.span[1] = i + 1;
+            continue;
+        }
+
+        // beginning of the register
+        if(alive && regalloc_iswritten(inst, reg))
+        {
+            span.start = true;
+            span.span[0] = i;
+            break;
+        }
+    }
+
+    if(alive)
+        map_u64_ir_regspan_set(&reg->life, &iblk, &span);
+
+    // we found the first instruction, so we dont need to go back further
+    if(span.start)
+        return;
+
+    for(i=0; i<blk->in.len; i++)
+        regalloc_reglifetime_r(funcdef, reg, blk->in.data[i] - funcdef->blocks.data, alive);
+}
+
 void regalloc_reglifetime(ir_funcdef_t* funcdef, ir_reg_t* reg)
 {
-    /*
-    int b, i, j;
+    int i;
 
-    int noperand;
+    for(i=0; i<funcdef->blocks.len; i++)
+        funcdef->blocks.data[i].marked = false;
 
-    reg->life[0] = reg->life[1] = -1;
-    for(i=0; i<funcdef->insts.len; i++)
-    {
-        noperand = regalloc_getnoperands(funcdef->insts.data[i].op);
-        for(j=0; j<noperand; j++)
-            if((funcdef->insts.data[i].trinary[j].type == IR_OPERAND_REG) && (funcdef->insts.data[i].trinary[j].reg == reg))
-                break;
-        if(j >= noperand)
-            continue;
+    for(i=0; i<funcdef->regs.nbin; i++)
+        if(funcdef->regs.bins[i].full)
+            funcdef->regs.bins[i].val.hardreg = -1;
 
-        // reg was referenced this instruction
-
-        if(reg->life[0] == -1)
-            reg->life[0] = i;
-        reg->life[1] = i;
-    }
-    */
+    regalloc_reglifetime_r(funcdef, reg, funcdef->blocks.len-1, false);
 }
 
 void regalloc_funcdef(ir_funcdef_t* funcdef)

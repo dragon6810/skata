@@ -8,14 +8,16 @@
 void ir_regcpy(ir_reg_t* dst, ir_reg_t* src)
 {
     dst->name = strdup(src->name);
-    dst->life[0] = src->life[0];
-    dst->life[1] = src->life[1];
+    memcpy(&dst->life, &src->life, sizeof(map_u64_ir_regspan_t));
+    dst->life.bins = malloc(sizeof(map_u64_ir_regspan_el_t) * dst->life.nbin);
+    memcpy(dst->life.bins, src->life.bins, sizeof(map_u64_ir_regspan_el_t) * dst->life.nbin);\
     dst->hardreg = src->hardreg;
 }
 
 void ir_regfree(ir_reg_t* reg)
 {
     free(reg->name);
+    map_u64_ir_regspan_free(&reg->life);
 }
 
 void ir_varcpy(ir_var_t* dst, ir_var_t* src)
@@ -63,6 +65,7 @@ static ir_reg_t* ir_gen_alloctemp(ir_funcdef_t *funcdef)
 
     snprintf(name, 16, "%llu", (unsigned long long) funcdef->ntempreg++);
     reg.name = strdup(name);
+    map_u64_ir_regspan_alloc(&reg.life);
     preg = map_str_ir_reg_set(&funcdef->regs, &reg.name, &reg);
     free(reg.name);
     

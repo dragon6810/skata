@@ -5,12 +5,24 @@
 
 #include "map.h"
 
+typedef struct ir_regspan_s
+{
+    // the register is created at span[0]
+    bool start;
+    // span[0] is first instruction
+    // span[1] is last instruction + 1
+    // span[0] <= i < span[1]
+    uint64_t span[2];
+} ir_regspan_t;
+
+MAP_DECL(uint64_t, ir_regspan_t, u64, ir_regspan)
+
 typedef struct ir_reg_s
 {
     // '%' prefix implicit
     char *name;
 
-    uint64_t life[2];
+    map_u64_ir_regspan_t life;
     int hardreg;
 } ir_reg_t;
 
@@ -97,6 +109,9 @@ struct ir_block_s
 
     // control flow edges
     list_pir_block_t in, out;
+    
+    // temporary
+    bool marked;
 };
 
 LIST_DECL(ir_block_t, ir_block)
