@@ -19,10 +19,14 @@ static void parse_printexpr_r(const expr_t* expr)
     postfix = false;
     switch(expr->op)
     {
-    case EXPROP_RVAL:
-    case EXPROP_LVAL:
+    case EXPROP_LIT:
+    case EXPROP_VAR:
         printf("%s", expr->msg);
         return;
+    case EXPROP_COND:
+        nterms = 3;
+        op = "?:";
+        break;
     case EXPROP_ASSIGN:
         nterms = 2;
         op = "=";
@@ -101,7 +105,7 @@ static int parse_postfixopbp(exprop_e op)
     {
     case EXPROP_POSTINC:
     case EXPROP_POSTDEC:
-        return 8;
+        return 10;
     default:
         return 0;
     }
@@ -115,9 +119,22 @@ static int parse_prefixopbp(exprop_e op)
     case EXPROP_POS:
     case EXPROP_PREINC:
     case EXPROP_PREDEC:
-        return 7;
+        return 9;
     default:
         return 0;
+    }
+}
+
+static void parse_ternaryopbp(exprop_e op, int bp[2])
+{
+    switch(op)
+    {
+    case EXPROP_COND:
+        bp[0] = 4;
+        bp[1] = 3;
+    default:
+        bp[0] = bp[1] = 0;
+        break;
     }
 }
 
@@ -131,13 +148,13 @@ static void parse_infixopbp(exprop_e op, int bp[2])
         break;
     case EXPROP_ADD:
     case EXPROP_SUB:
-        bp[0] = 3;
-        bp[1] = 4;
+        bp[0] = 5;
+        bp[1] = 6;
         break;
     case EXPROP_MULT:
     case EXPROP_DIV:
-        bp[0] = 5;
-        bp[1] = 6;
+        bp[0] = 7;
+        bp[1] = 8;
         break;
     default:
         bp[0] = bp[1] = 0;
@@ -147,23 +164,24 @@ static void parse_infixopbp(exprop_e op, int bp[2])
 
 static expr_t* parse_expr_r(int minbp)
 {
-    expr_t *expr, *lhs, *rhs;
+    expr_t *expr, *lhs, *rhs, *thenexpr, *elseexpr;
     const char *tokstr;
     exprop_e op;
     int bp[2];
 
     expr = NULL;
 
+    // atom/prefix
     switch(parse_peekform(0))
     {
     case TOKEN_NUMBER:
         expr = malloc(sizeof(expr_t));
-        expr->op = EXPROP_RVAL;
+        expr->op = EXPROP_LIT;
         expr->msg = strdup(parse_eat());
         break;
     case TOKEN_IDENT:
         expr = malloc(sizeof(expr_t));
-        expr->op = EXPROP_LVAL;
+        expr->op = EXPROP_VAR;
         expr->msg = strdup(parse_eat());
         break;
     case TOKEN_PUNC:
@@ -196,6 +214,7 @@ static expr_t* parse_expr_r(int minbp)
         return expr;
     }
 
+    // postfix/ternary/infix
     while(1)
     {
         tokstr = parse_peekstr(0);
@@ -213,6 +232,38 @@ static expr_t* parse_expr_r(int minbp)
             op = EXPROP_POSTINC;
         else if(!strcmp(tokstr, "--"))
             op = EXPROP_POSTDEC;
+        else if(!strcmp(tokstr, "?"))
+        {
+            op = EXPROP_COND;
+            parse_ternaryopbp(op, bp);
+
+            if(bp[0] < minbp)
+                goto done;
+
+            parse_eat();
+            thenexpr = parse_expr_r(bp[1]);
+            if(!thenexpr)
+            {
+                printf("expected expression.\n");
+                exit(1);
+            }
+            parse_eatstr(":");
+            elseexpr = parse_expr_r(bp[1]);
+            if(!elseexpr)
+            {
+                printf("expected expression.\n");
+                exit(1);
+            }
+
+            lhs = expr;
+            expr = malloc(sizeof(expr_t));
+            expr->op = EXPROP_COND;
+            expr->operands[0] = lhs;
+            expr->operands[1] = thenexpr;
+            expr->operands[2] = elseexpr;
+
+            goto continueloop;
+        }
         else
             break;
 

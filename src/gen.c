@@ -74,7 +74,7 @@ static ir_reg_t* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr)
 
     switch(expr->op)
     {
-    case EXPROP_RVAL:
+    case EXPROP_LIT:
         inst.op = IR_OP_MOVE;
         inst.binary[0].type = IR_OPERAND_REG;
         inst.binary[0].reg = res = ir_gen_alloctemp(funcdef);
@@ -84,7 +84,7 @@ static ir_reg_t* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr)
         inst.binary[1].literal.i32 = atoi(expr->msg);
         list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
         return res;
-    case EXPROP_LVAL:
+    case EXPROP_VAR:
         inst.op = IR_OP_LOAD;
 
         inst.binary[0].type = IR_OPERAND_REG;

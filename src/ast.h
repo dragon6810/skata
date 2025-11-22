@@ -23,24 +23,27 @@ typedef enum
 typedef enum
 {
     // atoms
-    EXPROP_RVAL=0,
-    EXPROP_LVAL,
+    EXPROP_LIT=0,
+    EXPROP_VAR,
+
+    // trinary operators
+    EXPROP_COND, // ? :
 
     // binary operators
     // use terms[0] and terms[1]
-    EXPROP_ASSIGN,
-    EXPROP_ADD,
-    EXPROP_SUB,
-    EXPROP_MULT,
-    EXPROP_DIV,
+    EXPROP_ASSIGN, // =
+    EXPROP_ADD, // +
+    EXPROP_SUB, // -
+    EXPROP_MULT, // *
+    EXPROP_DIV, // /
 
     // unary operators
-    EXPROP_NEG,
-    EXPROP_POS,
-    EXPROP_PREINC,
-    EXPROP_PREDEC,
-    EXPROP_POSTINC,
-    EXPROP_POSTDEC,
+    EXPROP_NEG, // -
+    EXPROP_POS, // +
+    EXPROP_PREINC, // ++
+    EXPROP_PREDEC, // --
+    EXPROP_POSTINC, // ++
+    EXPROP_POSTDEC, // --
 } exprop_e;
 
 typedef struct expr_s
@@ -48,7 +51,7 @@ typedef struct expr_s
     exprop_e op;
     union
     {
-        struct expr_s *operands[2]; // binary op
+        struct expr_s *operands[3]; // binary and trinary op
         struct expr_s *operand; // unary op
         char* msg; // atom
     };

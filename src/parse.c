@@ -26,8 +26,8 @@ static void parse_freeexpr(expr_t* expr)
 {
     switch(expr->op)
     {
-    case EXPROP_RVAL:
-    case EXPROP_LVAL:
+    case EXPROP_LIT:
+    case EXPROP_VAR:
         free(expr->msg);
         break;
     case EXPROP_ADD:
