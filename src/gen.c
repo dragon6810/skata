@@ -82,32 +82,28 @@ static void ir_newblock(ir_funcdef_t* funcdef)
     list_ir_block_ppush(&funcdef->blocks, &blk);
 }
 
-static ir_reg_t* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr);
+static ir_reg_t* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, ir_reg_t* outreg);
 
-static ir_reg_t* ir_gen_ternary(ir_funcdef_t* funcdef, expr_t* expr)
+// if outreg is NULL, it will alloc a new register
+static ir_reg_t* ir_gen_ternary(ir_funcdef_t* funcdef, expr_t* expr, ir_reg_t* outreg)
 {
-    ir_reg_t *finalreg, *reg;
-    ir_inst_t inst;
+    int iblk;
+    ir_reg_t *res;
+    ir_inst_t inst, *pinst;
+    ir_block_t *pblk;
+
+    iblk = funcdef->blocks.len - 1;
 
     inst.op = IR_OP_BZ;
     inst.binary[0].type = IR_OPERAND_REG;
-    inst.binary[0].reg = ir_gen_expr(funcdef, expr->operands[0]);
-    inst.binary[1].type = IR_OPERAND_LABEL;
-    inst.binary[1].ilabel = funcdef->blocks.len+1;
-    list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
+    inst.binary[0].reg = ir_gen_expr(funcdef, expr->operands[0], NULL);
+    list_ir_inst_ppush(&funcdef->blocks.data[iblk].insts, &inst);
 
-    finalreg = ir_gen_alloctemp(funcdef);
+    inst.binary[0].reg = res = outreg ? outreg : ir_gen_alloctemp(funcdef);
     
     // if block
     ir_newblock(funcdef);
-
-    reg = ir_gen_expr(funcdef, expr->operands[1]);
-    inst.op = IR_OP_MOVE;
-    inst.binary[0].type = IR_OPERAND_REG;
-    inst.binary[0].reg = finalreg;
-    inst.binary[1].type = IR_OPERAND_REG;
-    inst.binary[1].reg = reg;
-    list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
+    ir_gen_expr(funcdef, expr->operands[1], res);
 
     // skip over else block
     inst.op = IR_OP_BR;
@@ -117,22 +113,21 @@ static ir_reg_t* ir_gen_ternary(ir_funcdef_t* funcdef, expr_t* expr)
 
     // else block
     ir_newblock(funcdef);
+    ir_gen_expr(funcdef, expr->operands[2], res);
 
-    reg = ir_gen_expr(funcdef, expr->operands[2]);
-    inst.op = IR_OP_MOVE;
-    inst.binary[0].type = IR_OPERAND_REG;
-    inst.binary[0].reg = finalreg;
-    inst.binary[1].type = IR_OPERAND_REG;
-    inst.binary[1].reg = reg;
-    list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
+    pblk = &funcdef->blocks.data[iblk];
+    pinst = &pblk->insts.data[pblk->insts.len-1];
+    pinst->binary[1].type = IR_OPERAND_LABEL;
+    pinst->binary[1].ilabel = funcdef->blocks.len-1;
 
     // rest of function continues from here
     ir_newblock(funcdef);
 
-    return finalreg;
+    return res;
 }
 
-static ir_reg_t* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr)
+// if outreg is NULL, it will alloc a new register
+static ir_reg_t* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, ir_reg_t* outreg)
 {
     ir_reg_t *res;
     ir_inst_t inst;
@@ -142,7 +137,7 @@ static ir_reg_t* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr)
     case EXPROP_LIT:
         inst.op = IR_OP_MOVE;
         inst.binary[0].type = IR_OPERAND_REG;
-        inst.binary[0].reg = res = ir_gen_alloctemp(funcdef);
+        inst.binary[0].reg = res = outreg ? outreg : ir_gen_alloctemp(funcdef);
 
         inst.binary[1].type = IR_OPERAND_LIT;
         inst.binary[1].literal.type = IR_PRIM_I32;
@@ -153,7 +148,7 @@ static ir_reg_t* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr)
         inst.op = IR_OP_LOAD;
 
         inst.binary[0].type = IR_OPERAND_REG;
-        inst.binary[0].reg = res = ir_gen_alloctemp(funcdef);
+        inst.binary[0].reg = res = outreg ? outreg : ir_gen_alloctemp(funcdef);
 
         inst.binary[1].type = IR_OPERAND_VAR;
         inst.binary[1].var = map_str_ir_var_get(&funcdef->vars, &expr->msg);
@@ -167,7 +162,7 @@ static ir_reg_t* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr)
         list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
         return res;
     case EXPROP_COND:
-        return ir_gen_ternary(funcdef, expr);
+        return ir_gen_ternary(funcdef, expr, outreg);
     case EXPROP_ADD:
         inst.op = IR_OP_ADD;
         break;
@@ -183,7 +178,7 @@ static ir_reg_t* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr)
         inst.binary[0].var = map_str_ir_var_get(&funcdef->vars, &expr->operands[0]->msg);
 
         inst.binary[1].type = IR_OPERAND_REG;
-        inst.binary[1].reg = ir_gen_expr(funcdef, expr->operands[1]);
+        inst.binary[1].reg = ir_gen_expr(funcdef, expr->operands[1], NULL);
 
         list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
         return inst.binary[1].reg;
@@ -193,13 +188,13 @@ static ir_reg_t* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr)
     }
 
     inst.trinary[1].type = IR_OPERAND_REG;
-    inst.trinary[1].reg = ir_gen_expr(funcdef, expr->operands[0]);
+    inst.trinary[1].reg = ir_gen_expr(funcdef, expr->operands[0], NULL);
 
     inst.trinary[2].type = IR_OPERAND_REG;
-    inst.trinary[2].reg = ir_gen_expr(funcdef, expr->operands[1]);
+    inst.trinary[2].reg = ir_gen_expr(funcdef, expr->operands[1], NULL);
     
     inst.trinary[0].type = IR_OPERAND_REG;
-    inst.trinary[0].reg = res = ir_gen_alloctemp(funcdef);
+    inst.binary[0].reg = res = outreg ? outreg : ir_gen_alloctemp(funcdef);
     list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
 
     return res;
@@ -211,7 +206,7 @@ static void ir_gen_return(ir_funcdef_t *funcdef, expr_t *expr)
 
     inst.op = IR_OP_RET;
     inst.unary.type = IR_OPERAND_REG;
-    inst.unary.reg = ir_gen_expr(funcdef, expr);
+    inst.unary.reg = ir_gen_expr(funcdef, expr, NULL);
 
     list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
 }
@@ -220,20 +215,29 @@ static void ir_gen_statement(ir_funcdef_t *funcdef, stmnt_t *stmnt);
 
 static void ir_gen_if(ir_funcdef_t* funcdef, ifstmnt_t* ifstmnt)
 {
-    ir_inst_t inst;
+    int iblk;
+    ir_block_t *pblk;
+    ir_inst_t inst, *pinst;
+
+    iblk = funcdef->blocks.len - 1;
 
     inst.op = IR_OP_BZ;
     inst.binary[0].type = IR_OPERAND_REG;
-    inst.binary[0].reg = ir_gen_expr(funcdef, ifstmnt->expr);
-    inst.binary[1].type = IR_OPERAND_LABEL;
-    inst.binary[1].ilabel = funcdef->blocks.len+1;
-    list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
+    inst.binary[0].reg = ir_gen_expr(funcdef, ifstmnt->expr, NULL);
+    list_ir_inst_ppush(&funcdef->blocks.data[iblk].insts, &inst);
     
+    // then
     ir_newblock(funcdef);
-
     ir_gen_statement(funcdef, ifstmnt->ifblk);
 
+    // TODO: else
+
+    // rest of function
     ir_newblock(funcdef);
+    pblk = &funcdef->blocks.data[iblk];
+    pinst = &pblk->insts.data[pblk->insts.len-1];
+    pinst->binary[1].type = IR_OPERAND_LABEL;
+    pinst->binary[1].ilabel = funcdef->blocks.len-1;
 }
 
 static void ir_gen_statement(ir_funcdef_t *funcdef, stmnt_t *stmnt)
@@ -241,7 +245,7 @@ static void ir_gen_statement(ir_funcdef_t *funcdef, stmnt_t *stmnt)
     switch(stmnt->form)
     {
     case STMNT_EXPR:
-        ir_gen_expr(funcdef, stmnt->expr);
+        ir_gen_expr(funcdef, stmnt->expr, NULL);
         break;
     case STMNT_RETURN:
         ir_gen_return(funcdef, stmnt->expr);
