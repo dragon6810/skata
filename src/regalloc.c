@@ -75,7 +75,7 @@ void regalloc_color(ir_funcdef_t* funcdef)
             regalloc_colorreg(funcdef, &funcdef->regs.bins[i].val);
 }
 
-bool regalloc_iswritten(ir_inst_t* inst, ir_reg_t* reg)
+bool regalloc_iswritten(ir_funcdef_t* funcdef, ir_inst_t* inst, ir_reg_t* reg)
 {
     switch(inst->op)
     {
@@ -84,7 +84,7 @@ bool regalloc_iswritten(ir_inst_t* inst, ir_reg_t* reg)
     case IR_OP_MUL:
     case IR_OP_MOVE:
     case IR_OP_LOAD:
-        if(inst->unary.type == IR_OPERAND_REG && inst->unary.reg == reg)
+        if(inst->unary.type == IR_OPERAND_REG && map_str_ir_reg_get(&funcdef->regs, &inst->unary.regname) == reg)
             return true;
         break;
     default:
@@ -94,26 +94,26 @@ bool regalloc_iswritten(ir_inst_t* inst, ir_reg_t* reg)
     return false;
 }
 
-bool regalloc_isread(ir_inst_t* inst, ir_reg_t* reg)
+bool regalloc_isread(ir_funcdef_t* funcdef, ir_inst_t* inst, ir_reg_t* reg)
 {
     switch(inst->op)
     {
     case IR_OP_RET:
     case IR_OP_BZ:
-        if(inst->unary.type == IR_OPERAND_REG && inst->unary.reg == reg)
+        if(inst->unary.type == IR_OPERAND_REG && map_str_ir_reg_get(&funcdef->regs, &inst->unary.regname) == reg)
             return true;
         break;
     case IR_OP_MOVE:
     case IR_OP_STORE:
-        if(inst->binary[1].type == IR_OPERAND_REG && inst->binary[1].reg == reg)
+        if(inst->binary[1].type == IR_OPERAND_REG && map_str_ir_reg_get(&funcdef->regs, &inst->binary[1].regname) == reg)
             return true;
         break;
     case IR_OP_ADD:
     case IR_OP_SUB:
     case IR_OP_MUL:
-        if(inst->trinary[1].type == IR_OPERAND_REG && inst->trinary[1].reg == reg)
+        if(inst->trinary[1].type == IR_OPERAND_REG && map_str_ir_reg_get(&funcdef->regs, &inst->trinary[1].regname) == reg)
             return true;
-        if(inst->trinary[2].type == IR_OPERAND_REG && inst->trinary[2].reg == reg)
+        if(inst->trinary[2].type == IR_OPERAND_REG && map_str_ir_reg_get(&funcdef->regs, &inst->trinary[2].regname) == reg)
             return true;
         break;
     default:
@@ -146,7 +146,7 @@ void regalloc_reglifetime_r(ir_funcdef_t* funcdef, ir_reg_t* reg, uint64_t iblk,
         inst = &blk->insts.data[i];
 
         // last time the register is ever used
-        if(!alive && regalloc_isread(inst, reg))
+        if(!alive && regalloc_isread(funcdef, inst, reg))
         {
             alive = true;
             span.span[1] = i + 1;
@@ -154,7 +154,7 @@ void regalloc_reglifetime_r(ir_funcdef_t* funcdef, ir_reg_t* reg, uint64_t iblk,
         }
 
         // beginning of the register
-        if(alive && regalloc_iswritten(inst, reg))
+        if(alive && regalloc_iswritten(funcdef, inst, reg))
         {
             span.start = true;
             span.span[0] = i;

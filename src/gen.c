@@ -26,6 +26,50 @@ void ir_varcpy(ir_var_t* dst, ir_var_t* src)
     dst->stackloc = src->stackloc;
 }
 
+void ir_operandfree(ir_operand_t* operand)
+{
+    switch(operand->type)
+    {
+    case IR_OPERAND_REG:
+        free(operand->regname);
+        break;
+    default:
+        break;
+    }
+}
+
+void ir_instfree(ir_inst_t* inst)
+{
+    int i;
+
+    int noperand;
+
+    switch(inst->op)
+    {
+    case IR_OP_RET:
+    case IR_OP_BR:
+        noperand = 1;
+        break;
+    case IR_OP_MOVE:
+    case IR_OP_BZ:
+    case IR_OP_STORE:
+    case IR_OP_LOAD:
+        noperand = 2;
+        break;
+    case IR_OP_ADD:
+    case IR_OP_SUB:
+    case IR_OP_MUL:
+        noperand = 3;
+        break;
+    default:
+        noperand = 0;
+        break;
+    }
+
+    for(i=0; i<noperand; i++)
+        ir_operandfree(&inst->trinary[i]);
+}
+
 void ir_varfree(ir_var_t* var)
 {
     free(var->name);
@@ -50,7 +94,7 @@ void ir_freefuncdef(ir_funcdef_t* funcdef)
 MAP_DEF(char*, ir_reg_t, str, ir_reg, map_strhash, map_strcmp, map_strcpy, ir_regcpy, map_freestr, ir_regfree)
 MAP_DEF(char*, ir_var_t, str, ir_var, map_strhash, map_strcmp, map_strcpy, ir_varcpy, map_freestr, ir_varfree)
 LIST_DEF(ir_inst)
-LIST_DEF_FREE(ir_inst)
+LIST_DEF_FREE_DECONSTRUCT(ir_inst, ir_instfree)
 LIST_DEF(ir_block)
 LIST_DEF_FREE_DECONSTRUCT(ir_block, ir_freeblock)
 LIST_DEF(ir_funcdef)
@@ -58,18 +102,18 @@ LIST_DEF_FREE_DECONSTRUCT(ir_funcdef, ir_freefuncdef)
 
 ir_t ir;
 
-static ir_reg_t* ir_gen_alloctemp(ir_funcdef_t *funcdef)
+// YOU are responsible for the returned string
+static char* ir_gen_alloctemp(ir_funcdef_t *funcdef)
 {
-    ir_reg_t reg, *preg;
+    ir_reg_t reg;
     char name[16];
 
     snprintf(name, 16, "%llu", (unsigned long long) funcdef->ntempreg++);
     reg.name = strdup(name);
     map_u64_ir_regspan_alloc(&reg.life);
-    preg = map_str_ir_reg_set(&funcdef->regs, &reg.name, &reg);
-    free(reg.name);
+    map_str_ir_reg_set(&funcdef->regs, &reg.name, &reg);
     
-    return preg;
+    return reg.name;
 }
 
 static void ir_newblock(ir_funcdef_t* funcdef)
@@ -85,13 +129,15 @@ static void ir_newblock(ir_funcdef_t* funcdef)
     list_ir_block_ppush(&funcdef->blocks, &blk);
 }
 
-static ir_reg_t* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, ir_reg_t* outreg);
+// YOU are responsible for the returned string, unless you gave outreg
+static char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg);
 
 // if outreg is NULL, it will alloc a new register
-static ir_reg_t* ir_gen_ternary(ir_funcdef_t* funcdef, expr_t* expr, ir_reg_t* outreg)
+// YOU are responsible for the returned string, unless you gave outreg
+static char* ir_gen_ternary(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
 {
     int iblk;
-    ir_reg_t *res;
+    char *res;
     ir_inst_t inst, *pinst;
     ir_block_t *pblk;
 
@@ -99,10 +145,10 @@ static ir_reg_t* ir_gen_ternary(ir_funcdef_t* funcdef, expr_t* expr, ir_reg_t* o
 
     inst.op = IR_OP_BZ;
     inst.binary[0].type = IR_OPERAND_REG;
-    inst.binary[0].reg = ir_gen_expr(funcdef, expr->operands[0], NULL);
+    inst.binary[0].regname = ir_gen_expr(funcdef, expr->operands[0], NULL);
     list_ir_inst_ppush(&funcdef->blocks.data[iblk].insts, &inst);
 
-    inst.binary[0].reg = res = outreg ? outreg : ir_gen_alloctemp(funcdef);
+    res = outreg ? outreg : ir_gen_alloctemp(funcdef);
     
     // if block
     ir_newblock(funcdef);
@@ -130,9 +176,10 @@ static ir_reg_t* ir_gen_ternary(ir_funcdef_t* funcdef, expr_t* expr, ir_reg_t* o
 }
 
 // if outreg is NULL, it will alloc a new register
-static ir_reg_t* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, ir_reg_t* outreg)
+// YOU are responsible for the returned string, unless you gave outreg
+static char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
 {
-    ir_reg_t *res;
+    char *res;
     ir_inst_t inst;
 
     switch(expr->op)
@@ -140,7 +187,7 @@ static ir_reg_t* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, ir_reg_t* outr
     case EXPROP_LIT:
         inst.op = IR_OP_MOVE;
         inst.binary[0].type = IR_OPERAND_REG;
-        inst.binary[0].reg = res = outreg ? outreg : ir_gen_alloctemp(funcdef);
+        inst.binary[0].regname = strdup(res = outreg ? outreg : ir_gen_alloctemp(funcdef));
 
         inst.binary[1].type = IR_OPERAND_LIT;
         inst.binary[1].literal.type = IR_PRIM_I32;
@@ -151,7 +198,7 @@ static ir_reg_t* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, ir_reg_t* outr
         inst.op = IR_OP_LOAD;
 
         inst.binary[0].type = IR_OPERAND_REG;
-        inst.binary[0].reg = res = outreg ? outreg : ir_gen_alloctemp(funcdef);
+        inst.binary[0].regname = strdup(res = outreg ? outreg : ir_gen_alloctemp(funcdef));
 
         inst.binary[1].type = IR_OPERAND_VAR;
         inst.binary[1].var = map_str_ir_var_get(&funcdef->vars, &expr->msg);
@@ -181,23 +228,23 @@ static ir_reg_t* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, ir_reg_t* outr
         inst.binary[0].var = map_str_ir_var_get(&funcdef->vars, &expr->operands[0]->msg);
 
         inst.binary[1].type = IR_OPERAND_REG;
-        inst.binary[1].reg = ir_gen_expr(funcdef, expr->operands[1], NULL);
+        inst.binary[1].regname = strdup(res = outreg ? outreg : ir_gen_alloctemp(funcdef));
 
         list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
-        return inst.binary[1].reg;
+        return res;
     default:
         assert(0 && "unsupported op by IR");
         break;
     }
 
     inst.trinary[1].type = IR_OPERAND_REG;
-    inst.trinary[1].reg = ir_gen_expr(funcdef, expr->operands[0], NULL);
+    inst.trinary[1].regname = ir_gen_expr(funcdef, expr->operands[0], NULL);
 
     inst.trinary[2].type = IR_OPERAND_REG;
-    inst.trinary[2].reg = ir_gen_expr(funcdef, expr->operands[1], NULL);
+    inst.trinary[2].regname = ir_gen_expr(funcdef, expr->operands[1], NULL);
     
     inst.trinary[0].type = IR_OPERAND_REG;
-    inst.binary[0].reg = res = outreg ? outreg : ir_gen_alloctemp(funcdef);
+    inst.trinary[0].regname = strdup(res = outreg ? outreg : ir_gen_alloctemp(funcdef));
     list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
 
     return res;
@@ -209,7 +256,7 @@ static void ir_gen_return(ir_funcdef_t *funcdef, expr_t *expr)
 
     inst.op = IR_OP_RET;
     inst.unary.type = IR_OPERAND_REG;
-    inst.unary.reg = ir_gen_expr(funcdef, expr, NULL);
+    inst.unary.regname = ir_gen_expr(funcdef, expr, NULL);
 
     list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
 }
@@ -226,7 +273,7 @@ static void ir_gen_if(ir_funcdef_t* funcdef, ifstmnt_t* ifstmnt)
 
     inst.op = IR_OP_BZ;
     inst.binary[0].type = IR_OPERAND_REG;
-    inst.binary[0].reg = ir_gen_expr(funcdef, ifstmnt->expr, NULL);
+    inst.binary[0].regname = ir_gen_expr(funcdef, ifstmnt->expr, NULL);
     list_ir_inst_ppush(&funcdef->blocks.data[iblk].insts, &inst);
     
     // then
@@ -255,7 +302,7 @@ static void ir_gen_while(ir_funcdef_t* funcdef, whilestmnt_t* whilestmnt)
     // check for condition
     inst.op = IR_OP_BZ;
     inst.binary[0].type = IR_OPERAND_REG;
-    inst.binary[0].reg = ir_gen_expr(funcdef, whilestmnt->expr, NULL);
+    inst.binary[0].regname = ir_gen_expr(funcdef, whilestmnt->expr, NULL);
     iinst = funcdef->blocks.data[iblk].insts.len;
     list_ir_inst_ppush(&funcdef->blocks.data[iblk].insts, &inst);
     
@@ -281,13 +328,14 @@ static void ir_gen_statement(ir_funcdef_t *funcdef, stmnt_t *stmnt)
     switch(stmnt->form)
     {
     case STMNT_EXPR:
-        ir_gen_expr(funcdef, stmnt->expr, NULL);
+        free(ir_gen_expr(funcdef, stmnt->expr, NULL));
         break;
     case STMNT_RETURN:
         ir_gen_return(funcdef, stmnt->expr);
         break;
     case STMNT_IF:
         ir_gen_if(funcdef, &stmnt->ifstmnt);
+        break;
     case STMNT_WHILE:
         ir_gen_while(funcdef, &stmnt->whilestmnt);
     default:

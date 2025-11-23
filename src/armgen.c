@@ -9,7 +9,28 @@ const char* armheader =
 ".text\n"
 ".global _main\n\n";
 
-const char* armregs[] = { "w0", "w1", "w2", "w3", "w4", "w5", "w6", "w7", "w8", "w9", "w10", "w11", "w12", };
+// w0-w7 are used for function calling and need to be pushed often, so try to use others first.
+const int narmreg = 12;
+const int ncorruptable = 7;
+const char* armregs[] =
+{
+    // corruptable
+    "w9",
+    "w10",
+    "w11",
+    "w12",
+    "w13",
+    "w14",
+    "w15",
+
+    // callee-saved
+    "w19",
+    "w20",
+    "w21",
+    "w22",
+    "w23",
+};
+
 const int stackpad = 16;
 
 static void armgen_operand(ir_funcdef_t* funcdef, ir_operand_t* operand)
@@ -17,10 +38,13 @@ static void armgen_operand(ir_funcdef_t* funcdef, ir_operand_t* operand)
     switch(operand->type)
     {
     case IR_OPERAND_REG:
-        printf("%s", armregs[operand->reg->hardreg]);
+        printf("%s", armregs[map_str_ir_reg_get(&funcdef->regs, &operand->regname)->hardreg]);
         break;
     case IR_OPERAND_LIT:
         printf("#%d", operand->literal.i32);
+        break;
+    case IR_OPERAND_VAR:
+        printf("[sp, #%d]", operand->var->stackloc);
         break;
     case IR_OPERAND_LABEL:
         printf("_%s$%s", funcdef->name, funcdef->blocks.data[operand->ilabel].name);
@@ -70,20 +94,29 @@ static void armgen_inst(ir_funcdef_t* funcdef, ir_inst_t* inst)
         printf("\n");
         break;
     case IR_OP_RET:
-        if(inst->unary.reg && inst->unary.reg->hardreg)
+        if(inst->unary.regname)
         {
-            printf("  MOV %s, ", armregs[0]);
+            printf("  MOV w0, ");
             armgen_operand(funcdef, &inst->unary);
             printf("\n");
         }
-        printf("  ADD sp, sp, #%d\n", (int) funcdef->varframe);
+        if(funcdef->varframe)
+            printf("  ADD sp, sp, #%d\n", (int) funcdef->varframe);
         printf("  RET\n");
         break;
     case IR_OP_STORE:
-        printf("  STR %s, [sp, #%d]\n", armregs[inst->binary[1].reg->hardreg], inst->binary[0].var->stackloc);
+        printf("  STR ");
+        armgen_operand(funcdef, &inst->binary[1]);
+        printf(", ");
+        armgen_operand(funcdef, &inst->binary[0]);
+        printf("\n");
         break;
     case IR_OP_LOAD:
-        printf("  LDR %s, [sp, #%d]\n", armregs[inst->binary[0].reg->hardreg], inst->binary[1].var->stackloc);
+        printf("  LDR ");
+        armgen_operand(funcdef, &inst->binary[0]);
+        printf(", ");
+        armgen_operand(funcdef, &inst->binary[1]);
+        printf("\n");
         break;
     case IR_OP_BR:
         printf("  B ");
@@ -127,7 +160,8 @@ static void armgen_funcdef(ir_funcdef_t* funcdef)
 
     printf("_%s:\n", funcdef->name);
 
-    printf("  SUB sp, sp, #%d\n", (int) funcdef->varframe);
+    if(funcdef->varframe)
+        printf("  SUB sp, sp, #%d\n", (int) funcdef->varframe);
 
     for(i=0; i<funcdef->blocks.len; i++)
         armgen_block(funcdef, &funcdef->blocks.data[i]);

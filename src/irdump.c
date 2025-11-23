@@ -8,7 +8,7 @@ void ir_print_operand(ir_funcdef_t* funcdef, ir_operand_t* operand)
     switch(operand->type)
     {
     case IR_OPERAND_REG:
-        printf("\e[0;31m%%%s\e[0m", operand->reg->name);
+        printf("\e[0;31m%%%s\e[0m", operand->regname);
         break;
     case IR_OPERAND_LIT:
         printf("\e[0;93m%d\e[0m", operand->literal.i32);
@@ -64,7 +64,7 @@ void ir_dump_inst(ir_funcdef_t* funcdef, ir_inst_t* inst)
     case IR_OP_RET:
         printf("  ");
         printf("\e[0;95mreturn\e[0m ");
-        if(inst->unary.reg)
+        if(inst->unary.regname)
             ir_print_operand(funcdef, &inst->unary);
         printf("\n");
         break;

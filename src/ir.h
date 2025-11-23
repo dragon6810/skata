@@ -78,7 +78,7 @@ typedef struct ir_operand_s
     {
         // TODO: reg and var become dangling
         // switch them to be names soon
-        ir_reg_t *reg;
+        char *regname;
         ir_constant_t literal;
         ir_var_t *var;
         uint64_t ilabel;
