@@ -75,25 +75,6 @@ void regalloc_color(ir_funcdef_t* funcdef)
             regalloc_colorreg(funcdef, &funcdef->regs.bins[i].val);
 }
 
-bool regalloc_iswritten(ir_funcdef_t* funcdef, ir_inst_t* inst, ir_reg_t* reg)
-{
-    switch(inst->op)
-    {
-    case IR_OP_ADD:
-    case IR_OP_SUB:
-    case IR_OP_MUL:
-    case IR_OP_MOVE:
-    case IR_OP_LOAD:
-        if(inst->unary.type == IR_OPERAND_REG && map_str_ir_reg_get(&funcdef->regs, &inst->unary.regname) == reg)
-            return true;
-        break;
-    default:
-        break;
-    }
-
-    return false;
-}
-
 bool regalloc_isread(ir_funcdef_t* funcdef, ir_inst_t* inst, ir_reg_t* reg)
 {
     switch(inst->op)
@@ -154,7 +135,7 @@ void regalloc_reglifetime_r(ir_funcdef_t* funcdef, ir_reg_t* reg, uint64_t iblk,
         }
 
         // beginning of the register
-        if(alive && regalloc_iswritten(funcdef, inst, reg))
+        if(alive && ir_registerwritten(inst, reg->name))
         {
             span.start = true;
             span.span[0] = i;

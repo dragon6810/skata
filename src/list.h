@@ -17,6 +17,8 @@ typedef struct list_##name##_s\
 void list_##name##_init(list_##name##_t* list, uint64_t len);\
 void list_##name##_ppush(list_##name##_t* list, T* val);\
 void list_##name##_push(list_##name##_t* list, T val);\
+void list_##name##_remove(list_##name##_t* list, uint64_t idx);\
+void list_##name##_insert(list_##name##_t* list, uint64_t idx, T val);\
 void list_##name##_free(list_##name##_t* list);
 
 #define LIST_DEF(name) \
@@ -62,6 +64,44 @@ void list_##name##_push(list_##name##_t* list, typeof(*list->data) val)\
     }\
 \
     list->data[list->len++] = val;\
+}\
+void list_##name##_remove(list_##name##_t* list, uint64_t idx)\
+{\
+    if(idx + 1 < list->len)\
+    {\
+        memmove\
+        (\
+            &list->data[idx],\
+            &list->data[idx + 1],\
+            (list->len - idx - 1) * sizeof(*list->data)\
+        );\
+    }\
+\
+    list->len--;\
+}\
+void list_##name##_insert(list_##name##_t* list, uint64_t idx, typeof(*list->data) val)\
+{\
+    if (list->len + 1 > list->cap)\
+    {\
+        list->cap = list->cap ? list->cap * 2 : 1;\
+        if (list->data)\
+            list->data = realloc(list->data, sizeof(*list->data) * list->cap);\
+        else\
+            list->data = malloc(sizeof(*list->data) * list->cap);\
+    }\
+\
+    if (idx < list->len)\
+    {\
+        memmove\
+        (\
+            &list->data[idx + 1],\
+            &list->data[idx],\
+            (list->len - idx) * sizeof(*list->data)\
+        );\
+    }\
+\
+    list->data[idx] = val;\
+    list->len++;\
 }\
 \
 

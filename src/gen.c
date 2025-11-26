@@ -141,7 +141,6 @@ static char* ir_gen_ternary(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
     ir_inst_t inst, *pinst;
     ir_block_t *pblk;
     char *areg, *breg;
-    uint64_t ablock, bblock;
 
     iblk = funcdef->blocks.len - 1;
 
@@ -153,7 +152,6 @@ static char* ir_gen_ternary(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
     // if block
     ir_newblock(funcdef);
     areg = ir_gen_expr(funcdef, expr->operands[1], NULL);
-    ablock = funcdef->blocks.len - 1;
 
     // skip over else block
     inst.op = IR_OP_BR;
@@ -164,7 +162,6 @@ static char* ir_gen_ternary(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
     // else block
     ir_newblock(funcdef);
     breg = ir_gen_expr(funcdef, expr->operands[2], NULL);
-    bblock = funcdef->blocks.len - 1;
 
     pblk = &funcdef->blocks.data[iblk];
     pinst = &pblk->insts.data[pblk->insts.len-1];
@@ -175,16 +172,12 @@ static char* ir_gen_ternary(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
     ir_newblock(funcdef);
     res = outreg ? outreg : ir_gen_alloctemp(funcdef);
     inst.op = IR_OP_PHI;
-    inst.quinary[0].type = IR_OPERAND_REG;
-    inst.quinary[0].regname = res;
-    inst.quinary[1].type = IR_OPERAND_LABEL;
-    inst.quinary[1].ilabel = ablock;
-    inst.quinary[2].type = IR_OPERAND_REG;
-    inst.quinary[2].regname = areg;
-    inst.quinary[3].type = IR_OPERAND_LABEL;
-    inst.quinary[3].ilabel = bblock;
-    inst.quinary[4].type = IR_OPERAND_REG;
-    inst.quinary[4].regname = breg;
+    inst.ternary[0].type = IR_OPERAND_REG;
+    inst.ternary[0].regname = res;
+    inst.ternary[1].type = IR_OPERAND_REG;
+    inst.ternary[1].regname = areg;
+    inst.ternary[2].type = IR_OPERAND_REG;
+    inst.ternary[2].regname = breg;
     list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
 
     return res;

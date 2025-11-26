@@ -48,7 +48,7 @@ typedef enum
     IR_OP_LOAD, // dst, src
     IR_OP_BR, // label
     IR_OP_BZ, // value, label
-    IR_OP_PHI, // apath, aval, bpath, bval
+    IR_OP_PHI, // dst, avalue, bvalue
     IR_OP_COUNT,
 } ir_inst_e;
 
@@ -94,8 +94,6 @@ typedef struct ir_inst_s
         ir_operand_t unary;
         ir_operand_t binary[2];
         ir_operand_t ternary[3];
-        ir_operand_t quaternary[4];
-        ir_operand_t quinary[5];
     };
 } ir_inst_t;
 
@@ -144,6 +142,7 @@ extern ir_t ir;
 void ir_gen(void);
 void ir_flow(void);
 void ir_lower(void);
+bool ir_registerwritten(ir_inst_t* inst, const char* reg);
 void ir_free(void);
 void ir_dump(void);
 void ir_dumpflow(void);

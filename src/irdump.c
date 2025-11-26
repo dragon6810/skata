@@ -3,6 +3,25 @@
 #include <assert.h>
 #include <stdio.h>
 
+bool ir_registerwritten(ir_inst_t* inst, const char* reg)
+{
+    switch(inst->op)
+    {
+    case IR_OP_ADD:
+    case IR_OP_SUB:
+    case IR_OP_MUL:
+    case IR_OP_MOVE:
+    case IR_OP_LOAD:
+        if(inst->unary.type == IR_OPERAND_REG && !strcmp(inst->unary.regname, reg))
+            return true;
+        break;
+    default:
+        break;
+    }
+
+    return false;
+}
+
 void ir_print_operand(ir_funcdef_t* funcdef, ir_operand_t* operand)
 {
     switch(operand->type)
@@ -95,16 +114,12 @@ void ir_dump_inst(ir_funcdef_t* funcdef, ir_inst_t* inst)
         printf("\n");
         break;
     case IR_OP_PHI:
-        printf("  \e[0;95mphi\e[0m ");
-        ir_print_operand(funcdef, &inst->quinary[0]);
-        printf(" [");
-        ir_print_operand(funcdef, &inst->quinary[1]);
-        printf(": ");
-        ir_print_operand(funcdef, &inst->quinary[2]);
-        printf("], [");
-        ir_print_operand(funcdef, &inst->quinary[3]);
-        printf(": ");
-        ir_print_operand(funcdef, &inst->quinary[4]);
+        printf("  ");
+        ir_print_operand(funcdef, &inst->ternary[0]);
+        printf("\e[0;95m := phi\e[0m [");
+        ir_print_operand(funcdef, &inst->ternary[1]);
+        printf(", ");
+        ir_print_operand(funcdef, &inst->ternary[2]);
         printf("]\n");
         break;
     default:
