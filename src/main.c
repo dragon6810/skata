@@ -14,6 +14,7 @@
 bool emitast = false;
 bool emitir = false;
 bool emitflow = false;
+bool emitlowered = false;
 
 char srcpath[PATH_MAX];
 
@@ -76,6 +77,18 @@ void compile(void)
         type_free();
         return;
     }
+
+    ir_lower();
+    if(emitlowered)
+    {
+        ir_dump();
+
+        ir_free();
+        list_globaldecl_free(&ast);
+        list_token_free(&tokens);
+        type_free();
+        return;
+    }
     
     asmgen_arm();
     
@@ -109,6 +122,8 @@ int main(int argc, char** argv)
             emitir = true;
         else if(!strcmp(argv[i], "-emit-flow"))
             emitflow = true;
+        else if(!strcmp(argv[i], "-emit-lowered"))
+            emitlowered = true;
         else
         {
             usage(argv[0]);

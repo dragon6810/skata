@@ -39,15 +39,16 @@ MAP_DECL(char*, ir_var_t, str, ir_var)
 
 typedef enum
 {
-    IR_OP_MOVE=0,
-    IR_OP_ADD,
-    IR_OP_SUB,
-    IR_OP_MUL,
-    IR_OP_RET,
-    IR_OP_STORE,
-    IR_OP_LOAD,
-    IR_OP_BR,
-    IR_OP_BZ,
+    IR_OP_MOVE=0, // dst, src
+    IR_OP_ADD, // dst, a, b
+    IR_OP_SUB, // dst, a, b
+    IR_OP_MUL, // dst, a, b,
+    IR_OP_RET, // [value]
+    IR_OP_STORE, // dst, src
+    IR_OP_LOAD, // dst, src
+    IR_OP_BR, // label
+    IR_OP_BZ, // value, label
+    IR_OP_PHI, // apath, aval, bpath, bval
     IR_OP_COUNT,
 } ir_inst_e;
 
@@ -92,7 +93,9 @@ typedef struct ir_inst_s
     {
         ir_operand_t unary;
         ir_operand_t binary[2];
-        ir_operand_t trinary[3];
+        ir_operand_t ternary[3];
+        ir_operand_t quaternary[4];
+        ir_operand_t quinary[5];
     };
 } ir_inst_t;
 
@@ -140,6 +143,7 @@ extern ir_t ir;
 
 void ir_gen(void);
 void ir_flow(void);
+void ir_lower(void);
 void ir_free(void);
 void ir_dump(void);
 void ir_dumpflow(void);

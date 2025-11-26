@@ -36,29 +36,29 @@ void ir_dump_inst(ir_funcdef_t* funcdef, ir_inst_t* inst)
         break;
     case IR_OP_ADD:
         printf("  ");
-        ir_print_operand(funcdef, &inst->trinary[0]);
+        ir_print_operand(funcdef, &inst->ternary[0]);
         printf(" \e[0;95m:=\e[0m ");
-        ir_print_operand(funcdef, &inst->trinary[1]);
+        ir_print_operand(funcdef, &inst->ternary[1]);
         printf(" \e[0;95m+\e[0m ");
-        ir_print_operand(funcdef, &inst->trinary[2]);
+        ir_print_operand(funcdef, &inst->ternary[2]);
         printf("\n");
         break;
     case IR_OP_SUB:
         printf("  ");
-        ir_print_operand(funcdef, &inst->trinary[0]);
+        ir_print_operand(funcdef, &inst->ternary[0]);
         printf(" \e[0;95m:=\e[0m ");
-        ir_print_operand(funcdef, &inst->trinary[1]);
+        ir_print_operand(funcdef, &inst->ternary[1]);
         printf(" \e[0;95m-\e[0m ");
-        ir_print_operand(funcdef, &inst->trinary[2]);
+        ir_print_operand(funcdef, &inst->ternary[2]);
         printf("\n");
         break;
     case IR_OP_MUL:
         printf("  ");
-        ir_print_operand(funcdef, &inst->trinary[0]);
+        ir_print_operand(funcdef, &inst->ternary[0]);
         printf(" \e[0;95m:=\e[0m ");
-        ir_print_operand(funcdef, &inst->trinary[1]);
+        ir_print_operand(funcdef, &inst->ternary[1]);
         printf(" \e[0;95m*\e[0m ");
-        ir_print_operand(funcdef, &inst->trinary[2]);
+        ir_print_operand(funcdef, &inst->ternary[2]);
         printf("\n");
         break;
     case IR_OP_RET:
@@ -93,6 +93,19 @@ void ir_dump_inst(ir_funcdef_t* funcdef, ir_inst_t* inst)
         printf(", ");
         ir_print_operand(funcdef, &inst->binary[1]);
         printf("\n");
+        break;
+    case IR_OP_PHI:
+        printf("  \e[0;95mphi\e[0m ");
+        ir_print_operand(funcdef, &inst->quinary[0]);
+        printf(" [");
+        ir_print_operand(funcdef, &inst->quinary[1]);
+        printf(": ");
+        ir_print_operand(funcdef, &inst->quinary[2]);
+        printf("], [");
+        ir_print_operand(funcdef, &inst->quinary[3]);
+        printf(": ");
+        ir_print_operand(funcdef, &inst->quinary[4]);
+        printf("]\n");
         break;
     default:
         assert(0 && "unkown ir opcode");

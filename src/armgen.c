@@ -68,29 +68,29 @@ static void armgen_inst(ir_funcdef_t* funcdef, ir_inst_t* inst)
         break;
     case IR_OP_ADD:
         printf("  ADD ");
-        armgen_operand(funcdef, &inst->trinary[0]);
+        armgen_operand(funcdef, &inst->ternary[0]);
         printf(", ");
-        armgen_operand(funcdef, &inst->trinary[1]);
+        armgen_operand(funcdef, &inst->ternary[1]);
         printf(", ");
-        armgen_operand(funcdef, &inst->trinary[2]);
+        armgen_operand(funcdef, &inst->ternary[2]);
         printf("\n");
         break;
     case IR_OP_SUB:
         printf("  SUB ");
-        armgen_operand(funcdef, &inst->trinary[0]);
+        armgen_operand(funcdef, &inst->ternary[0]);
         printf(", ");
-        armgen_operand(funcdef, &inst->trinary[1]);
+        armgen_operand(funcdef, &inst->ternary[1]);
         printf(", ");
-        armgen_operand(funcdef, &inst->trinary[2]);
+        armgen_operand(funcdef, &inst->ternary[2]);
         printf("\n");
         break;
     case IR_OP_MUL:
         printf("  MUL ");
-        armgen_operand(funcdef, &inst->trinary[0]);
+        armgen_operand(funcdef, &inst->ternary[0]);
         printf(", ");
-        armgen_operand(funcdef, &inst->trinary[1]);
+        armgen_operand(funcdef, &inst->ternary[1]);
         printf(", ");
-        armgen_operand(funcdef, &inst->trinary[2]);
+        armgen_operand(funcdef, &inst->ternary[2]);
         printf("\n");
         break;
     case IR_OP_RET:
