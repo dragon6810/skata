@@ -252,7 +252,7 @@ static char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
         inst.binary[0].var = map_str_ir_var_get(&funcdef->vars, &expr->operands[0]->msg);
 
         inst.binary[1].type = IR_OPERAND_REG;
-        inst.binary[1].regname = res = ir_gen_expr(funcdef, expr->operands[1], outreg);
+        inst.binary[1].regname = strdup(res = ir_gen_expr(funcdef, expr->operands[1], outreg));
 
         list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
         return res;

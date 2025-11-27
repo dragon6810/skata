@@ -140,11 +140,34 @@ void ir_dump_inst(ir_funcdef_t* funcdef, ir_inst_t* inst)
     }
 }
 
+void ir_dump_vars(ir_funcdef_t* funcdef)
+{
+    int i;
+
+    ir_var_t *var;
+
+    for(i=0; i<funcdef->vars.nbin; i++)
+    {
+        if(!funcdef->vars.bins[i].full)
+            continue;
+        var = &funcdef->vars.bins[i].val;
+
+        printf("  \e[0;95malloca \e[0;31m$%s\e[0m, \e[0;96msize \e[0;93m%d\e[0m\n", var->name, 4);
+    }
+}
+
 void ir_dump_block(ir_funcdef_t* funcdef, ir_block_t* block)
 {
     int i;
 
     printf("\e[0;92m%s\e[0m:\n", block->name);
+
+    if(!strcmp(block->name, "entry"))
+    {
+        ir_dump_vars(funcdef);
+        printf("\n");
+    }
+
     for(i=0; i<block->insts.len; i++)
         ir_dump_inst(funcdef, &block->insts.data[i]);
 }

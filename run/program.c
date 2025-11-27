@@ -1,4 +1,7 @@
 int main()
 {
-	return 1 ? 1 : 0;
+	int x;
+
+	x = 1;
+	return x ? 1 : 0;
 }
