@@ -29,15 +29,15 @@ static void ir_lowerphi(ir_funcdef_t* funcdef, const char* dst, const char* src)
 
 static void ir_lowerblk(ir_funcdef_t* funcdef, ir_block_t* blk)
 {
-    int i;
+    int i, j;
 
     for(i=0; i<blk->insts.len; i++)
     {
         switch(blk->insts.data[i].op)
         {
         case IR_OP_PHI:
-            ir_lowerphi(funcdef, blk->insts.data[i].ternary[0].regname, blk->insts.data[i].ternary[1].regname);
-            ir_lowerphi(funcdef, blk->insts.data[i].ternary[0].regname, blk->insts.data[i].ternary[2].regname);
+            for(j=0; j<blk->insts.data[i].variadic.len; j++)
+                ir_lowerphi(funcdef, blk->insts.data[i].variadic.data[0].regname, blk->insts.data[i].variadic.data[j].regname);
             list_ir_inst_remove(&blk->insts, i);
             i--;
             break;
