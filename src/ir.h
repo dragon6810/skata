@@ -114,6 +114,9 @@ struct ir_block_s
 
     // control flow edges
     list_pir_block_t in, out;
+
+    // dominator stuff
+    list_pir_block_t dom; // blocks that dominate this one
     
     // temporary
     bool marked;

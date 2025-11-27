@@ -5,6 +5,74 @@
 LIST_DEF(pir_block)
 LIST_DEF_FREE(pir_block)
 
+bool ir_domeq(list_pir_block_t* a, list_pir_block_t* b)
+{
+    int i;
+
+    if(a->len != b->len)
+        return false;
+
+    for(i=0; i<a->len; i++)
+        if(!list_pir_block_find(b, a->data[i]))
+            return false;
+
+    return true;
+}
+
+void ir_domfunc(ir_funcdef_t* funcdef)
+{
+    int i, j, k;
+    ir_block_t *blk;
+
+    bool change;
+    list_pir_block_t newdom;
+
+    // start node dominates itself
+    list_pir_block_push(&funcdef->blocks.data[0].dom, &funcdef->blocks.data[0]);
+
+    // for other nodes, set it at first to be dominated by every node
+    for(i=1; i<funcdef->blocks.len; i++)
+        for(j=0; j<funcdef->blocks.len; j++)
+            list_pir_block_push(&funcdef->blocks.data[i].dom, &funcdef->blocks.data[j]);
+
+    do
+    {
+        change = false;
+        for(i=1, blk=funcdef->blocks.data+1; i<funcdef->blocks.len; i++, blk++)
+        {
+            list_pir_block_init(&newdom, 1);
+            newdom.data[0] = blk;
+            if(blk->in.len)
+            {
+                // intersection of all dom of preds
+                for(j=0; j<blk->in.data[0]->dom.len; j++)
+                {
+                    if(blk->in.data[0]->dom.data[j] == blk)
+                        continue;
+                    
+                    for(k=1; k<blk->in.len; k++)
+                        if(!list_pir_block_find(&blk->in.data[k]->dom, blk->in.data[0]->dom.data[j]))
+                            break;
+                    if(k < blk->in.len)
+                        continue;
+
+                    list_pir_block_push(&newdom, blk->in.data[0]->dom.data[j]);
+                }
+            }
+
+            if(ir_domeq(&newdom, &blk->dom))
+            {
+                list_pir_block_free(&newdom);
+                continue;
+            }
+
+            list_pir_block_free(&blk->dom);
+            blk->dom = newdom;
+            change = true;
+        }
+    } while(change);
+}
+
 // a --> b
 void ir_flowedge(ir_block_t* a, ir_block_t* b)
 {
@@ -53,7 +121,10 @@ void ir_flow(void)
     int i;
 
     for(i=0; i<ir.defs.len; i++)
+    {
         ir_flowfunc(&ir.defs.data[i]);
+        ir_domfunc(&ir.defs.data[i]);
+    }
 }
 
 void ir_dumpflowblk(ir_funcdef_t* func, ir_block_t* blk)

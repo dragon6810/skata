@@ -19,6 +19,8 @@ void list_##name##_ppush(list_##name##_t* list, T* val);\
 void list_##name##_push(list_##name##_t* list, T val);\
 void list_##name##_remove(list_##name##_t* list, uint64_t idx);\
 void list_##name##_insert(list_##name##_t* list, uint64_t idx, T val);\
+T* list_##name##_find(list_##name##_t* list, T val);\
+void list_##name##_dup(list_##name##_t* dst, list_##name##_t* src);\
 void list_##name##_free(list_##name##_t* list);
 
 #define LIST_DEF(name) \
@@ -102,6 +104,22 @@ void list_##name##_insert(list_##name##_t* list, uint64_t idx, typeof(*list->dat
 \
     list->data[idx] = val;\
     list->len++;\
+}\
+typeof(((list_##name##_t*)0)->data) list_##name##_find(list_##name##_t* list, typeof(*list->data) val)\
+{\
+    int i;\
+\
+    for(i=0; i<list->len; i++)\
+        if(!memcmp(&list->data[i], &val, sizeof(val)))\
+            return &list->data[i];\
+\
+    return NULL;\
+}\
+void list_##name##_dup(list_##name##_t* dst, list_##name##_t* src)\
+{\
+    memcpy(dst, src, sizeof(list_##name##_t));\
+    dst->data = malloc(dst->cap * sizeof(*dst->data));\
+    memcpy(dst->data, src->data, dst->len * sizeof(*dst->data));\
 }\
 \
 
