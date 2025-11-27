@@ -49,7 +49,7 @@ typedef enum
     IR_OP_CMPEQ, // dst, a, b
     IR_OP_BR, // value, truelabel, falselabel
     IR_OP_JMP, // label
-    IR_OP_PHI, // dst, avalue, bvalue
+    IR_OP_PHI, // (VARIADIC); dst, reg1, reg2, ... regn
     IR_OP_COUNT,
 } ir_inst_e;
 
@@ -87,6 +87,8 @@ typedef struct ir_operand_s
     };
 } ir_operand_t;
 
+LIST_DECL(ir_operand_t, ir_operand)
+
 typedef struct ir_inst_s
 {
     ir_inst_e op;
@@ -95,6 +97,7 @@ typedef struct ir_inst_s
         ir_operand_t unary;
         ir_operand_t binary[2];
         ir_operand_t ternary[3];
+        list_ir_operand_t variadic;
     };
 } ir_inst_t;
 

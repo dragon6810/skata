@@ -62,6 +62,10 @@ void ir_instfree(ir_inst_t* inst)
     case IR_OP_BR:
         noperand = 3;
         break;
+    // variadic
+    case IR_OP_PHI:
+        list_ir_operand_free(&inst->variadic);
+        return;
     default:
         noperand = 0;
         break;
@@ -100,6 +104,8 @@ LIST_DEF(ir_block)
 LIST_DEF_FREE_DECONSTRUCT(ir_block, ir_freeblock)
 LIST_DEF(ir_funcdef)
 LIST_DEF_FREE_DECONSTRUCT(ir_funcdef, ir_freefuncdef)
+LIST_DEF(ir_operand)
+LIST_DEF_FREE_DECONSTRUCT(ir_operand, ir_operandfree)
 
 ir_t ir;
 
@@ -188,12 +194,13 @@ static char* ir_gen_ternary(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
     ir_newblock(funcdef);
     res = outreg ? outreg : ir_gen_alloctemp(funcdef);
     inst.op = IR_OP_PHI;
-    inst.ternary[0].type = IR_OPERAND_REG;
-    inst.ternary[0].regname = res;
-    inst.ternary[1].type = IR_OPERAND_REG;
-    inst.ternary[1].regname = areg;
-    inst.ternary[2].type = IR_OPERAND_REG;
-    inst.ternary[2].regname = breg;
+    list_ir_operand_init(&inst.variadic, 3);
+    inst.variadic.data[0].type = IR_OPERAND_REG;
+    inst.variadic.data[0].regname = strdup(res);
+    inst.variadic.data[1].type = IR_OPERAND_REG;
+    inst.variadic.data[1].regname = areg;
+    inst.variadic.data[2].type = IR_OPERAND_REG;
+    inst.variadic.data[2].regname = breg;
     list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
 
     return res;

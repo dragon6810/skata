@@ -45,6 +45,8 @@ void ir_print_operand(ir_funcdef_t* funcdef, ir_operand_t* operand)
 
 void ir_dump_inst(ir_funcdef_t* funcdef, ir_inst_t* inst)
 {
+    int i;
+
     switch(inst->op)
     {
     case IR_OP_MOVE:
@@ -127,11 +129,14 @@ void ir_dump_inst(ir_funcdef_t* funcdef, ir_inst_t* inst)
         break;
     case IR_OP_PHI:
         printf("  ");
-        ir_print_operand(funcdef, &inst->ternary[0]);
+        ir_print_operand(funcdef, &inst->variadic.data[0]);
         printf("\e[0;95m := phi\e[0m [");
-        ir_print_operand(funcdef, &inst->ternary[1]);
-        printf(", ");
-        ir_print_operand(funcdef, &inst->ternary[2]);
+        for(i=1; i<inst->variadic.len; i++)
+        {
+            ir_print_operand(funcdef, &inst->variadic.data[i]);
+            if(i<inst->variadic.len-1)
+                printf(", ");
+        }
         printf("]\n");
         break;
     default:
