@@ -6,6 +6,7 @@
 extern bool emitast;
 extern bool emitir;
 extern bool emitflow;
+extern bool emitdomtree;
 extern bool emitlowered;
 
 #endif

@@ -117,6 +117,8 @@ struct ir_block_s
 
     // dominator stuff
     list_pir_block_t dom; // blocks that dominate this one
+    ir_block_t *idom; // immediate dominator, parent in dom tree
+    list_pir_block_t domchildren; // children in dom tree
     
     // temporary
     bool marked;
@@ -153,5 +155,6 @@ bool ir_registerwritten(ir_inst_t* inst, const char* reg);
 void ir_free(void);
 void ir_dump(void);
 void ir_dumpflow(void);
+void ir_dumpdomtree(void);
 
 #endif

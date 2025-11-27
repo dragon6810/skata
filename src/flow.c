@@ -5,6 +5,44 @@
 LIST_DEF(pir_block)
 LIST_DEF_FREE(pir_block)
 
+ir_block_t* ir_idom(ir_block_t* blk)
+{
+    int i, j;
+
+    for(i=0; i<blk->dom.len; i++)
+    {
+        if(blk->dom.data[i] == blk)
+            continue;
+
+        for(j=0; j<blk->dom.len; j++)
+        {
+            if(i == j || blk->dom.data[j] == blk)
+                continue;
+            if(list_pir_block_find(&blk->dom.data[j]->dom, blk->dom.data[i]))
+                break;
+        }
+
+        if(j < blk->dom.len)
+            continue;
+
+        return blk->dom.data[i];
+    }
+
+    return NULL;
+}
+
+void ir_domtreefunc(ir_funcdef_t* funcdef)
+{
+    int i;
+
+    for(i=0; i<funcdef->blocks.len; i++)
+    {
+        funcdef->blocks.data[i].idom = ir_idom(&funcdef->blocks.data[i]);
+        if(funcdef->blocks.data[i].idom)
+            list_pir_block_push(&funcdef->blocks.data[i].idom->domchildren, &funcdef->blocks.data[i]);
+    }
+}
+
 bool ir_domeq(list_pir_block_t* a, list_pir_block_t* b)
 {
     int i;
@@ -124,6 +162,7 @@ void ir_flow(void)
     {
         ir_flowfunc(&ir.defs.data[i]);
         ir_domfunc(&ir.defs.data[i]);
+        ir_domtreefunc(&ir.defs.data[i]);
     }
 }
 
@@ -156,4 +195,35 @@ void ir_dumpflow(void)
 
     for(i=0; i<ir.defs.len; i++)
         ir_dumpflowfunc(&ir.defs.data[i]);
+}
+
+void ir_dumpdomtreeblk(ir_funcdef_t* func, ir_block_t* blk)
+{
+    int i;
+
+    for(i=0; i<blk->domchildren.len; i++)
+        printf("  %s-->%s\n", blk->name, blk->domchildren.data[i]->name);
+}
+
+void ir_dumpdomtreefunc(ir_funcdef_t* func)
+{
+    int i;
+
+    printf("graph TD\n\n");
+
+    printf("  title[\"@%s\"]\n", func->name);
+    printf("  title-->%s\n", func->blocks.data[0].name);
+    printf("  style title fill:#FFF,stroke:#FFF\n");
+    printf("  linkStyle 0 stroke:#FFF,stroke-width:0;\n\n");
+
+    for(i=0; i<func->blocks.len; i++)
+        ir_dumpdomtreeblk(func, &func->blocks.data[i]);
+}
+
+void ir_dumpdomtree(void)
+{
+    int i;
+
+    for(i=0; i<ir.defs.len; i++)
+        ir_dumpdomtreefunc(&ir.defs.data[i]);
 }
