@@ -3,7 +3,11 @@ int main()
 	int x;
 
 	x = 1;
-	if(x)
-		return x ? 1 : 0;
+	while(x)
+	{
+		x = x - 1;
+		if(x)
+			x = x;
+	}
 	return x;
 }

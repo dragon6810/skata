@@ -201,8 +201,17 @@ static void parse_decl(decl_t* decl)
     parse_eatstr(";");
 }
 
+static void parse_compound(compound_t* cmpnd);
+
 static void parse_statement(stmnt_t* stmnt)
 {
+    if(!strcmp(parse_peekstr(0), "{"))
+    {
+        stmnt->form = STMNT_COMPOUND;
+        parse_compound(&stmnt->compound);
+        return;
+    }
+
     if(!strcmp(parse_peekstr(0), "return"))
     {
         parse_eat();

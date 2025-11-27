@@ -273,6 +273,12 @@ static char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
         inst.binary[1].type = IR_OPERAND_REG;
         inst.binary[1].regname = strdup(res = ir_gen_expr(funcdef, expr->operands[1], outreg));
 
+        if(!inst.binary[0].var)
+        {
+            printf("undeclared identifier %s\n", expr->msg);
+            exit(1);
+        }
+
         list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
         return res;
     default:
@@ -380,7 +386,7 @@ static void ir_gen_while(ir_funcdef_t* funcdef, whilestmnt_t* whilestmnt)
     ir_gen_statement(funcdef, whilestmnt->body);
 
     // jump back to beginning
-    inst.op = IR_OP_BR;
+    inst.op = IR_OP_JMP;
     inst.unary.type = IR_OPERAND_LABEL;
     inst.unary.ilabel = condblock;
     list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
@@ -395,8 +401,14 @@ static void ir_gen_while(ir_funcdef_t* funcdef, whilestmnt_t* whilestmnt)
 
 static void ir_gen_statement(ir_funcdef_t *funcdef, stmnt_t *stmnt)
 {
+    int i;
+
     switch(stmnt->form)
     {
+    case STMNT_COMPOUND:
+        for(i=0; i<stmnt->compound.stmnts.len; i++)
+            ir_gen_statement(funcdef, &stmnt->compound.stmnts.data[i]);
+        break;
     case STMNT_EXPR:
         free(ir_gen_expr(funcdef, stmnt->expr, NULL));
         break;
@@ -465,13 +477,6 @@ static void ir_gen_globaldecl(globaldecl_t *globdecl)
     list_pir_block_init(&blk.domfrontier, 0);
     list_pir_block_init(&blk.domchildren, 0);
     list_ir_block_ppush(&funcdef.blocks, &blk);
-    list_ir_inst_init(&funcdef.blocks.data[0].insts, 0);
-    map_str_u64_alloc(&funcdef.blocks.data[0].varphis);
-    list_pir_block_init(&funcdef.blocks.data[0].in, 0);
-    list_pir_block_init(&funcdef.blocks.data[0].out, 0);
-    list_pir_block_init(&funcdef.blocks.data[0].dom, 0);
-    list_pir_block_init(&funcdef.blocks.data[0].domfrontier, 0);
-    list_pir_block_init(&funcdef.blocks.data[0].domchildren, 0);
 
     list_ir_funcdef_ppush(&ir.defs, &funcdef);
 }

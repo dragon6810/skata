@@ -62,6 +62,15 @@ void ir_domfrontierblk(ir_funcdef_t* funcdef, ir_block_t* blk)
 
         list_pir_block_push(&blk->domfrontier, &funcdef->blocks.data[i]);
     }
+
+    printf("dom frontier for %s: { ", blk->name);
+    for(i=0; i<blk->domfrontier.len; i++)
+    {
+        printf("%s", blk->domfrontier.data[i]->name);
+        if(i < blk->domfrontier.len - 1)
+            printf(", ");
+    }
+    printf(" }\n");
 }
 
 void ir_domfrontierfunc(ir_funcdef_t* funcdef)
