@@ -15,6 +15,7 @@ bool emitast = false;
 bool emitir = false;
 bool emitflow = false;
 bool emitdomtree = false;
+bool emitssa = false;
 bool emitlowered = false;
 
 char srcpath[PATH_MAX];
@@ -68,6 +69,8 @@ void compile(void)
         type_free();
         return;
     }
+
+    ir_flow();
     if(emitflow)
     {
         ir_dumpflow();
@@ -81,6 +84,18 @@ void compile(void)
     if(emitdomtree)
     {
         ir_dumpdomtree();
+
+        ir_free();
+        list_globaldecl_free(&ast);
+        list_token_free(&tokens);
+        type_free();
+        return;
+    }
+
+    ir_ssa();
+    if(emitssa)
+    {
+        ir_dump();
 
         ir_free();
         list_globaldecl_free(&ast);
@@ -135,6 +150,8 @@ int main(int argc, char** argv)
             emitflow = true;
         else if(!strcmp(argv[i], "-emit-domtree"))
             emitdomtree = true;
+        else if(!strcmp(argv[i], "-emit-ssa"))
+            emitssa = true;
         else if(!strcmp(argv[i], "-emit-lowered"))
             emitlowered = true;
         else

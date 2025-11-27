@@ -137,7 +137,10 @@ void ir_dump_inst(ir_funcdef_t* funcdef, ir_inst_t* inst)
             if(i<inst->variadic.len-1)
                 printf(", ");
         }
-        printf("]\n");
+        printf("]");
+        if(inst->var)
+            printf(" \e[0;36m# $%s", inst->var);
+        printf("\n");
         break;
     default:
         assert(0 && "unkown ir opcode");

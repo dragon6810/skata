@@ -99,6 +99,9 @@ typedef struct ir_inst_s
         ir_operand_t ternary[3];
         list_ir_operand_t variadic;
     };
+
+    // opcode-specific studd
+    char* var; // what variable is this phi-node setting? can be NULL.
 } ir_inst_t;
 
 LIST_DECL(ir_inst_t, ir_inst)
@@ -111,6 +114,9 @@ struct ir_block_s
 {
     char* name;
     list_ir_inst_t insts;
+
+    // index of phi-node instructions for variables
+    map_str_u64_t varphis;
 
     // control flow edges
     list_pir_block_t in, out;
@@ -151,6 +157,7 @@ extern ir_t ir;
 
 void ir_gen(void);
 void ir_flow(void);
+void ir_ssa(void);
 void ir_lower(void);
 bool ir_registerwritten(ir_inst_t* inst, const char* reg);
 void ir_free(void);

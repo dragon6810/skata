@@ -44,6 +44,9 @@ void ir_instfree(ir_inst_t* inst)
 
     int noperand;
 
+    if(inst->op == IR_OP_PHI && inst->var)
+        free(inst->var);
+
     switch(inst->op)
     {
     case IR_OP_RET:
@@ -84,6 +87,7 @@ void ir_freeblock(ir_block_t* block)
 {
     free(block->name);
     list_ir_inst_free(&block->insts);
+    map_str_u64_free(&block->varphis);
     list_pir_block_free(&block->in);
     list_pir_block_free(&block->out);
     list_pir_block_free(&block->dom);
@@ -134,6 +138,7 @@ static void ir_newblock(ir_funcdef_t* funcdef)
     snprintf(blkname, 64, "%d", (int) funcdef->blocks.len);
     blk.name = strdup(blkname);
     list_ir_inst_init(&blk.insts, 0);
+    map_str_u64_alloc(&blk.varphis);
     list_pir_block_init(&blk.in, 0);
     list_pir_block_init(&blk.out, 0);
     list_pir_block_init(&blk.dom, 0);
@@ -200,6 +205,7 @@ static char* ir_gen_ternary(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
     ir_newblock(funcdef);
     res = outreg ? outreg : ir_gen_alloctemp(funcdef);
     inst.op = IR_OP_PHI;
+    inst.var = NULL;
     list_ir_operand_init(&inst.variadic, 3);
     inst.variadic.data[0].type = IR_OPERAND_REG;
     inst.variadic.data[0].regname = strdup(res);
@@ -436,6 +442,7 @@ static void ir_gen_globaldecl(globaldecl_t *globdecl)
     list_ir_block_init(&funcdef.blocks, 1);
     funcdef.blocks.data[0].name = strdup("entry");
     list_ir_inst_init(&funcdef.blocks.data[0].insts, 0);
+    map_str_u64_alloc(&funcdef.blocks.data[0].varphis);
     list_pir_block_init(&funcdef.blocks.data[0].in, 0);
     list_pir_block_init(&funcdef.blocks.data[0].out, 0);
     list_pir_block_init(&funcdef.blocks.data[0].dom, 0);
@@ -451,12 +458,15 @@ static void ir_gen_globaldecl(globaldecl_t *globdecl)
 
     blk.name = strdup("exit");
     list_ir_inst_init(&blk.insts, 0);
+    map_str_u64_alloc(&blk.varphis);
     list_pir_block_init(&blk.in, 0);
     list_pir_block_init(&blk.out, 0);
     list_pir_block_init(&blk.dom, 0);
     list_pir_block_init(&blk.domfrontier, 0);
     list_pir_block_init(&blk.domchildren, 0);
     list_ir_block_ppush(&funcdef.blocks, &blk);
+    list_ir_inst_init(&funcdef.blocks.data[0].insts, 0);
+    map_str_u64_alloc(&funcdef.blocks.data[0].varphis);
     list_pir_block_init(&funcdef.blocks.data[0].in, 0);
     list_pir_block_init(&funcdef.blocks.data[0].out, 0);
     list_pir_block_init(&funcdef.blocks.data[0].dom, 0);
@@ -474,8 +484,6 @@ void ir_gen(void)
 
     for(i=0; i<ast.len; i++)
         ir_gen_globaldecl(&ast.data[i]);
-
-    ir_flow();
 }
 
 void ir_free(void)

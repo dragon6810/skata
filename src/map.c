@@ -53,5 +53,5 @@ void map_freestr(char** str)
     free(*str);
 }
 
-MAP_DEF(int, int, int, int, NULL, NULL, NULL, NULL, NULL, NULL)
 MAP_DEF(char*, char*, str, str, map_strhash, map_strcmp, map_strcpy, map_strcpy, map_freestr, map_freestr)
+MAP_DEF(char*, uint64_t, str, u64, map_strhash, map_strcmp, map_strcpy, NULL, map_freestr, NULL)

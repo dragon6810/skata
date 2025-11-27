@@ -193,8 +193,8 @@ void map_##keyname##_##valname##_freeel(map_##keyname##_##valname##_el_t* el) \
         valfreefn(&el->val); \
 } \
 
-MAP_DECL(int, int, int, int)
 MAP_DECL(char*, char*, str, str)
+MAP_DECL(char*, uint64_t, str, u64)
 
 map_hash_t map_strhash(char** str);
 bool map_strcmp(char** a, char** b);
