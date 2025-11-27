@@ -43,6 +43,35 @@ void ir_domtreefunc(ir_funcdef_t* funcdef)
     }
 }
 
+void ir_domfrontierblk(ir_funcdef_t* funcdef, ir_block_t* blk)
+{
+    int i, j;
+
+    for(i=0; i<funcdef->blocks.len; i++)
+    {
+        if(&funcdef->blocks.data[i] == blk)
+            continue;
+        if(list_pir_block_find(&funcdef->blocks.data[i].dom, blk))
+            continue;
+
+        for(j=0; j<funcdef->blocks.data[i].in.len; j++)
+            if(list_pir_block_find(&funcdef->blocks.data[i].in.data[j]->dom, blk))
+                break;
+        if(j >= funcdef->blocks.data[i].in.len)
+            continue;
+
+        list_pir_block_push(&blk->domfrontier, &funcdef->blocks.data[i]);
+    }
+}
+
+void ir_domfrontierfunc(ir_funcdef_t* funcdef)
+{
+    int i;
+
+    for(i=0; i<funcdef->blocks.len; i++)
+        ir_domfrontierblk(funcdef, &funcdef->blocks.data[i]);
+}
+
 bool ir_domeq(list_pir_block_t* a, list_pir_block_t* b)
 {
     int i;
@@ -162,6 +191,7 @@ void ir_flow(void)
     {
         ir_flowfunc(&ir.defs.data[i]);
         ir_domfunc(&ir.defs.data[i]);
+        ir_domfrontierfunc(&ir.defs.data[i]);
         ir_domtreefunc(&ir.defs.data[i]);
     }
 }

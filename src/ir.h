@@ -117,6 +117,7 @@ struct ir_block_s
 
     // dominator stuff
     list_pir_block_t dom; // blocks that dominate this one
+    list_pir_block_t domfrontier; // blocks that this one dominates
     ir_block_t *idom; // immediate dominator, parent in dom tree
     list_pir_block_t domchildren; // children in dom tree
     

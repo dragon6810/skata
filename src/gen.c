@@ -87,6 +87,7 @@ void ir_freeblock(ir_block_t* block)
     list_pir_block_free(&block->in);
     list_pir_block_free(&block->out);
     list_pir_block_free(&block->dom);
+    list_pir_block_free(&block->domfrontier);
     list_pir_block_free(&block->domchildren);
 }
 
@@ -136,6 +137,7 @@ static void ir_newblock(ir_funcdef_t* funcdef)
     list_pir_block_init(&blk.in, 0);
     list_pir_block_init(&blk.out, 0);
     list_pir_block_init(&blk.dom, 0);
+    list_pir_block_init(&blk.domfrontier, 0);
     list_pir_block_init(&blk.domchildren, 0);
     list_ir_block_ppush(&funcdef->blocks, &blk);
 }
@@ -437,6 +439,7 @@ static void ir_gen_globaldecl(globaldecl_t *globdecl)
     list_pir_block_init(&funcdef.blocks.data[0].in, 0);
     list_pir_block_init(&funcdef.blocks.data[0].out, 0);
     list_pir_block_init(&funcdef.blocks.data[0].dom, 0);
+    list_pir_block_init(&funcdef.blocks.data[0].domfrontier, 0);
     list_pir_block_init(&funcdef.blocks.data[0].domchildren, 0);
     map_str_ir_reg_alloc(&funcdef.regs);
     map_str_ir_var_alloc(&funcdef.vars);
@@ -451,11 +454,13 @@ static void ir_gen_globaldecl(globaldecl_t *globdecl)
     list_pir_block_init(&blk.in, 0);
     list_pir_block_init(&blk.out, 0);
     list_pir_block_init(&blk.dom, 0);
+    list_pir_block_init(&blk.domfrontier, 0);
     list_pir_block_init(&blk.domchildren, 0);
     list_ir_block_ppush(&funcdef.blocks, &blk);
     list_pir_block_init(&funcdef.blocks.data[0].in, 0);
     list_pir_block_init(&funcdef.blocks.data[0].out, 0);
     list_pir_block_init(&funcdef.blocks.data[0].dom, 0);
+    list_pir_block_init(&funcdef.blocks.data[0].domfrontier, 0);
     list_pir_block_init(&funcdef.blocks.data[0].domchildren, 0);
 
     list_ir_funcdef_ppush(&ir.defs, &funcdef);
