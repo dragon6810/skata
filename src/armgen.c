@@ -118,17 +118,37 @@ static void armgen_inst(ir_funcdef_t* funcdef, ir_inst_t* inst)
         armgen_operand(funcdef, &inst->binary[1]);
         printf("\n");
         break;
+    case IR_OP_CMPEQ:
+        /*
+            CMP %a, %b
+            CSET %dst, eq
+        */
+        printf("  CMP ");
+        armgen_operand(funcdef, &inst->ternary[1]);
+        printf(", ");
+        armgen_operand(funcdef, &inst->ternary[2]);
+        printf("\n");
+        printf("  CSET ");
+        armgen_operand(funcdef, &inst->ternary[0]);
+        printf(", eq\n");
+        break;
     case IR_OP_BR:
+        /*
+            CBZ %reg, _false
+            B _true
+        */
+        printf("  CBZ ");
+        armgen_operand(funcdef, &inst->ternary[0]);
+        printf(", ");
+        armgen_operand(funcdef, &inst->ternary[2]);
+        printf("\n");
         printf("  B ");
-        armgen_operand(funcdef, &inst->unary);
+        armgen_operand(funcdef, &inst->ternary[1]);
         printf("\n");
         break;
-    case IR_OP_BZ:
-        printf("  CMP ");
-        armgen_operand(funcdef, &inst->binary[0]);
-        printf(", #0\n");
-        printf("  BEQ ");
-        armgen_operand(funcdef, &inst->binary[1]);
+    case IR_OP_JMP:
+        printf("  B ");
+        armgen_operand(funcdef, &inst->unary);
         printf("\n");
         break;
     default:

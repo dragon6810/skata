@@ -46,8 +46,9 @@ typedef enum
     IR_OP_RET, // [value]
     IR_OP_STORE, // dst, src
     IR_OP_LOAD, // dst, src
-    IR_OP_BR, // label
-    IR_OP_BZ, // value, label
+    IR_OP_CMPEQ, // dst, a, b
+    IR_OP_BR, // value, truelabel, falselabel
+    IR_OP_JMP, // label
     IR_OP_PHI, // dst, avalue, bvalue
     IR_OP_COUNT,
 } ir_inst_e;

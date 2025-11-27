@@ -25,11 +25,12 @@ void ir_flowblk(ir_funcdef_t* funcdef, ir_block_t* blk)
             ir_flowedge(blk, &funcdef->blocks.data[funcdef->blocks.len-1]);
             return;
         case IR_OP_BR:
+            ir_flowedge(blk, &funcdef->blocks.data[inst->ternary[1].ilabel]);
+            ir_flowedge(blk, &funcdef->blocks.data[inst->ternary[2].ilabel]);
+            return;
+        case IR_OP_JMP:
             ir_flowedge(blk, &funcdef->blocks.data[inst->unary.ilabel]);
             return;
-        case IR_OP_BZ:
-            ir_flowedge(blk, &funcdef->blocks.data[inst->binary[1].ilabel]);
-            break;
         default:
             break;
         }

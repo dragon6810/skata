@@ -12,6 +12,7 @@ bool ir_registerwritten(ir_inst_t* inst, const char* reg)
     case IR_OP_MUL:
     case IR_OP_MOVE:
     case IR_OP_LOAD:
+    case IR_OP_CMPEQ:
         if(inst->unary.type == IR_OPERAND_REG && !strcmp(inst->unary.regname, reg))
             return true;
         break;
@@ -101,16 +102,27 @@ void ir_dump_inst(ir_funcdef_t* funcdef, ir_inst_t* inst)
         ir_print_operand(funcdef, &inst->binary[1]);
         printf("\n");
         break;
-    case IR_OP_BR:
-        printf("  \e[0;95mbr\e[0m ");
-        ir_print_operand(funcdef, &inst->unary);
+    case IR_OP_CMPEQ:
+        printf("  ");
+        ir_print_operand(funcdef, &inst->ternary[0]);
+        printf(" \e[0;95m:=\e[0m ");
+        ir_print_operand(funcdef, &inst->ternary[1]);
+        printf(" \e[0;95m==\e[0m ");
+        ir_print_operand(funcdef, &inst->ternary[2]);
         printf("\n");
         break;
-    case IR_OP_BZ:
-        printf("  \e[0;95mbz\e[0m ");
-        ir_print_operand(funcdef, &inst->binary[0]);
-        printf(", ");
-        ir_print_operand(funcdef, &inst->binary[1]);
+    case IR_OP_BR:
+        printf("  \e[0;95mbr\e[0m ");
+        ir_print_operand(funcdef, &inst->ternary[0]);
+        printf(" ? ");
+        ir_print_operand(funcdef, &inst->ternary[1]);
+        printf(" : ");
+        ir_print_operand(funcdef, &inst->ternary[2]);
+        printf("\n");
+        break;
+    case IR_OP_JMP:
+        printf("  \e[0;95mbr\e[0m ");
+        ir_print_operand(funcdef, &inst->unary);
         printf("\n");
         break;
     case IR_OP_PHI:

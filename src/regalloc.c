@@ -80,7 +80,7 @@ bool regalloc_isread(ir_funcdef_t* funcdef, ir_inst_t* inst, ir_reg_t* reg)
     switch(inst->op)
     {
     case IR_OP_RET:
-    case IR_OP_BZ:
+    case IR_OP_BR:
         if(inst->unary.type == IR_OPERAND_REG && map_str_ir_reg_get(&funcdef->regs, &inst->unary.regname) == reg)
             return true;
         break;
@@ -92,6 +92,7 @@ bool regalloc_isread(ir_funcdef_t* funcdef, ir_inst_t* inst, ir_reg_t* reg)
     case IR_OP_ADD:
     case IR_OP_SUB:
     case IR_OP_MUL:
+    case IR_OP_CMPEQ:
         if(inst->ternary[1].type == IR_OPERAND_REG && map_str_ir_reg_get(&funcdef->regs, &inst->ternary[1].regname) == reg)
             return true;
         if(inst->ternary[2].type == IR_OPERAND_REG && map_str_ir_reg_get(&funcdef->regs, &inst->ternary[2].regname) == reg)
