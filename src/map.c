@@ -3,6 +3,11 @@
 #include <math.h>
 #include <stdio.h>
 
+uint64_t hash_u64(uint64_t* val)
+{
+    return *val;
+}
+
 static uint64_t map_u64pow(uint64_t base, uint64_t exp)
 {
     uint16_t res;
@@ -19,7 +24,7 @@ static uint64_t map_u64pow(uint64_t base, uint64_t exp)
     return res;
 }
 
-uint64_t map_strhash(char** str)
+uint64_t hash_str(char** val)
 {
     const uint64_t p = 31;
 
@@ -29,7 +34,7 @@ uint64_t map_strhash(char** str)
     int len;
     map_hash_t hash;
 
-    s = *str;
+    s = *val;
     len = strlen(s);
 
     for(i=0, hash=0; i<len; i++)
@@ -53,5 +58,5 @@ void map_freestr(char** str)
     free(*str);
 }
 
-MAP_DEF(char*, char*, str, str, map_strhash, map_strcmp, map_strcpy, map_strcpy, map_freestr, map_freestr)
-MAP_DEF(char*, uint64_t, str, u64, map_strhash, map_strcmp, map_strcpy, NULL, map_freestr, NULL)
+MAP_DEF(char*, char*, str, str, hash_str, map_strcmp, map_strcpy, map_strcpy, map_freestr, map_freestr)
+MAP_DEF(char*, uint64_t, str, u64, hash_str, map_strcmp, map_strcpy, NULL, map_freestr, NULL)

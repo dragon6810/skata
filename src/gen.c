@@ -8,9 +8,7 @@
 void ir_regcpy(ir_reg_t* dst, ir_reg_t* src)
 {
     dst->name = strdup(src->name);
-    memcpy(&dst->life, &src->life, sizeof(map_u64_ir_regspan_t));
-    dst->life.bins = malloc(sizeof(map_u64_ir_regspan_el_t) * dst->life.nbin);
-    memcpy(dst->life.bins, src->life.bins, sizeof(map_u64_ir_regspan_el_t) * dst->life.nbin);
+    map_u64_ir_regspan_dup(&dst->life, &src->life);
     dst->hardreg = src->hardreg;
 }
 
@@ -113,8 +111,8 @@ static uint64_t ir_hashpblock(ir_block_t** blk)
     return (uint64_t) *blk;
 }
 
-MAP_DEF(char*, ir_reg_t, str, ir_reg, map_strhash, map_strcmp, map_strcpy, ir_regcpy, map_freestr, ir_regfree)
-MAP_DEF(char*, ir_var_t, str, ir_var, map_strhash, map_strcmp, map_strcpy, ir_varcpy, map_freestr, ir_varfree)
+MAP_DEF(char*, ir_reg_t, str, ir_reg, hash_str, map_strcmp, map_strcpy, ir_regcpy, map_freestr, ir_regfree)
+MAP_DEF(char*, ir_var_t, str, ir_var, hash_str, map_strcmp, map_strcpy, ir_varcpy, map_freestr, ir_varfree)
 LIST_DEF(ir_inst)
 LIST_DEF_FREE_DECONSTRUCT(ir_inst, ir_instfree)
 LIST_DEF(ir_block)

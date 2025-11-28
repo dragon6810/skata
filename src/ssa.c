@@ -115,7 +115,7 @@ void ir_ssafunc(ir_funcdef_t* func)
 
     for(v=0; v<func->vars.nbin; v++)
     {
-        if(!func->vars.bins[v].full)
+        if(func->vars.bins[v].state != MAP_EL_FULL)
             continue;
         
         list_pir_block_init(&worklist, 0);
@@ -151,7 +151,7 @@ void ir_ssafunc(ir_funcdef_t* func)
 
     for(v=0; v<func->vars.nbin; v++)
     {
-        if(!func->vars.bins[v].full)
+        if(func->vars.bins[v].state != MAP_EL_FULL)
             continue;
 
         list_string_init(&namestack, 0);

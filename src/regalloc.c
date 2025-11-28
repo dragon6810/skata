@@ -3,7 +3,7 @@
 #include <assert.h>
 #include <stdio.h>
 
-MAP_DEF(uint64_t, ir_regspan_t, u64, ir_regspan, NULL, NULL, NULL, NULL, NULL, NULL)
+MAP_DEF(uint64_t, ir_regspan_t, u64, ir_regspan, hash_u64, NULL, NULL, NULL, NULL, NULL)
 
 int nreg = 8;
 
@@ -38,14 +38,14 @@ void regalloc_colorreg(ir_funcdef_t* funcdef, ir_reg_t* reg)
 
     for(i=0; i<reg->life.nbin; i++)
     {
-        if(!reg->life.bins[i].full)
+        if(reg->life.bins[i].state != MAP_EL_FULL)
             continue;
         if(!reg->life.bins[i].val.start)
             continue;
 
         for(j=0; j<funcdef->regs.nbin; j++)
         {
-            if(!funcdef->regs.bins[j].full)
+            if(funcdef->regs.bins[j].state != MAP_EL_FULL)
                 continue;
             hardreg = regalloc_hardregatinst(funcdef, 
                 reg->life.bins[i].key, reg->life.bins[i].val.span[0], 
@@ -71,7 +71,7 @@ void regalloc_color(ir_funcdef_t* funcdef)
     int i;
 
     for(i=0; i<funcdef->regs.nbin; i++)
-        if(funcdef->regs.bins[i].full)
+        if(funcdef->regs.bins[i].state == MAP_EL_FULL)
             regalloc_colorreg(funcdef, &funcdef->regs.bins[i].val);
 }
 
@@ -163,7 +163,7 @@ void regalloc_reglifetime(ir_funcdef_t* funcdef, ir_reg_t* reg)
         funcdef->blocks.data[i].marked = false;
 
     for(i=0; i<funcdef->regs.nbin; i++)
-        if(funcdef->regs.bins[i].full)
+        if(funcdef->regs.bins[i].state == MAP_EL_FULL)
             funcdef->regs.bins[i].val.hardreg = -1;
 
     regalloc_reglifetime_r(funcdef, reg, funcdef->blocks.len-1, false);
@@ -175,7 +175,7 @@ void regalloc_funcdef(ir_funcdef_t* funcdef)
 
     for(i=0; i<funcdef->regs.nbin; i++)
     {
-        if(!funcdef->regs.bins[i].full)
+        if(funcdef->regs.bins[i].state != MAP_EL_FULL)
             continue;
         regalloc_reglifetime(funcdef, &funcdef->regs.bins[i].val);
     }

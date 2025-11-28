@@ -16,10 +16,10 @@ static void blockusedefs(ir_funcdef_t* funcdef, ir_block_t* blk)
         ir_definedregs(&defs, &blk->insts.data[i]);
         ir_accessedregs(&uses, &blk->insts.data[i]);
 
-        set_str_union(&blk->regdefs, &defs);
         for(j=0; j<uses.nbin; j++)
             if(uses.bins[j].state == SET_EL_FULL && !set_str_contains(&blk->regdefs, uses.bins[j].val))
                 set_str_add(&blk->reguses, uses.bins[j].val);
+        set_str_union(&blk->regdefs, &defs);
 
         set_str_free(&defs);
         set_str_free(&uses);

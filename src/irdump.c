@@ -207,7 +207,7 @@ void ir_dump_vars(ir_funcdef_t* funcdef)
 
     for(i=0; i<funcdef->vars.nbin; i++)
     {
-        if(!funcdef->vars.bins[i].full)
+        if(funcdef->vars.bins[i].state != MAP_EL_FULL)
             continue;
         var = &funcdef->vars.bins[i].val;
 
