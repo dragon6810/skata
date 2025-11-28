@@ -19,7 +19,7 @@ static uint64_t map_u64pow(uint64_t base, uint64_t exp)
     return res;
 }
 
-map_hash_t map_strhash(char** str)
+uint64_t map_strhash(char** str)
 {
     const uint64_t p = 31;
 

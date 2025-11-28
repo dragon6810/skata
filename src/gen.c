@@ -117,7 +117,7 @@ LIST_DEF_FREE_DECONSTRUCT(ir_operand, ir_operandfree)
 ir_t ir;
 
 // YOU are responsible for the returned string
-static char* ir_gen_alloctemp(ir_funcdef_t *funcdef)
+char* ir_gen_alloctemp(ir_funcdef_t *funcdef)
 {
     ir_reg_t reg;
     char name[16];

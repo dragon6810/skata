@@ -159,7 +159,9 @@ void ir_gen(void);
 void ir_flow(void);
 void ir_ssa(void);
 void ir_lower(void);
+char* ir_gen_alloctemp(ir_funcdef_t *funcdef);
 bool ir_registerwritten(ir_inst_t* inst, const char* reg);
+
 void ir_free(void);
 void ir_dump(void);
 void ir_dumpflow(void);

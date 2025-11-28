@@ -17,6 +17,9 @@
         "sstream": "c",
         "regalloc.h": "c",
         "map.h": "c",
-        "ios": "c"
+        "ios": "c",
+        "assert.h": "c",
+        "stdint.h": "c",
+        "locale": "cpp"
     }
 }

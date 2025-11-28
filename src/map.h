@@ -1,6 +1,7 @@
 #ifndef _MAP_H
 #define _MAP_H
 
+#include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -87,7 +88,6 @@ Tval* map_##keyname##_##valname##_set(map_##keyname##_##valname##_t* map, Tkey* 
     else \
         hash = (map_hash_t) *key; \
      \
-startsearch: \
     idx = hash % map->nbin; \
     for(idx=hash%map->nbin; idx<hash%map->nbin+map->nbin; idx++) \
     { \
@@ -104,6 +104,12 @@ startsearch: \
             else \
                 memcpy(&map->bins[idx%map->nbin].val, val, sizeof(*val)); \
             map->bins[idx%map->nbin].hash = hash; \
+\
+            if(map->nfull >= map->nbin / 2)\
+            {\
+                map_##keyname##_##valname##_resize(map);\
+                return map_##keyname##_##valname##_get(map, key);\
+            }\
  \
             return &map->bins[idx%map->nbin].val; \
         } \
@@ -128,9 +134,9 @@ startsearch: \
  \
         return &map->bins[idx%map->nbin].val; \
     } \
- \
-    map_##keyname##_##valname##_resize(map); \
-    goto startsearch; \
+\
+    assert(0 && "map set failed\n");\
+    return NULL;\
 } \
  \
 Tval* map_##keyname##_##valname##_get(map_##keyname##_##valname##_t* map, Tkey* key) \
@@ -196,7 +202,7 @@ void map_##keyname##_##valname##_freeel(map_##keyname##_##valname##_el_t* el) \
 MAP_DECL(char*, char*, str, str)
 MAP_DECL(char*, uint64_t, str, u64)
 
-map_hash_t map_strhash(char** str);
+uint64_t map_strhash(char** str);
 bool map_strcmp(char** a, char** b);
 void map_strcpy(char** dst, char** src);
 void map_freestr(char** str);
