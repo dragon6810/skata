@@ -7,5 +7,6 @@ extern int nreg;
 
 void reglifetime(void);
 void regalloc(void);
+void dumpreggraph(void);
 
 #endif

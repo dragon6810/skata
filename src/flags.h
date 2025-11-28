@@ -9,5 +9,6 @@ extern bool emitflow;
 extern bool emitdomtree;
 extern bool emitssa;
 extern bool emitlowered;
+extern bool emitreggraph;
 
 #endif

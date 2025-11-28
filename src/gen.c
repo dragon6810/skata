@@ -8,14 +8,14 @@
 void ir_regcpy(ir_reg_t* dst, ir_reg_t* src)
 {
     dst->name = strdup(src->name);
-    map_u64_ir_regspan_dup(&dst->life, &src->life);
+    set_str_dup(&dst->interfere, &src->interfere);
     dst->hardreg = src->hardreg;
 }
 
 void ir_regfree(ir_reg_t* reg)
 {
     free(reg->name);
-    map_u64_ir_regspan_free(&reg->life);
+    set_str_free(&reg->interfere);
 }
 
 void ir_varcpy(ir_var_t* dst, ir_var_t* src)
@@ -95,6 +95,7 @@ void ir_freeblock(ir_block_t* block)
     set_str_free(&block->reguses);
     set_str_free(&block->livein);
     set_str_free(&block->liveout);
+    list_ir_regspan_free(&block->spans);
 }
 
 void ir_freefuncdef(ir_funcdef_t* funcdef)
@@ -139,6 +140,7 @@ void ir_initblock(ir_block_t* block)
     set_str_alloc(&block->reguses);
     set_str_alloc(&block->livein);
     set_str_alloc(&block->liveout);
+    list_ir_regspan_init(&block->spans, 0);
     block->marked = false;
 }
 
@@ -150,8 +152,9 @@ char* ir_gen_alloctemp(ir_funcdef_t *funcdef)
 
     snprintf(name, 16, "%llu", (unsigned long long) funcdef->ntempreg++);
     reg.name = strdup(name);
-    map_u64_ir_regspan_alloc(&reg.life);
+    set_str_alloc(&reg.interfere);
     map_str_ir_reg_set(&funcdef->regs, &reg.name, &reg);
+    set_str_free(&reg.interfere);
     
     return reg.name;
 }

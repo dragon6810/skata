@@ -21,6 +21,7 @@ void list_##name##_remove(list_##name##_t* list, uint64_t idx);\
 void list_##name##_insert(list_##name##_t* list, uint64_t idx, T val);\
 T* list_##name##_find(list_##name##_t* list, T val);\
 void list_##name##_dup(list_##name##_t* dst, list_##name##_t* src);\
+void list_##name##_clear(list_##name##_t* list);\
 void list_##name##_reverse(list_##name##_t* list);\
 void list_##name##_free(list_##name##_t* list);
 
@@ -121,6 +122,11 @@ void list_##name##_dup(list_##name##_t* dst, list_##name##_t* src)\
     memcpy(dst, src, sizeof(list_##name##_t));\
     dst->data = malloc(dst->cap * sizeof(*dst->data));\
     memcpy(dst->data, src->data, dst->len * sizeof(*dst->data));\
+}\
+void list_##name##_clear(list_##name##_t* list)\
+{\
+    list_##name##_free(list);\
+    list_##name##_init(list, 0);\
 }\
 void list_##name##_reverse(list_##name##_t* list)\
 {\

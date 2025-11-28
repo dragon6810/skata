@@ -8,6 +8,7 @@
 #include "flags.h"
 #include "ir.h"
 #include "map.h"
+#include "regalloc.h"
 #include "token.h"
 #include "type.h"
 
@@ -17,6 +18,7 @@ bool emitflow = false;
 bool emitdomtree = false;
 bool emitssa = false;
 bool emitlowered = false;
+bool emitreggraph = false;
 
 char srcpath[PATH_MAX];
 
@@ -62,62 +64,47 @@ void compile(void)
     if(emitir)
     {
         ir_dump();
-
-        ir_free();
-        list_globaldecl_free(&ast);
-        list_token_free(&tokens);
-        type_free();
-        return;
+        goto freestuff;
     }
 
     ir_flow();
     if(emitflow)
     {
         ir_dumpflow();
-
-        ir_free();
-        list_globaldecl_free(&ast);
-        list_token_free(&tokens);
-        type_free();
-        return;
+        goto freestuff;
     }
     if(emitdomtree)
     {
         ir_dumpdomtree();
-
-        ir_free();
-        list_globaldecl_free(&ast);
-        list_token_free(&tokens);
-        type_free();
-        return;
+        goto freestuff;
     }
 
     ir_ssa();
     if(emitssa)
     {
         ir_dump();
-
-        ir_free();
-        list_globaldecl_free(&ast);
-        list_token_free(&tokens);
-        type_free();
-        return;
+        goto freestuff;
     }
 
     ir_lower();
     if(emitlowered)
     {
         ir_dump();
+        goto freestuff;
+    }
 
-        ir_free();
-        list_globaldecl_free(&ast);
-        list_token_free(&tokens);
-        type_free();
-        return;
+    nreg = 13;
+    reglifetime();
+    regalloc();
+    if(emitreggraph)
+    {
+        dumpreggraph();
+        goto freestuff;
     }
     
     asmgen_arm();
     
+freestuff:
     ir_free();
     list_token_free(&tokens);
     type_free();
@@ -154,6 +141,8 @@ int main(int argc, char** argv)
             emitssa = true;
         else if(!strcmp(argv[i], "-emit-lowered"))
             emitlowered = true;
+        else if(!strcmp(argv[i], "-emit-reggraph"))
+            emitreggraph = true;
         else
         {
             usage(argv[0]);

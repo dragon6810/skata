@@ -8,22 +8,21 @@
 
 typedef struct ir_regspan_s
 {
-    // the register is created at span[0]
-    bool start;
-    // span[0] is first instruction
-    // span[1] is last instruction + 1
-    // span[0] <= i < span[1]
+    char *reg;
+    // span[0] is first instruction where it must be preserved
+    // span[1] is last instruction where it must be preserved + 1 (last instruction used)
     uint64_t span[2];
 } ir_regspan_t;
 
-MAP_DECL(uint64_t, ir_regspan_t, u64, ir_regspan)
+LIST_DECL(ir_regspan_t, ir_regspan)
+MAP_DECL(char*, ir_regspan_t, str, ir_regspan)
 
 typedef struct ir_reg_s
 {
     // '%' prefix implicit
     char *name;
 
-    map_u64_ir_regspan_t life;
+    set_str_t interfere; // interference graph edges
     int hardreg;
 } ir_reg_t;
 
@@ -132,6 +131,8 @@ struct ir_block_s
     set_str_t reguses;
     set_str_t livein; // registers alive coming into the block
     set_str_t liveout; // registers alive going out of the block
+
+    list_ir_regspan_t spans;
     
     // temporary
     bool marked;
