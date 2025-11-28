@@ -95,6 +95,8 @@ void ir_freeblock(ir_block_t* block)
     list_pir_block_free(&block->domchildren);
     set_str_free(&block->regdefs);
     set_str_free(&block->reguses);
+    set_str_free(&block->livein);
+    set_str_free(&block->liveout);
 }
 
 void ir_freefuncdef(ir_funcdef_t* funcdef)
@@ -103,6 +105,12 @@ void ir_freefuncdef(ir_funcdef_t* funcdef)
     map_str_ir_reg_free(&funcdef->regs);
     map_str_ir_var_free(&funcdef->vars);
     list_ir_block_free(&funcdef->blocks);
+    list_pir_block_free(&funcdef->postorder);
+}
+
+static uint64_t ir_hashpblock(ir_block_t** blk)
+{
+    return (uint64_t) *blk;
 }
 
 MAP_DEF(char*, ir_reg_t, str, ir_reg, map_strhash, map_strcmp, map_strcpy, ir_regcpy, map_freestr, ir_regfree)
@@ -111,6 +119,7 @@ LIST_DEF(ir_inst)
 LIST_DEF_FREE_DECONSTRUCT(ir_inst, ir_instfree)
 LIST_DEF(ir_block)
 LIST_DEF_FREE_DECONSTRUCT(ir_block, ir_freeblock)
+SET_DEF(ir_block_t*, pir_block, ir_hashpblock, NULL, NULL, NULL)
 LIST_DEF(ir_funcdef)
 LIST_DEF_FREE_DECONSTRUCT(ir_funcdef, ir_freefuncdef)
 LIST_DEF(ir_operand)
@@ -130,6 +139,8 @@ void ir_initblock(ir_block_t* block)
     list_pir_block_init(&block->domchildren, 0);
     set_str_alloc(&block->regdefs);
     set_str_alloc(&block->reguses);
+    set_str_alloc(&block->livein);
+    set_str_alloc(&block->liveout);
     block->marked = false;
 }
 
@@ -469,6 +480,7 @@ static void ir_gen_globaldecl(globaldecl_t *globdecl)
     funcdef.blocks.data[0].name = strdup("entry");
     map_str_ir_reg_alloc(&funcdef.regs);
     map_str_ir_var_alloc(&funcdef.vars);
+    list_pir_block_init(&funcdef.postorder, 0);
 
     for(i=0; i<globdecl->funcdef.decls.len; i++)
         ir_gen_decl(&funcdef, &globdecl->funcdef.decls.data[i]);

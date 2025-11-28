@@ -21,6 +21,7 @@ void list_##name##_remove(list_##name##_t* list, uint64_t idx);\
 void list_##name##_insert(list_##name##_t* list, uint64_t idx, T val);\
 T* list_##name##_find(list_##name##_t* list, T val);\
 void list_##name##_dup(list_##name##_t* dst, list_##name##_t* src);\
+void list_##name##_reverse(list_##name##_t* list);\
 void list_##name##_free(list_##name##_t* list);
 
 #define LIST_DEF(name) \
@@ -121,6 +122,21 @@ void list_##name##_dup(list_##name##_t* dst, list_##name##_t* src)\
     dst->data = malloc(dst->cap * sizeof(*dst->data));\
     memcpy(dst->data, src->data, dst->len * sizeof(*dst->data));\
 }\
+void list_##name##_reverse(list_##name##_t* list)\
+{\
+    int i, j;\
+    typeof(*list->data) temp;\
+\
+    if (list->len <= 1)\
+        return;\
+\
+    for(i=0, j=list->len-1; i<j; i++, j--)\
+    {\
+        temp = list->data[i];\
+        list->data[i] = list->data[j];\
+        list->data[j] = temp;\
+    }\
+}\
 \
 
 #define LIST_DEF_FREE(name) \
@@ -146,5 +162,6 @@ void list_##name##_free(list_##name##_t* list)\
 }
 
 LIST_DECL(char*, string)
+LIST_DECL(uint64_t, u64)
 
 #endif

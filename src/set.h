@@ -33,10 +33,14 @@ void set_##name##_alloc(set_##name##_t* set);\
 void set_##name##_add(set_##name##_t* set, T val);\
 void set_##name##_remove(set_##name##_t* set, T val);\
 bool set_##name##_contains(set_##name##_t* set, T val);\
+/* dst shouldn't be initialized */\
+void set_##name##_dup(set_##name##_t* dst, set_##name##_t* src);\
+void set_##name##_clear(set_##name##_t* set);\
 /* stores the union in a*/\
 void set_##name##_union(set_##name##_t* a, set_##name##_t* b);\
 /* stores the intersection in a*/\
 void set_##name##_intersection(set_##name##_t* a, set_##name##_t* b);\
+bool set_##name##_isequal(const set_##name##_t* a, set_##name##_t* b);\
 void set_##name##_free(set_##name##_t* set);
 
 #define SET_DEF(T, name, hashfunc, cmpfunc, cpyfunc, freefunc)\
@@ -175,6 +179,20 @@ bool set_##name##_contains(set_##name##_t* set, T val)\
 \
     return false;\
 }\
+void set_##name##_dup(set_##name##_t* dst, set_##name##_t* src)\
+{\
+    int i;\
+\
+    set_##name##_alloc(dst);\
+    for(i=0; i<src->nbin; i++)\
+        if(src->bins[i].state == SET_EL_FULL)\
+            set_##name##_add(dst, src->bins[i].val);\
+}\
+void set_##name##_clear(set_##name##_t* set)\
+{\
+    set_##name##_free(set);\
+    set_##name##_alloc(set);\
+}\
 void set_##name##_union(set_##name##_t* a, set_##name##_t* b)\
 {\
     int i;\
@@ -201,6 +219,24 @@ void set_##name##_intersection(set_##name##_t* a, set_##name##_t* b)\
             freefn(&a->bins[i].val);\
     }\
 }\
+bool set_##name##_isequal(const set_##name##_t* a, set_##name##_t* b)\
+{\
+    int i;\
+\
+    if(a->nfull != b->nfull)\
+        return false;\
+\
+    for(i=0; i<a->nbin; i++)\
+    {\
+        if(a->bins[i].state != SET_EL_FULL)\
+            continue;\
+        if(set_##name##_contains(b, a->bins[i].val))\
+            continue;\
+        return false;\
+    }\
+\
+    return true;\
+}\
 void set_##name##_free(set_##name##_t* set)\
 {\
     void (*freefn)(T*) = (freefunc);\
@@ -221,5 +257,6 @@ void set_##name##_free(set_##name##_t* set)\
 }
 
 SET_DECL(char*, str)
+SET_DECL(uint64_t, u64)
 
 #endif

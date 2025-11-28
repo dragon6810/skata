@@ -130,12 +130,15 @@ struct ir_block_s
 
     set_str_t regdefs;
     set_str_t reguses;
+    set_str_t livein; // registers alive coming into the block
+    set_str_t liveout; // registers alive going out of the block
     
     // temporary
     bool marked;
 };
 
 LIST_DECL(ir_block_t, ir_block)
+SET_DECL(ir_block_t*, pir_block)
 
 typedef struct ir_funcdef_s
 {
@@ -147,6 +150,7 @@ typedef struct ir_funcdef_s
     uint64_t varframe; // size of stack frame if it was purely vars
     map_str_ir_var_t vars;
     
+    list_pir_block_t postorder;
     list_ir_block_t blocks;
 } ir_funcdef_t;
 

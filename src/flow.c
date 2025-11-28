@@ -140,6 +140,32 @@ void ir_domfunc(ir_funcdef_t* funcdef)
     } while(change);
 }
 
+static set_pir_block_t visited;
+
+static void ir_postorder_r(ir_funcdef_t* funcdef, ir_block_t* blk)
+{
+    int i;
+
+    if(set_pir_block_contains(&visited, blk))
+        return;
+    set_pir_block_add(&visited, blk);
+
+    for(i=0; i<blk->out.len; i++)
+        ir_postorder_r(funcdef, blk->out.data[i]);
+
+    list_pir_block_push(&funcdef->postorder, blk);
+}
+
+static void ir_postorderfunc(ir_funcdef_t* funcdef)
+{
+    list_pir_block_free(&funcdef->postorder);
+    list_pir_block_init(&funcdef->postorder, 0);
+
+    set_pir_block_alloc(&visited);
+    ir_postorder_r(funcdef, &funcdef->blocks.data[0]);
+    set_pir_block_free(&visited);
+}
+
 // a --> b
 void ir_flowedge(ir_block_t* a, ir_block_t* b)
 {
@@ -190,6 +216,7 @@ void ir_flow(void)
     for(i=0; i<ir.defs.len; i++)
     {
         ir_flowfunc(&ir.defs.data[i]);
+        ir_postorderfunc(&ir.defs.data[i]);
         ir_domfunc(&ir.defs.data[i]);
         ir_domfrontierfunc(&ir.defs.data[i]);
         ir_domtreefunc(&ir.defs.data[i]);
