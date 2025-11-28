@@ -5,6 +5,7 @@
 
 extern int nreg;
 
+void reglifetime(void);
 void regalloc(void);
 
 #endif

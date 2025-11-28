@@ -3,11 +3,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "asmgen.h"
 #include "ast.h"
 #include "flags.h"
 #include "ir.h"
 #include "map.h"
-#include "asmgen.h"
 #include "token.h"
 #include "type.h"
 

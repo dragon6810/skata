@@ -3,24 +3,75 @@
 #include <assert.h>
 #include <stdio.h>
 
-bool ir_registerwritten(ir_inst_t* inst, const char* reg)
+bool ir_registerwritten(ir_inst_t* inst, char* reg)
 {
+    bool iswritten;
+    set_str_t set;
+
+    ir_definedregs(&set, inst);
+    iswritten = set_str_contains(&set, reg);
+    set_str_free(&set);
+
+    return iswritten;
+}
+
+void ir_definedregs(set_str_t* set, ir_inst_t* inst)
+{
+    set_str_alloc(set);
+
     switch(inst->op)
     {
+    case IR_OP_MOVE:
+    case IR_OP_LOAD:
+        set_str_add(set, inst->binary[0].regname);
+        break;
     case IR_OP_ADD:
     case IR_OP_SUB:
     case IR_OP_MUL:
-    case IR_OP_MOVE:
-    case IR_OP_LOAD:
     case IR_OP_CMPEQ:
-        if(inst->unary.type == IR_OPERAND_REG && !strcmp(inst->unary.regname, reg))
-            return true;
+        set_str_add(set, inst->ternary[0].regname);
+        break;
+    case IR_OP_PHI:
+        if(inst->variadic.len && inst->variadic.data[0].regname)
+            set_str_add(set, inst->variadic.data[0].regname);
         break;
     default:
         break;
     }
+}
 
-    return false;
+void ir_accessedregs(set_str_t* set, ir_inst_t* inst)
+{
+    int i;
+
+    set_str_alloc(set);
+
+    switch(inst->op)
+    {
+    case IR_OP_MOVE:
+    case IR_OP_STORE:
+        if(inst->binary[1].type == IR_OPERAND_REG) set_str_add(set, inst->binary[1].regname);
+        break;
+    case IR_OP_ADD:
+    case IR_OP_SUB:
+    case IR_OP_MUL:
+    case IR_OP_CMPEQ:
+        if(inst->ternary[1].type == IR_OPERAND_REG) set_str_add(set, inst->ternary[1].regname);
+        if(inst->ternary[2].type == IR_OPERAND_REG) set_str_add(set, inst->ternary[2].regname);
+        break;
+    case IR_OP_RET:
+        if(inst->binary[1].type == IR_OPERAND_REG && inst->binary[1].regname) set_str_add(set, inst->binary[1].regname);
+        break;
+    case IR_OP_BR:
+        if(inst->ternary[0].type == IR_OPERAND_REG) set_str_add(set, inst->ternary[0].regname);
+        break;
+    case IR_OP_PHI:
+        for(i=1; i<inst->variadic.len; i++)
+            if(inst->variadic.data[i].type == IR_OPERAND_REG) set_str_add(set, inst->variadic.data[i].regname);
+        break;
+    default:
+        break;
+    }
 }
 
 void ir_print_operand(ir_funcdef_t* funcdef, ir_operand_t* operand)

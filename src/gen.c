@@ -93,6 +93,8 @@ void ir_freeblock(ir_block_t* block)
     list_pir_block_free(&block->dom);
     list_pir_block_free(&block->domfrontier);
     list_pir_block_free(&block->domchildren);
+    set_str_free(&block->regdefs);
+    set_str_free(&block->reguses);
 }
 
 void ir_freefuncdef(ir_funcdef_t* funcdef)
@@ -116,6 +118,21 @@ LIST_DEF_FREE_DECONSTRUCT(ir_operand, ir_operandfree)
 
 ir_t ir;
 
+void ir_initblock(ir_block_t* block)
+{
+    block->name = NULL;
+    list_ir_inst_init(&block->insts, 0);
+    map_str_u64_alloc(&block->varphis);
+    list_pir_block_init(&block->in, 0);
+    list_pir_block_init(&block->out, 0);
+    list_pir_block_init(&block->dom, 0);
+    list_pir_block_init(&block->domfrontier, 0);
+    list_pir_block_init(&block->domchildren, 0);
+    set_str_alloc(&block->regdefs);
+    set_str_alloc(&block->reguses);
+    block->marked = false;
+}
+
 // YOU are responsible for the returned string
 char* ir_gen_alloctemp(ir_funcdef_t *funcdef)
 {
@@ -135,15 +152,11 @@ static void ir_newblock(ir_funcdef_t* funcdef)
     ir_block_t blk;
     char blkname[64];
 
+    ir_initblock(&blk);
+
     snprintf(blkname, 64, "%d", (int) funcdef->blocks.len);
     blk.name = strdup(blkname);
-    list_ir_inst_init(&blk.insts, 0);
-    map_str_u64_alloc(&blk.varphis);
-    list_pir_block_init(&blk.in, 0);
-    list_pir_block_init(&blk.out, 0);
-    list_pir_block_init(&blk.dom, 0);
-    list_pir_block_init(&blk.domfrontier, 0);
-    list_pir_block_init(&blk.domchildren, 0);
+
     list_ir_block_ppush(&funcdef->blocks, &blk);
 }
 
@@ -452,14 +465,8 @@ static void ir_gen_globaldecl(globaldecl_t *globdecl)
     funcdef.ntempreg = 0;
     funcdef.varframe = 0;
     list_ir_block_init(&funcdef.blocks, 1);
+    ir_initblock(&funcdef.blocks.data[0]);
     funcdef.blocks.data[0].name = strdup("entry");
-    list_ir_inst_init(&funcdef.blocks.data[0].insts, 0);
-    map_str_u64_alloc(&funcdef.blocks.data[0].varphis);
-    list_pir_block_init(&funcdef.blocks.data[0].in, 0);
-    list_pir_block_init(&funcdef.blocks.data[0].out, 0);
-    list_pir_block_init(&funcdef.blocks.data[0].dom, 0);
-    list_pir_block_init(&funcdef.blocks.data[0].domfrontier, 0);
-    list_pir_block_init(&funcdef.blocks.data[0].domchildren, 0);
     map_str_ir_reg_alloc(&funcdef.regs);
     map_str_ir_var_alloc(&funcdef.vars);
 
@@ -468,14 +475,8 @@ static void ir_gen_globaldecl(globaldecl_t *globdecl)
     for(i=0; i<globdecl->funcdef.stmnts.len; i++)
         ir_gen_statement(&funcdef, &globdecl->funcdef.stmnts.data[i]);
 
+    ir_initblock(&blk);
     blk.name = strdup("exit");
-    list_ir_inst_init(&blk.insts, 0);
-    map_str_u64_alloc(&blk.varphis);
-    list_pir_block_init(&blk.in, 0);
-    list_pir_block_init(&blk.out, 0);
-    list_pir_block_init(&blk.dom, 0);
-    list_pir_block_init(&blk.domfrontier, 0);
-    list_pir_block_init(&blk.domchildren, 0);
     list_ir_block_ppush(&funcdef.blocks, &blk);
 
     list_ir_funcdef_ppush(&ir.defs, &funcdef);

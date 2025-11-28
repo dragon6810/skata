@@ -194,6 +194,7 @@ void asmgen_arm(void)
     int i;
 
     nreg = 13;
+    reglifetime();
     regalloc();
 
     printf("%s", armheader);

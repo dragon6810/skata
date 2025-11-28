@@ -2,7 +2,7 @@
 
 #include <stdio.h>
 
-static void ir_lowerphi(ir_funcdef_t* funcdef, const char* dst, const char* src)
+static void ir_lowerphi(ir_funcdef_t* funcdef, char* dst, char* src)
 {
     int i, b;
     ir_block_t *blk;

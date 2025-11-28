@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include "map.h"
+#include "set.h"
 
 typedef struct ir_regspan_s
 {
@@ -126,6 +127,9 @@ struct ir_block_s
     list_pir_block_t domfrontier; // blocks that this one dominates
     ir_block_t *idom; // immediate dominator, parent in dom tree
     list_pir_block_t domchildren; // children in dom tree
+
+    set_str_t regdefs;
+    set_str_t reguses;
     
     // temporary
     bool marked;
@@ -159,8 +163,14 @@ void ir_gen(void);
 void ir_flow(void);
 void ir_ssa(void);
 void ir_lower(void);
+// sets name to NULL
+void ir_initblock(ir_block_t* block);
 char* ir_gen_alloctemp(ir_funcdef_t *funcdef);
-bool ir_registerwritten(ir_inst_t* inst, const char* reg);
+bool ir_registerwritten(ir_inst_t* inst, char* reg);
+// set shouldn't be initialized
+void ir_definedregs(set_str_t* set, ir_inst_t* inst);
+// set shouldn't be initialized
+void ir_accessedregs(set_str_t* set, ir_inst_t* inst);
 
 void ir_free(void);
 void ir_dump(void);
