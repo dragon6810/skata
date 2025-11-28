@@ -1,13 +1,12 @@
 int main()
 {
 	int x;
+	int y;
 
 	x = 1;
-	while(x)
-	{
-		x = x - 1;
-		if(x)
-			x = x;
-	}
-	return x;
+	y = 2;
+	while(x * y - 100)
+		x = x + 1;
+	
+	return x + y;
 }

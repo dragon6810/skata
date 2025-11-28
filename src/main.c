@@ -80,6 +80,7 @@ void compile(void)
     }
 
     ir_ssa();
+    ir_middleoptimize();
     if(emitssa)
     {
         ir_dump();
@@ -87,6 +88,7 @@ void compile(void)
     }
 
     ir_lower();
+    ir_backoptimize();
     if(emitlowered)
     {
         ir_dump();

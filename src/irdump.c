@@ -60,7 +60,7 @@ void ir_accessedregs(set_str_t* set, ir_inst_t* inst)
         if(inst->ternary[2].type == IR_OPERAND_REG) set_str_add(set, inst->ternary[2].regname);
         break;
     case IR_OP_RET:
-        if(inst->binary[1].type == IR_OPERAND_REG && inst->binary[1].regname) set_str_add(set, inst->binary[1].regname);
+        if(inst->unary.type == IR_OPERAND_REG && inst->unary.regname) set_str_add(set, inst->unary.regname);
         break;
     case IR_OP_BR:
         if(inst->ternary[0].type == IR_OPERAND_REG) set_str_add(set, inst->ternary[0].regname);
@@ -221,7 +221,7 @@ void ir_dump_block(ir_funcdef_t* funcdef, ir_block_t* block)
 
     printf("\e[0;92m%s\e[0m:\n", block->name);
 
-    if(!strcmp(block->name, "entry"))
+    if(!strcmp(block->name, "entry") && funcdef->vars.nfull)
     {
         ir_dump_vars(funcdef);
         printf("\n");

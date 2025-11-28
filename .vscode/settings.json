@@ -20,6 +20,7 @@
         "ios": "c",
         "assert.h": "c",
         "stdint.h": "c",
-        "locale": "cpp"
+        "locale": "cpp",
+        "ir.h": "c"
     }
 }

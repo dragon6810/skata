@@ -157,6 +157,11 @@ void ir_ssafunc(ir_funcdef_t* func)
         list_string_init(&namestack, 0);
         ir_rename(func, &func->vars.bins[v].val, &func->blocks.data[0]);
         list_string_free(&namestack);
+
+        func->vars.nfull--;
+        free(func->vars.bins[v].key);
+        ir_varfree(&func->vars.bins[v].val);
+        func->vars.bins[v].state = MAP_EL_TOMB;
     }
 }
 

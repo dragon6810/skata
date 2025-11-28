@@ -80,6 +80,7 @@ static void blockspans(ir_block_t* block)
             pspan = map_str_ir_regspan_get(&curspans, &used.bins[j].val);
             if(!pspan)
             {
+                printf("inst opcode: %d\n", (int) inst->op);
                 fprintf(stderr, "use of undefined register %s\n", used.bins[j].val);
                 exit(1);
             }

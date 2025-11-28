@@ -164,13 +164,18 @@ typedef struct ir_s
 
 extern ir_t ir;
 
+void ir_operandfree(ir_operand_t* operand);
+
 void ir_gen(void);
 void ir_flow(void);
 void ir_ssa(void);
+void ir_middleoptimize(void);
 void ir_lower(void);
+void ir_backoptimize(void);
 // sets name to NULL
 void ir_initblock(ir_block_t* block);
 char* ir_gen_alloctemp(ir_funcdef_t *funcdef);
+void ir_varfree(ir_var_t* var);
 bool ir_registerwritten(ir_inst_t* inst, char* reg);
 // set shouldn't be initialized
 void ir_definedregs(set_str_t* set, ir_inst_t* inst);
