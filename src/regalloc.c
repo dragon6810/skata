@@ -5,7 +5,49 @@
 
 int nreg = 8;
 
-void regalloc_colorreg(ir_funcdef_t* funcdef, ir_reg_t* reg)
+static uint64_t regalloc_hashpreg(ir_reg_t** val)
+{
+    return (uint64_t) *val;
+}
+
+SET_DEF(ir_reg_t*, pir_reg, regalloc_hashpreg, NULL, NULL, NULL)
+
+static void regalloc_spillreg(ir_funcdef_t* funcdef, char* regname)
+{
+    int b, i;
+    ir_block_t *blk;
+
+    // ir_inst_t *pinst, inst;
+    ir_var_t var;
+
+    var.name = regname;
+    map_str_ir_var_set(&funcdef->vars, &regname, &var);
+
+    for(b=0, blk=funcdef->blocks.data; b<funcdef->blocks.len; b++, blk++)
+    {
+        for(i=0; i<blk->insts.len; i++)
+        {
+            // pinst = &blk->insts.data[i];
+
+
+        }
+    }
+
+    reglifetime();
+}
+
+static ir_reg_t* regalloc_pickvictim(ir_funcdef_t* funcdef, set_pir_reg_t* set)
+{
+    int i;
+
+    for(i=0; i<set->nbin; i++)
+        if(set->bins[i].state == SET_EL_FULL)
+            return set->bins[i].val;
+
+    return NULL;
+}
+
+bool regalloc_colorreg(ir_funcdef_t* funcdef, ir_reg_t* reg)
 {
     int i;
 
@@ -31,19 +73,46 @@ void regalloc_colorreg(ir_funcdef_t* funcdef, ir_reg_t* reg)
         if(!openreg[i])
             continue;
         reg->hardreg = i;
-        return;
+        return true;
     }
 
-    assert(0 && "TODO: spilling");
+    return false;
 }
 
 void regalloc_color(ir_funcdef_t* funcdef)
 {
     int i;
 
+    set_pir_reg_t failed;
+    ir_reg_t *reg;
+
+try:
+    set_pir_reg_alloc(&failed);
+
     for(i=0; i<funcdef->regs.nbin; i++)
         if(funcdef->regs.bins[i].state == MAP_EL_FULL)
-            regalloc_colorreg(funcdef, &funcdef->regs.bins[i].val);
+            funcdef->regs.bins[i].val.hardreg = -1;
+
+    for(i=0; i<funcdef->regs.nbin; i++)
+    {
+        if(funcdef->regs.bins[i].state != MAP_EL_FULL)
+            continue;
+            
+        if(!regalloc_colorreg(funcdef, &funcdef->regs.bins[i].val))
+            set_pir_reg_add(&failed, &funcdef->regs.bins[i].val);
+    }
+
+    if(!failed.nfull)
+    {
+        set_pir_reg_free(&failed);
+        return;
+    }
+
+    reg = regalloc_pickvictim(funcdef, &failed);
+    regalloc_spillreg(funcdef, reg->name);
+
+    set_pir_reg_free(&failed);
+    goto try;
 }
 
 void regalloc_funcdef(ir_funcdef_t* funcdef)

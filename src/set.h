@@ -259,4 +259,6 @@ void set_##name##_free(set_##name##_t* set)\
 SET_DECL(char*, str)
 SET_DECL(uint64_t, u64)
 
+uint64_t hash_ptr(void** val);
+
 #endif

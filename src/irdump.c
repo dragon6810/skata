@@ -66,7 +66,8 @@ void ir_accessedregs(set_str_t* set, ir_inst_t* inst)
         if(inst->ternary[0].type == IR_OPERAND_REG) set_str_add(set, inst->ternary[0].regname);
         break;
     case IR_OP_PHI:
-        for(i=1; i<inst->variadic.len; i++)
+        // skip over labels
+        for(i=2; i<inst->variadic.len; i+=2)
             if(inst->variadic.data[i].type == IR_OPERAND_REG) set_str_add(set, inst->variadic.data[i].regname);
         break;
     default:
@@ -182,10 +183,12 @@ void ir_dump_inst(ir_funcdef_t* funcdef, ir_inst_t* inst)
         printf("  ");
         ir_print_operand(funcdef, &inst->variadic.data[0]);
         printf("\e[0;95m := phi\e[0m [");
-        for(i=1; i<inst->variadic.len; i++)
+        for(i=1; i<inst->variadic.len; i+=2)
         {
             ir_print_operand(funcdef, &inst->variadic.data[i]);
-            if(i<inst->variadic.len-1)
+            printf(": ");
+            ir_print_operand(funcdef, &inst->variadic.data[i+1]);
+            if(i<inst->variadic.len-2)
                 printf(", ");
         }
         printf("]");

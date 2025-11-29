@@ -85,29 +85,6 @@ static void ir_replaceoperand(ir_funcdef_t* funcdef, ir_operand_t* opa, ir_opera
     }
 }
 
-bool ir_regusedinphi(ir_funcdef_t* funcdef, const char* reg)
-{
-    int b, i, o;
-    ir_block_t *blk;
-    ir_inst_t *inst;
-
-    for(b=0, blk=funcdef->blocks.data; b<funcdef->blocks.len; b++, blk++)
-    {
-        for(i=0, inst=blk->insts.data; i<blk->insts.len; i++, inst++)
-        {
-            if(inst->op != IR_OP_PHI)
-                continue;
-
-            for(o=0; o<inst->variadic.len; o++)
-                if(inst->variadic.data[o].type == IR_OPERAND_REG
-                && !strcmp(inst->variadic.data[o].regname, reg))
-                    return true;
-        }
-    }
-
-    return false;
-}
-
 void ir_eliminatemoves(ir_funcdef_t* funcdef)
 {
     int b, i;
@@ -124,10 +101,6 @@ void ir_eliminatemoves(ir_funcdef_t* funcdef)
             for(i=0, inst=blk->insts.data; i<blk->insts.len; i++, inst++)
             {
                 if(inst->op != IR_OP_MOVE)
-                    continue;
-                // we can't do this if its used in a phi node.
-                // this will get optimized on our lowered ir anyway so it's fine to skip
-                if(ir_regusedinphi(funcdef, inst->binary[0].regname))
                     continue;
 
                 ir_replaceoperand(funcdef, &inst->binary[0], &inst->binary[1]);

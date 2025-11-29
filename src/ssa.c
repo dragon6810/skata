@@ -64,6 +64,10 @@ static void ir_rename(ir_funcdef_t* func, ir_var_t* var, ir_block_t* blk)
 
         inst = &blk->out.data[i]->insts.data[idx];
 
+        operand.type = IR_OPERAND_LABEL;
+        operand.ilabel = blk - func->blocks.data;
+        list_ir_operand_ppush(&inst->variadic, &operand);
+
         operand.type = IR_OPERAND_REG;
         operand.regname = strdup(namestack.data[namestack.len-1]);
         list_ir_operand_ppush(&inst->variadic, &operand);

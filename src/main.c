@@ -88,7 +88,7 @@ void compile(void)
     }
 
     ir_lower();
-    ir_backoptimize();
+    // ir_backoptimize();
     if(emitlowered)
     {
         ir_dump();

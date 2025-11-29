@@ -24,7 +24,10 @@ typedef struct ir_reg_s
 
     set_str_t interfere; // interference graph edges
     int hardreg;
+    int spill_offset; // stack offset from frame pointer if spilled
 } ir_reg_t;
+
+SET_DECL(ir_reg_t*, pir_reg)
 
 typedef struct ir_var_s
 {
@@ -49,7 +52,7 @@ typedef enum
     IR_OP_CMPEQ, // dst, a, b
     IR_OP_BR, // value, truelabel, falselabel
     IR_OP_JMP, // label
-    IR_OP_PHI, // (VARIADIC); dst, reg1, reg2, ... regn
+    IR_OP_PHI, // (VARIADIC); dst, label1, reg1, label2, reg2, ... labeln, regn
     IR_OP_COUNT,
 } ir_inst_e;
 
@@ -149,6 +152,7 @@ typedef struct ir_funcdef_s
     uint64_t ntempreg;
     map_str_ir_reg_t regs;
     uint64_t varframe; // size of stack frame if it was purely vars
+    uint64_t spillframe; // size of stack frame for spills
     map_str_ir_var_t vars;
     
     list_pir_block_t postorder;
