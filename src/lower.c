@@ -47,9 +47,65 @@ static void ir_lowerblk(ir_funcdef_t* funcdef, ir_block_t* blk)
     }
 }
 
+static void ir_elimcriticaledges(ir_funcdef_t* funcdef)
+{
+    int b, e;
+    ir_block_t *blk;
+
+    ir_block_t *edge;
+    ir_inst_t inst;
+
+    bool foundedge;
+
+    do
+    {
+        foundedge = false;
+        for(b=0, blk=funcdef->blocks.data; b<funcdef->blocks.len; b++, blk++)
+        {
+            if(blk->out.len <= 1)
+                continue;
+            
+            for(e=0; e<blk->out.len; e++)
+            {
+                edge = blk->out.data[e];
+                if(edge->in.len <= 1)
+                    continue;
+
+                // critical edge!
+
+                inst.op = IR_OP_JMP;
+                inst.unary.type = IR_OPERAND_LABEL;
+                inst.unary.label = strdup(edge->name);
+
+                if(!strcmp(blk->insts.data[blk->insts.len-1].ternary[1].label, edge->name))
+                {
+                    free(blk->insts.data[blk->insts.len-1].ternary[1].label);
+                    blk->insts.data[blk->insts.len-1].ternary[1].label = strdup(edge->name);
+                }
+                if(!strcmp(blk->insts.data[blk->insts.len-1].ternary[2].label, edge->name))
+                {
+                    free(blk->insts.data[blk->insts.len-1].ternary[2].label);
+                    blk->insts.data[blk->insts.len-1].ternary[2].label = strdup(edge->name);
+                }
+
+                list_ir_inst_ppush(&funcdef->blocks.data[ir_newblock(funcdef)].insts, &inst);
+                ir_flow();
+
+                foundedge = true;
+                break;
+            }
+
+            if(foundedge)
+                break;
+        }
+    } while(foundedge);
+}
+
 static void ir_lowerfunc(ir_funcdef_t* funcdef)
 {
     int i;
+
+    ir_elimcriticaledges(funcdef);
 
     for(i=0; i<funcdef->blocks.len; i++)
         ir_lowerblk(funcdef, &funcdef->blocks.data[i]);

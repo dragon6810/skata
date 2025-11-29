@@ -9,23 +9,29 @@ ir_block_t* ir_idom(ir_block_t* blk)
 {
     int i, j;
 
-    for(i=0; i<blk->dom.len; i++)
+    ir_block_t *idom;
+
+    for(i=0; i<blk->dom.nbin; i++)
     {
-        if(blk->dom.data[i] == blk)
+        if(blk->dom.bins[i].state != SET_EL_FULL)
+            continue;
+        
+        idom = blk->dom.bins[i].val;
+        if(idom == blk)
             continue;
 
-        for(j=0; j<blk->dom.len; j++)
+        for(j=0; j<blk->dom.nbin; j++)
         {
-            if(i == j || blk->dom.data[j] == blk)
+            if(i == j || blk->dom.bins[j].state != SET_EL_FULL || blk->dom.bins[j].val == blk)
                 continue;
-            if(list_pir_block_find(&blk->dom.data[j]->dom, blk->dom.data[i]))
+            if(set_pir_block_contains(&blk->dom.bins[j].val->dom, idom))
                 break;
         }
 
-        if(j < blk->dom.len)
+        if(j < blk->dom.nbin)
             continue;
 
-        return blk->dom.data[i];
+        return idom;
     }
 
     return NULL;
@@ -34,6 +40,12 @@ ir_block_t* ir_idom(ir_block_t* blk)
 void ir_domtreefunc(ir_funcdef_t* funcdef)
 {
     int i;
+
+    for(i=0; i<funcdef->blocks.len; i++)
+    {
+        funcdef->blocks.data[i].idom = NULL;
+        list_pir_block_clear(&funcdef->blocks.data[i].domchildren);
+    }
 
     for(i=0; i<funcdef->blocks.len; i++)
     {
@@ -47,20 +59,22 @@ void ir_domfrontierblk(ir_funcdef_t* funcdef, ir_block_t* blk)
 {
     int i, j;
 
-    for(i=0; i<funcdef->blocks.len; i++)
+    ir_block_t *df;
+
+    for(i=0, df=funcdef->blocks.data; i<funcdef->blocks.len; i++, df++)
     {
-        if(&funcdef->blocks.data[i] == blk)
+        if(df == blk)
             continue;
-        if(list_pir_block_find(&funcdef->blocks.data[i].dom, blk))
+        if(set_pir_block_contains(&df->dom, blk))
             continue;
 
-        for(j=0; j<funcdef->blocks.data[i].in.len; j++)
-            if(list_pir_block_find(&funcdef->blocks.data[i].in.data[j]->dom, blk))
+        for(j=0; j<df->in.len; j++)
+            if(set_pir_block_contains(&df->in.data[j]->dom, blk))
                 break;
-        if(j >= funcdef->blocks.data[i].in.len)
+        if(j >= df->in.len)
             continue;
 
-        list_pir_block_push(&blk->domfrontier, &funcdef->blocks.data[i]);
+        list_pir_block_push(&blk->domfrontier, df);
     }
 }
 
@@ -69,75 +83,61 @@ void ir_domfrontierfunc(ir_funcdef_t* funcdef)
     int i;
 
     for(i=0; i<funcdef->blocks.len; i++)
+        list_pir_block_clear(&funcdef->blocks.data[i].domfrontier);
+
+    for(i=0; i<funcdef->blocks.len; i++)
         ir_domfrontierblk(funcdef, &funcdef->blocks.data[i]);
-}
-
-bool ir_domeq(list_pir_block_t* a, list_pir_block_t* b)
-{
-    int i;
-
-    if(a->len != b->len)
-        return false;
-
-    for(i=0; i<a->len; i++)
-        if(!list_pir_block_find(b, a->data[i]))
-            return false;
-
-    return true;
 }
 
 void ir_domfunc(ir_funcdef_t* funcdef)
 {
-    int i, j, k;
+    int i, j;
     ir_block_t *blk;
 
     bool change;
-    list_pir_block_t newdom;
+    set_pir_block_t newdom;
+
+    for(i=0; i<funcdef->blocks.len; i++)
+        set_pir_block_clear(&funcdef->blocks.data[i].dom);
 
     // start node dominates itself
-    list_pir_block_push(&funcdef->blocks.data[0].dom, &funcdef->blocks.data[0]);
+    set_pir_block_add(&funcdef->blocks.data[0].dom, &funcdef->blocks.data[0]);
 
     // for other nodes, set it at first to be dominated by every node
     for(i=1; i<funcdef->blocks.len; i++)
         for(j=0; j<funcdef->blocks.len; j++)
-            list_pir_block_push(&funcdef->blocks.data[i].dom, &funcdef->blocks.data[j]);
+            set_pir_block_add(&funcdef->blocks.data[i].dom, &funcdef->blocks.data[j]);
+
+    set_pir_block_alloc(&newdom);
 
     do
     {
         change = false;
-        for(i=1, blk=funcdef->blocks.data+1; i<funcdef->blocks.len; i++, blk++)
+        for(i=1, blk=&funcdef->blocks.data[1]; i<funcdef->blocks.len; i++, blk++)
         {
-            list_pir_block_init(&newdom, 1);
-            newdom.data[0] = blk;
+            set_pir_block_clear(&newdom);
+            
             if(blk->in.len)
             {
                 // intersection of all dom of preds
-                for(j=0; j<blk->in.data[0]->dom.len; j++)
-                {
-                    if(blk->in.data[0]->dom.data[j] == blk)
-                        continue;
-                    
-                    for(k=1; k<blk->in.len; k++)
-                        if(!list_pir_block_find(&blk->in.data[k]->dom, blk->in.data[0]->dom.data[j]))
-                            break;
-                    if(k < blk->in.len)
-                        continue;
-
-                    list_pir_block_push(&newdom, blk->in.data[0]->dom.data[j]);
-                }
+                set_pir_block_union(&newdom, &blk->in.data[0]->dom);
+                for(j=1; j<blk->in.len; j++)
+                    set_pir_block_intersection(&newdom, &blk->in.data[j]->dom);
             }
 
-            if(ir_domeq(&newdom, &blk->dom))
-            {
-                list_pir_block_free(&newdom);
+            // dominates itself
+            set_pir_block_add(&newdom, blk);
+
+            if(set_pir_block_isequal(&newdom, &blk->dom))
                 continue;
-            }
 
-            list_pir_block_free(&blk->dom);
-            blk->dom = newdom;
+            set_pir_block_free(&blk->dom);
+            set_pir_block_dup(&blk->dom, &newdom);
             change = true;
         }
     } while(change);
+
+    set_pir_block_free(&newdom);
 }
 
 static set_pir_block_t visited;
@@ -158,8 +158,7 @@ static void ir_postorder_r(ir_funcdef_t* funcdef, ir_block_t* blk)
 
 static void ir_postorderfunc(ir_funcdef_t* funcdef)
 {
-    list_pir_block_free(&funcdef->postorder);
-    list_pir_block_init(&funcdef->postorder, 0);
+    list_pir_block_clear(&funcdef->postorder);
 
     set_pir_block_alloc(&visited);
     ir_postorder_r(funcdef, &funcdef->blocks.data[0]);
@@ -204,6 +203,12 @@ void ir_flowblk(ir_funcdef_t* funcdef, ir_block_t* blk)
 void ir_flowfunc(ir_funcdef_t* funcdef)
 {
     int i;
+
+    for(i=0; i<funcdef->blocks.len; i++)
+    {
+        list_pir_block_clear(&funcdef->blocks.data[i].in);
+        list_pir_block_clear(&funcdef->blocks.data[i].out);
+    }
 
     for(i=0; i<funcdef->blocks.len; i++)
         ir_flowblk(funcdef, &funcdef->blocks.data[i]);

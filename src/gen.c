@@ -91,7 +91,7 @@ void ir_freeblock(ir_block_t* block)
     map_str_u64_free(&block->varphis);
     list_pir_block_free(&block->in);
     list_pir_block_free(&block->out);
-    list_pir_block_free(&block->dom);
+    set_pir_block_free(&block->dom);
     list_pir_block_free(&block->domfrontier);
     list_pir_block_free(&block->domchildren);
     set_str_free(&block->regdefs);
@@ -136,7 +136,7 @@ void ir_initblock(ir_block_t* block)
     map_str_u64_alloc(&block->varphis);
     list_pir_block_init(&block->in, 0);
     list_pir_block_init(&block->out, 0);
-    list_pir_block_init(&block->dom, 0);
+    set_pir_block_alloc(&block->dom);
     list_pir_block_init(&block->domfrontier, 0);
     list_pir_block_init(&block->domchildren, 0);
     set_str_alloc(&block->regdefs);
@@ -162,18 +162,24 @@ char* ir_gen_alloctemp(ir_funcdef_t *funcdef)
     return reg.name;
 }
 
-static void ir_newblock(ir_funcdef_t* funcdef)
+uint64_t ir_newblock(ir_funcdef_t* funcdef)
 {
     ir_block_t blk;
     char blkname[64];
+    uint64_t idx;
 
     ir_initblock(&blk);
 
     snprintf(blkname, 64, "%d", (int) funcdef->blocks.len);
     blk.name = strdup(blkname);
 
-    list_ir_block_ppush(&funcdef->blocks, &blk);
-    map_str_u64_set(&funcdef->blktbl, blk.name, funcdef->blocks.len - 1);
+    idx = funcdef->blocks.len;
+    if(funcdef->blocks.len && !strcmp(funcdef->blocks.data[funcdef->blocks.len-1].name, "exit"))
+        idx = funcdef->blocks.len - 1;
+
+    list_ir_block_insert(&funcdef->blocks, idx, blk);
+    map_str_u64_set(&funcdef->blktbl, blk.name, idx);
+    return idx;
 }
 
 // YOU are responsible for the returned string, unless you gave outreg
