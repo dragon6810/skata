@@ -29,6 +29,8 @@ static void ir_lowerphi(ir_funcdef_t* funcdef, char* dst, char* src)
 
 static void ir_lowerblk(ir_funcdef_t* funcdef, ir_block_t* blk)
 {
+    return; 
+
     int i, j;
 
     for(i=0; i<blk->insts.len; i++)
@@ -54,7 +56,7 @@ static void ir_elimcriticaledges(ir_funcdef_t* funcdef)
 
     ir_block_t *edge;
     ir_inst_t inst;
-
+    uint64_t idx;
     bool foundedge;
 
     do
@@ -77,18 +79,22 @@ static void ir_elimcriticaledges(ir_funcdef_t* funcdef)
                 inst.unary.type = IR_OPERAND_LABEL;
                 inst.unary.label = strdup(edge->name);
 
+
+                idx = ir_newblock(funcdef);
+                blk = &funcdef->blocks.data[b];
                 if(!strcmp(blk->insts.data[blk->insts.len-1].ternary[1].label, edge->name))
                 {
                     free(blk->insts.data[blk->insts.len-1].ternary[1].label);
-                    blk->insts.data[blk->insts.len-1].ternary[1].label = strdup(edge->name);
+                    blk->insts.data[blk->insts.len-1].ternary[1].label 
+                        = strdup(funcdef->blocks.data[idx].name);
                 }
                 if(!strcmp(blk->insts.data[blk->insts.len-1].ternary[2].label, edge->name))
                 {
                     free(blk->insts.data[blk->insts.len-1].ternary[2].label);
-                    blk->insts.data[blk->insts.len-1].ternary[2].label = strdup(edge->name);
+                    blk->insts.data[blk->insts.len-1].ternary[2].label
+                        = strdup(funcdef->blocks.data[idx].name);
                 }
-
-                list_ir_inst_ppush(&funcdef->blocks.data[ir_newblock(funcdef)].insts, &inst);
+                list_ir_inst_ppush(&funcdef->blocks.data[idx].insts, &inst);
                 ir_flow();
 
                 foundedge = true;

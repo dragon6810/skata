@@ -177,26 +177,6 @@ static void funcinouts(ir_funcdef_t* funcdef)
             set_str_free(&liveout);
         }
     } while(change);
-
-    for(i=0, blk=funcdef->blocks.data; i<funcdef->blocks.len; i++, blk++)
-    {
-        printf("block %s livein: { ", blk->name);
-        for(j=0; j<blk->livein.nbin; j++)
-        {
-            if(blk->livein.bins[j].state != SET_EL_FULL)
-                continue;
-            printf("%%%s ", blk->livein.bins[j].val);
-        }
-        printf("}\n");
-        printf("block %s liveout: { ", blk->name);
-        for(j=0; j<blk->liveout.nbin; j++)
-        {
-            if(blk->liveout.bins[j].state != SET_EL_FULL)
-                continue;
-            printf("%%%s ", blk->liveout.bins[j].val);
-        }
-        printf("}\n");
-    }
 }
 
 static void blockusedefs(ir_funcdef_t* funcdef, ir_block_t* blk)

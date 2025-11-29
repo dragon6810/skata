@@ -175,7 +175,10 @@ uint64_t ir_newblock(ir_funcdef_t* funcdef)
 
     idx = funcdef->blocks.len;
     if(funcdef->blocks.len && !strcmp(funcdef->blocks.data[funcdef->blocks.len-1].name, "exit"))
+    {
         idx = funcdef->blocks.len - 1;
+        (*map_str_u64_get(&funcdef->blktbl, "exit"))++;
+    }
 
     list_ir_block_insert(&funcdef->blocks, idx, blk);
     map_str_u64_set(&funcdef->blktbl, blk.name, idx);
