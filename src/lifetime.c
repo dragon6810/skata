@@ -37,9 +37,9 @@ static void interference(ir_funcdef_t* funcdef, ir_block_t* block)
             if(ispan->span[0] >= jspan->span[1])
                 continue;
             
-            reg = map_str_ir_reg_get(&funcdef->regs, &ispan->reg);
+            reg = map_str_ir_reg_get(&funcdef->regs, ispan->reg);
             set_str_add(&reg->interfere, jspan->reg);
-            reg = map_str_ir_reg_get(&funcdef->regs, &jspan->reg);
+            reg = map_str_ir_reg_get(&funcdef->regs, jspan->reg);
             set_str_add(&reg->interfere, ispan->reg);
         }
     }
@@ -63,7 +63,7 @@ static void blockspans(ir_block_t* block)
             continue;
         span.reg = block->livein.bins[i].val;
         span.span[0] = span.span[1] = 0;
-        map_str_ir_regspan_set(&curspans, &span.reg, &span);
+        map_str_ir_regspan_set(&curspans, span.reg, span);
     }
 
     for(i=0, inst=block->insts.data; i<block->insts.len; i++, inst++)
@@ -77,7 +77,7 @@ static void blockspans(ir_block_t* block)
             if(used.bins[j].state != SET_EL_FULL)
                 continue;
 
-            pspan = map_str_ir_regspan_get(&curspans, &used.bins[j].val);
+            pspan = map_str_ir_regspan_get(&curspans, used.bins[j].val);
             if(!pspan)
             {
                 printf("inst opcode: %d\n", (int) inst->op);
@@ -94,7 +94,7 @@ static void blockspans(ir_block_t* block)
             if(defs.bins[j].state != SET_EL_FULL)
                 continue;
             
-            pspan = map_str_ir_regspan_get(&curspans, &defs.bins[j].val);
+            pspan = map_str_ir_regspan_get(&curspans, defs.bins[j].val);
             if(pspan)
             {
                 span = *pspan;
@@ -104,7 +104,7 @@ static void blockspans(ir_block_t* block)
 
             span.reg = defs.bins[j].val;
             span.span[0] = span.span[1] = i;
-            map_str_ir_regspan_set(&curspans, &span.reg, &span);
+            map_str_ir_regspan_set(&curspans, span.reg, span);
         }
 
         set_str_free(&defs);
@@ -177,6 +177,26 @@ static void funcinouts(ir_funcdef_t* funcdef)
             set_str_free(&liveout);
         }
     } while(change);
+
+    for(i=0, blk=funcdef->blocks.data; i<funcdef->blocks.len; i++, blk++)
+    {
+        printf("block %s livein: { ", blk->name);
+        for(j=0; j<blk->livein.nbin; j++)
+        {
+            if(blk->livein.bins[j].state != SET_EL_FULL)
+                continue;
+            printf("%%%s ", blk->livein.bins[j].val);
+        }
+        printf("}\n");
+        printf("block %s liveout: { ", blk->name);
+        for(j=0; j<blk->liveout.nbin; j++)
+        {
+            if(blk->liveout.bins[j].state != SET_EL_FULL)
+                continue;
+            printf("%%%s ", blk->liveout.bins[j].val);
+        }
+        printf("}\n");
+    }
 }
 
 static void blockusedefs(ir_funcdef_t* funcdef, ir_block_t* blk)

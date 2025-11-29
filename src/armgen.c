@@ -38,7 +38,7 @@ static void armgen_operand(ir_funcdef_t* funcdef, ir_operand_t* operand)
     switch(operand->type)
     {
     case IR_OPERAND_REG:
-        printf("%s", armregs[map_str_ir_reg_get(&funcdef->regs, &operand->regname)->hardreg]);
+        printf("%s", armregs[map_str_ir_reg_get(&funcdef->regs, operand->regname)->hardreg]);
         break;
     case IR_OPERAND_LIT:
         printf("#%d", operand->literal.i32);
@@ -47,7 +47,7 @@ static void armgen_operand(ir_funcdef_t* funcdef, ir_operand_t* operand)
         printf("[sp, #%d]", operand->var->stackloc);
         break;
     case IR_OPERAND_LABEL:
-        printf("_%s$%s", funcdef->name, funcdef->blocks.data[operand->ilabel].name);
+        printf("_%s$%s", funcdef->name, operand->label);
         break;
     default:
         assert(0 && "unexpected operand");

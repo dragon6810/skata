@@ -89,7 +89,7 @@ void ir_print_operand(ir_funcdef_t* funcdef, ir_operand_t* operand)
         printf("\e[0;31m$%s\e[0m", operand->var->name);
         break;
     case IR_OPERAND_LABEL:
-        printf("\e[0;96mlabel \e[0;31m%s\e[0m", funcdef->blocks.data[operand->ilabel].name);
+        printf("\e[0;96mlabel \e[0;31m%s\e[0m", operand->label);
     default:
         break;
     }

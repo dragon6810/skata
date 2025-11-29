@@ -86,7 +86,7 @@ typedef struct ir_operand_s
         char *regname;
         ir_constant_t literal;
         ir_var_t *var;
-        uint64_t ilabel;
+        char *label;
     };
 } ir_operand_t;
 
@@ -156,6 +156,7 @@ typedef struct ir_funcdef_s
     map_str_ir_var_t vars;
     
     list_pir_block_t postorder;
+    map_str_u64_t blktbl;
     list_ir_block_t blocks;
 } ir_funcdef_t;
 

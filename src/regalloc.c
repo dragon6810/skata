@@ -21,7 +21,7 @@ static void regalloc_spillreg(ir_funcdef_t* funcdef, char* regname)
     ir_var_t var;
 
     var.name = regname;
-    map_str_ir_var_set(&funcdef->vars, &regname, &var);
+    map_str_ir_var_set(&funcdef->vars, regname, var);
 
     for(b=0, blk=funcdef->blocks.data; b<funcdef->blocks.len; b++, blk++)
     {
@@ -62,7 +62,7 @@ bool regalloc_colorreg(ir_funcdef_t* funcdef, ir_reg_t* reg)
     {
         if(reg->interfere.bins[i].state != SET_EL_FULL)
             continue;
-        hardreg = map_str_ir_reg_get(&funcdef->regs, &reg->interfere.bins[i].val)->hardreg;
+        hardreg = map_str_ir_reg_get(&funcdef->regs, reg->interfere.bins[i].val)->hardreg;
 
         if(hardreg >= 0)
             openreg[hardreg] = false;
@@ -168,7 +168,7 @@ static void dumpregedges(ir_reg_t* reg)
 
     char *edgekey;
 
-    printf("  %%%s(%%%s)\n", reg->name, reg->name);
+    printf("  %%%s(%%%s - %d)\n", reg->name, reg->name, reg->hardreg);
     for(i=0; i<reg->interfere.nbin; i++)
     {
         if(reg->interfere.bins[i].state != SET_EL_FULL)

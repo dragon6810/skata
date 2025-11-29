@@ -33,9 +33,9 @@ typedef struct map_##keyname##_##valname##_s \
 } map_##keyname##_##valname##_t; \
  \
 void map_##keyname##_##valname##_alloc(map_##keyname##_##valname##_t* map); \
-Tval* map_##keyname##_##valname##_set(map_##keyname##_##valname##_t* map, Tkey* key, Tval* val); \
-Tval* map_##keyname##_##valname##_get(map_##keyname##_##valname##_t* map, Tkey* key); \
-void map_##keyname##_##valname##_remove(map_##keyname##_##valname##_t* map, Tkey* key); \
+Tval* map_##keyname##_##valname##_set(map_##keyname##_##valname##_t* map, Tkey key, Tval val); \
+Tval* map_##keyname##_##valname##_get(map_##keyname##_##valname##_t* map, Tkey key); \
+void map_##keyname##_##valname##_remove(map_##keyname##_##valname##_t* map, Tkey key); \
 /* dst shouldn't be initialized */\
 void map_##keyname##_##valname##_dup(map_##keyname##_##valname##_t* dst, map_##keyname##_##valname##_t* src); \
 void map_##keyname##_##valname##_free(map_##keyname##_##valname##_t* map); \
@@ -82,7 +82,7 @@ void map_##keyname##_##valname##_resize(map_##keyname##_##valname##_t* map) \
     map->bins = newbins; \
 } \
  \
-Tval* map_##keyname##_##valname##_set(map_##keyname##_##valname##_t* map, Tkey* key, Tval* val) \
+Tval* map_##keyname##_##valname##_set(map_##keyname##_##valname##_t* map, Tkey key, Tval val) \
 { \
     bool (*keycmpfn)(Tkey*, Tkey*) = (keycmp); \
     void (*keycpyfn)(Tkey*, Tkey*) = (keycpy); \
@@ -97,7 +97,7 @@ Tval* map_##keyname##_##valname##_set(map_##keyname##_##valname##_t* map, Tkey* 
     if(map->nfull >= map->nbin / 2) \
         map_##keyname##_##valname##_resize(map); \
  \
-    hash = hashfunc(key); \
+    hash = hashfunc(&key); \
      \
     for(i=0, idx=hash; i<map->nbin; i++, idx++) \
     { \
@@ -111,13 +111,13 @@ Tval* map_##keyname##_##valname##_set(map_##keyname##_##valname##_t* map, Tkey* 
             map->nfull++; \
             map->bins[idx].state = MAP_EL_FULL; \
             if(keycpyfn) \
-                keycpyfn(&map->bins[idx].key, key); \
+                keycpyfn(&map->bins[idx].key, &key); \
             else \
-                memcpy(&map->bins[idx].key, key, sizeof(*key)); \
+                memcpy(&map->bins[idx].key, &key, sizeof(Tkey)); \
             if(valcpyfn) \
-                valcpyfn(&map->bins[idx].val, val); \
+                valcpyfn(&map->bins[idx].val,&val); \
             else \
-                memcpy(&map->bins[idx].val, val, sizeof(*val)); \
+                memcpy(&map->bins[idx].val, &val, sizeof(Tval)); \
             map->bins[idx].hash = hash; \
 \
             if(map->nfull >= map->nbin / 2) \
@@ -133,19 +133,19 @@ Tval* map_##keyname##_##valname##_set(map_##keyname##_##valname##_t* map, Tkey* 
             continue; \
         if(keycmpfn) \
         { \
-            if(!keycmpfn(&map->bins[idx].key, key)) \
+            if(!keycmpfn(&map->bins[idx].key, &key)) \
                 continue; \
         } \
-        else if(memcmp(&map->bins[idx].key, key, sizeof(Tkey))) \
+        else if(memcmp(&map->bins[idx].key, &key, sizeof(Tkey))) \
             continue; \
          \
         if(valfreefn) \
             valfreefn(&map->bins[idx].val); \
          \
         if(valcpyfn) \
-            valcpyfn(&map->bins[idx].val, val); \
+            valcpyfn(&map->bins[idx].val, &val); \
         else \
-            memcpy(&map->bins[idx].val, val, sizeof(Tval)); \
+            memcpy(&map->bins[idx].val, &val, sizeof(Tval)); \
  \
         return &map->bins[idx].val; \
     } \
@@ -154,7 +154,7 @@ Tval* map_##keyname##_##valname##_set(map_##keyname##_##valname##_t* map, Tkey* 
     return NULL;\
 } \
  \
-Tval* map_##keyname##_##valname##_get(map_##keyname##_##valname##_t* map, Tkey* key) \
+Tval* map_##keyname##_##valname##_get(map_##keyname##_##valname##_t* map, Tkey key) \
 { \
     bool (*keycmpfn)(Tkey*, Tkey*) = (keycmp); \
  \
@@ -163,7 +163,7 @@ Tval* map_##keyname##_##valname##_get(map_##keyname##_##valname##_t* map, Tkey* 
     map_hash_t hash; \
     uint64_t idx; \
     \
-    hash = hashfunc(key); \
+    hash = hashfunc(&key); \
      \
     for(i=0, idx=hash; i<map->nbin; i++, idx++) \
     { \
@@ -178,10 +178,10 @@ Tval* map_##keyname##_##valname##_get(map_##keyname##_##valname##_t* map, Tkey* 
             continue; \
         if(keycmpfn) \
         { \
-            if(!keycmpfn(&map->bins[idx].key, key)) \
+            if(!keycmpfn(&map->bins[idx].key, &key)) \
                 continue; \
         } \
-        else if(memcmp(&map->bins[idx].key, key, sizeof(Tkey))) \
+        else if(memcmp(&map->bins[idx].key, &key, sizeof(Tkey))) \
             continue; \
  \
         return &map->bins[idx].val; \
@@ -189,7 +189,7 @@ Tval* map_##keyname##_##valname##_get(map_##keyname##_##valname##_t* map, Tkey* 
  \
     return NULL; \
 } \
-void map_##keyname##_##valname##_remove(map_##keyname##_##valname##_t* map, Tkey* key) \
+void map_##keyname##_##valname##_remove(map_##keyname##_##valname##_t* map, Tkey key) \
 { \
     bool (*keycmpfn)(Tkey*, Tkey*) = (keycmp); \
     void (*keyfreefn)(Tkey*) = (keyfreefunc); \
@@ -200,7 +200,7 @@ void map_##keyname##_##valname##_remove(map_##keyname##_##valname##_t* map, Tkey
     map_hash_t hash; \
     uint64_t idx; \
     \
-    hash = hashfunc(key); \
+    hash = hashfunc(&key); \
      \
     for(i=0, idx=hash; i<map->nbin; i++, idx++) \
     { \
@@ -215,10 +215,10 @@ void map_##keyname##_##valname##_remove(map_##keyname##_##valname##_t* map, Tkey
             continue; \
         if(keycmpfn) \
         { \
-            if(!keycmpfn(&map->bins[idx].key, key)) \
+            if(!keycmpfn(&map->bins[idx].key, &key)) \
                 continue; \
         } \
-        else if(memcmp(&map->bins[idx].key, key, sizeof(Tkey))) \
+        else if(memcmp(&map->bins[idx].key, &key, sizeof(Tkey))) \
             continue; \
  \
         map->nfull--; \
@@ -241,7 +241,7 @@ void map_##keyname##_##valname##_dup(map_##keyname##_##valname##_t* dst, map_##k
     { \
         if(src->bins[i].state != MAP_EL_FULL) \
             continue; \
-        map_##keyname##_##valname##_set(dst, &src->bins[i].key, &src->bins[i].val); \
+        map_##keyname##_##valname##_set(dst, src->bins[i].key, src->bins[i].val); \
     } \
 } \
  \

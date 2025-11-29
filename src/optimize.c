@@ -28,7 +28,7 @@ static bool ir_operandeq(ir_operand_t* a, ir_operand_t* b)
     case IR_OPERAND_VAR:
         return a->var == b->var;
     case IR_OPERAND_LABEL:
-        return a->ilabel == b->ilabel;
+        return !strcmp(a->label, b->label);
     default:
         return false;
     }

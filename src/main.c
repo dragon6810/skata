@@ -87,20 +87,20 @@ void compile(void)
         goto freestuff;
     }
 
-    ir_lower();
-    // ir_backoptimize();
-    if(emitlowered)
-    {
-        ir_dump();
-        goto freestuff;
-    }
-
     nreg = 13;
     reglifetime();
     regalloc();
     if(emitreggraph)
     {
         dumpreggraph();
+        goto freestuff;
+    }
+
+    ir_lower();
+    // ir_backoptimize();
+    if(emitlowered)
+    {
+        ir_dump();
         goto freestuff;
     }
     

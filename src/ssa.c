@@ -57,7 +57,7 @@ static void ir_rename(ir_funcdef_t* func, ir_var_t* var, ir_block_t* blk)
     // rename successor phi-nodes
     for(i=0; i<blk->out.len; i++)
     {
-        pidx = map_str_u64_get(&blk->out.data[i]->varphis, &var->name);
+        pidx = map_str_u64_get(&blk->out.data[i]->varphis, var->name);
         if(!pidx)
             continue;
         idx = *pidx;
@@ -65,7 +65,7 @@ static void ir_rename(ir_funcdef_t* func, ir_var_t* var, ir_block_t* blk)
         inst = &blk->out.data[i]->insts.data[idx];
 
         operand.type = IR_OPERAND_LABEL;
-        operand.ilabel = blk - func->blocks.data;
+        operand.label = strdup(blk->name);
         list_ir_operand_ppush(&inst->variadic, &operand);
 
         operand.type = IR_OPERAND_REG;
@@ -133,7 +133,7 @@ void ir_ssafunc(ir_funcdef_t* func)
             {
                 df = blk->domfrontier.data[i];
 
-                if(map_str_u64_get(&df->varphis, &func->vars.bins[v].val.name))
+                if(map_str_u64_get(&df->varphis, func->vars.bins[v].val.name))
                     continue;
 
                 inst.op = IR_OP_PHI;
@@ -144,7 +144,7 @@ void ir_ssafunc(ir_funcdef_t* func)
                 
                 idx = df->varphis.nfull;
                 list_ir_inst_insert(&df->insts, idx, inst);
-                map_str_u64_set(&df->varphis, &func->vars.bins[v].val.name, &idx);
+                map_str_u64_set(&df->varphis, func->vars.bins[v].val.name, idx);
 
                 list_pir_block_push(&worklist, df);
             }
