@@ -9,27 +9,18 @@ const char* armheader =
 ".text\n"
 ".global _main\n\n";
 
-// w0-w7 are used for function calling and need to be pushed often, so try to use others first.
-const int narmreg = 12;
-const int ncorruptable = 7;
-const char* armregs[] =
+const int narmreg = 7;
+static const char* armregs[] =
 {
-    // corruptable
+    "w4",
+    "w5",
+    "w6",
+    "w7",
+    "w8",
     "w9",
     "w10",
-    "w11",
-    "w12",
-    "w13",
-    "w14",
-    "w15",
-
-    // callee-saved
-    "w19",
-    "w20",
-    "w21",
-    "w22",
-    "w23",
 };
+static const char* scratchreg = "w12";
 
 const int stackpad = 16;
 
@@ -53,6 +44,32 @@ static void armgen_operand(ir_funcdef_t* funcdef, ir_operand_t* operand)
         assert(0 && "unexpected operand");
         break;
     }
+}
+
+static void armgen_emitmul(ir_funcdef_t* funcdef, ir_inst_t* inst)
+{
+    if(inst->ternary[2].type == IR_OPERAND_LIT)
+    {
+        printf("  MOV %s, ", scratchreg);
+        armgen_operand(funcdef, &inst->ternary[2]);
+        printf("\n");
+
+        printf("  MUL ");
+        armgen_operand(funcdef, &inst->ternary[0]);
+        printf(", ");
+        armgen_operand(funcdef, &inst->ternary[1]);
+        printf(", %s\n", scratchreg);
+        
+        return;
+    }
+
+    printf("  MUL ");
+    armgen_operand(funcdef, &inst->ternary[0]);
+    printf(", ");
+    armgen_operand(funcdef, &inst->ternary[1]);
+    printf(", ");
+    armgen_operand(funcdef, &inst->ternary[2]);
+    printf("\n");
 }
 
 static void armgen_inst(ir_funcdef_t* funcdef, ir_inst_t* inst)
@@ -85,13 +102,7 @@ static void armgen_inst(ir_funcdef_t* funcdef, ir_inst_t* inst)
         printf("\n");
         break;
     case IR_OP_MUL:
-        printf("  MUL ");
-        armgen_operand(funcdef, &inst->ternary[0]);
-        printf(", ");
-        armgen_operand(funcdef, &inst->ternary[1]);
-        printf(", ");
-        armgen_operand(funcdef, &inst->ternary[2]);
-        printf("\n");
+        armgen_emitmul(funcdef, inst);
         break;
     case IR_OP_RET:
         if(inst->unary.regname)

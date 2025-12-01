@@ -14,7 +14,7 @@ static void ir_operandreplace(ir_operand_t* dst, ir_operand_t* src)
     }
 }
 
-static bool ir_operandeq(ir_operand_t* a, ir_operand_t* b)
+bool ir_operandeq(ir_operand_t* a, ir_operand_t* b)
 {
     if(a->type != b->type)
         return false;
