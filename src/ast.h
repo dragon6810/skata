@@ -45,18 +45,27 @@ typedef enum
     EXPROP_PREDEC, // --
     EXPROP_POSTINC, // ++
     EXPROP_POSTDEC, // --
+
+    // variadic operators
+    EXPROP_CALL, // ( ... )
 } exprop_e;
 
-typedef struct expr_s
+typedef struct expr_s expr_t;
+
+LIST_DECL(expr_t*, pexpr)
+
+struct expr_s
 {
     exprop_e op;
     union
     {
-        struct expr_s *operands[3]; // binary and trinary op
-        struct expr_s *operand; // unary op
+        expr_t *operands[3]; // binary and trinary op
+        expr_t *operand; // unary op
         char* msg; // atom
     };
-} expr_t;
+    
+    list_pexpr_t variadic; // function call
+};
 
 typedef struct decl_s decl_t;
 

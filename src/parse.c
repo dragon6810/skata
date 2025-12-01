@@ -35,12 +35,23 @@ static void parse_freeexpr(expr_t* expr)
         parse_freeexpr(expr->operands[0]);
         parse_freeexpr(expr->operands[1]);
         break;
+    case EXPROP_CALL:
+        list_pexpr_free(&expr->variadic);
+        break;
     default:
         break;
     }
 
     free(expr);
 }
+
+static void parse_freepexpr(expr_t** expr)
+{
+    parse_freeexpr(*expr);
+}
+
+LIST_DEF(pexpr)
+LIST_DEF_FREE_DECONSTRUCT(pexpr, parse_freepexpr)
 
 static void parse_freestmnt(stmnt_t* stmnt)
 {

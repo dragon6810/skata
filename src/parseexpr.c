@@ -73,6 +73,17 @@ static void parse_printexpr_r(const expr_t* expr)
         op = "--";
         postfix = true;
         break;
+    case EXPROP_CALL:
+        printf("call ");
+        parse_printexpr_r(expr->operand);
+        printf(" ( ");
+        for(i=0; i<expr->variadic.len; i++)
+        {
+            parse_printexpr_r(expr->variadic.data[i]);
+            printf(" ");
+        }
+        printf(")");
+        return;
     default:
         return;
     }
@@ -232,6 +243,28 @@ static expr_t* parse_expr_r(int minbp)
             op = EXPROP_POSTINC;
         else if(!strcmp(tokstr, "--"))
             op = EXPROP_POSTDEC;
+        else if(!strcmp(tokstr, "("))
+        {
+            parse_eatstr("(");
+
+            lhs = expr;
+
+            expr = malloc(sizeof(expr_t));
+            expr->op = EXPROP_CALL;
+            expr->operand = lhs;
+            list_pexpr_init(&expr->variadic, 0);
+
+            while(strcmp(parse_peekstr(0), ")"))
+            {
+                list_pexpr_push(&expr->variadic, parse_expr_r(0));
+                if(strcmp(parse_peekstr(0), ")"))
+                    parse_eatstr(",");
+            }
+
+            parse_eatstr(")");
+
+            goto continueloop;
+        }
         else if(!strcmp(tokstr, "?"))
         {
             op = EXPROP_COND;
