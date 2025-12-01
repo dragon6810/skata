@@ -2,50 +2,41 @@
 
 #include <stdio.h>
 
-static void ir_lowerphi(ir_funcdef_t* funcdef, char* dst, char* src)
+static void ir_findphicpys(ir_funcdef_t* funcdef, ir_inst_t* inst)
 {
-    int i, b;
-    ir_block_t *blk;
-    
-    ir_inst_t inst;
+    int i;
+    ir_copy_t cpy;
 
-    for(b=0, blk=funcdef->blocks.data; b<funcdef->blocks.len; b++, blk++)
+    uint64_t *ilabel;
+    ir_block_t *blk;
+
+    assert(inst->op == IR_OP_PHI);
+
+    for(i=2; i<inst->variadic.len; i+=2)
     {
-        for(i=0; i<blk->insts.len; i++)
-        {
-            if(!ir_registerwritten(&blk->insts.data[i], src))
-                continue;
-            
-            inst.op = IR_OP_MOVE;
-            inst.binary[0].type = IR_OPERAND_REG;
-            inst.binary[0].regname = strdup(dst);
-            inst.binary[1].type = IR_OPERAND_REG;
-            inst.binary[1].regname = strdup(src);
-            list_ir_inst_insert(&blk->insts, i+1, inst);
-            i++;
-        }
+        ir_cpyoperand(&cpy.dst, &inst->variadic.data[0]);
+        ir_cpyoperand(&cpy.src, &inst->variadic.data[i]);
+
+        ilabel = map_str_u64_get(&funcdef->blktbl, inst->variadic.data[i-1].label);
+        assert(ilabel);
+        blk = &funcdef->blocks.data[*ilabel];
+
+        list_ir_copy_ppush(&blk->phicpys, &cpy);
     }
 }
 
-static void ir_lowerblk(ir_funcdef_t* funcdef, ir_block_t* blk)
+static void ir_findblkcpys(ir_funcdef_t* funcdef, ir_block_t* blk)
 {
-    return; 
-
-    int i, j;
+    int i;
 
     for(i=0; i<blk->insts.len; i++)
     {
-        switch(blk->insts.data[i].op)
-        {
-        case IR_OP_PHI:
-            for(j=0; j<blk->insts.data[i].variadic.len; j++)
-                ir_lowerphi(funcdef, blk->insts.data[i].variadic.data[0].regname, blk->insts.data[i].variadic.data[j].regname);
-            list_ir_inst_remove(&blk->insts, i);
-            i--;
-            break;
-        default:
-            break;
-        }
+        if(blk->insts.data[i].op != IR_OP_PHI)
+            continue;
+            
+        ir_findphicpys(funcdef, &blk->insts.data[i]);
+        list_ir_inst_remove(&blk->insts, i);
+        i--;
     }
 }
 
@@ -78,7 +69,6 @@ static void ir_elimcriticaledges(ir_funcdef_t* funcdef)
                 inst.op = IR_OP_JMP;
                 inst.unary.type = IR_OPERAND_LABEL;
                 inst.unary.label = strdup(edge->name);
-
 
                 idx = ir_newblock(funcdef);
                 blk = &funcdef->blocks.data[b];
@@ -114,7 +104,7 @@ static void ir_lowerfunc(ir_funcdef_t* funcdef)
     ir_elimcriticaledges(funcdef);
 
     for(i=0; i<funcdef->blocks.len; i++)
-        ir_lowerblk(funcdef, &funcdef->blocks.data[i]);
+        ir_findblkcpys(funcdef, &funcdef->blocks.data[i]);
 }
 
 void ir_lower(void)

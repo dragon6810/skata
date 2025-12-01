@@ -24,6 +24,24 @@ void ir_varcpy(ir_var_t* dst, ir_var_t* src)
     dst->stackloc = src->stackloc;
 }
 
+void ir_cpyoperand(ir_operand_t* dst, ir_operand_t* src)
+{
+    memcpy(dst, src, sizeof(ir_operand_t));
+    switch(dst->type)
+    {
+    case IR_OPERAND_REG:
+        if(dst->regname)
+            dst->regname = strdup(dst->regname);
+        break;
+    case IR_OPERAND_LABEL:
+        if(dst->label)
+            dst->label = strdup(dst->label);
+        break;
+    default:
+        break;
+    }
+}
+
 void ir_operandfree(ir_operand_t* operand)
 {
     switch(operand->type)
@@ -37,6 +55,12 @@ void ir_operandfree(ir_operand_t* operand)
     default:
         break;
     }
+}
+
+void ir_copyfree(ir_copy_t* copy)
+{
+    ir_operandfree(&copy->dst);
+    ir_operandfree(&copy->src);
 }
 
 void ir_instfree(ir_inst_t* inst)
@@ -99,6 +123,7 @@ void ir_freeblock(ir_block_t* block)
     set_str_free(&block->livein);
     set_str_free(&block->liveout);
     list_ir_regspan_free(&block->spans);
+    list_ir_copy_free(&block->phicpys);
 }
 
 void ir_freefuncdef(ir_funcdef_t* funcdef)
@@ -126,6 +151,8 @@ LIST_DEF(ir_funcdef)
 LIST_DEF_FREE_DECONSTRUCT(ir_funcdef, ir_freefuncdef)
 LIST_DEF(ir_operand)
 LIST_DEF_FREE_DECONSTRUCT(ir_operand, ir_operandfree)
+LIST_DEF(ir_copy)
+LIST_DEF_FREE_DECONSTRUCT(ir_copy, ir_copyfree)
 
 ir_t ir;
 
@@ -144,6 +171,7 @@ void ir_initblock(ir_block_t* block)
     set_str_alloc(&block->livein);
     set_str_alloc(&block->liveout);
     list_ir_regspan_init(&block->spans, 0);
+    list_ir_copy_init(&block->phicpys, 0);
     block->marked = false;
 }
 

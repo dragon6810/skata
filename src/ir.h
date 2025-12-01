@@ -90,7 +90,13 @@ typedef struct ir_operand_s
     };
 } ir_operand_t;
 
+typedef struct ir_copy_s
+{
+    ir_operand_t dst, src;
+} ir_copy_t;
+
 LIST_DECL(ir_operand_t, ir_operand)
+LIST_DECL(ir_copy_t, ir_copy)
 
 typedef struct ir_inst_s
 {
@@ -137,6 +143,8 @@ struct ir_block_s
     set_str_t liveout; // registers alive going out of the block
 
     list_ir_regspan_t spans;
+
+    list_ir_copy_t phicpys;
     
     // temporary
     bool marked;
@@ -182,6 +190,7 @@ void ir_initblock(ir_block_t* block);
 char* ir_gen_alloctemp(ir_funcdef_t *funcdef);
 void ir_varfree(ir_var_t* var);
 uint64_t ir_newblock(ir_funcdef_t* funcdef);
+void ir_cpyoperand(ir_operand_t* dst, ir_operand_t* src);
 bool ir_registerwritten(ir_inst_t* inst, char* reg);
 // set shouldn't be initialized
 void ir_definedregs(set_str_t* set, ir_inst_t* inst);
