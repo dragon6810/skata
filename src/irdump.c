@@ -75,6 +75,21 @@ void ir_accessedregs(set_str_t* set, ir_inst_t* inst)
     }
 }
 
+void ir_print_location(ir_location_t* location)
+{
+    switch(location->type)
+    {
+    case IR_LOCATION_REG:
+        printf("\e[0;31m%%%s\e[0m", location->reg);
+        break;
+    case IR_LOCATION_VAR:
+        printf("\e[0;31m$%s\e[0m", location->var);
+        break;
+    default:
+        break;
+    }
+}
+
 void ir_print_operand(ir_funcdef_t* funcdef, ir_operand_t* operand)
 {
     switch(operand->type)
@@ -138,8 +153,7 @@ void ir_dump_inst(ir_funcdef_t* funcdef, ir_inst_t* inst)
     case IR_OP_RET:
         printf("  ");
         printf("\e[0;95mreturn\e[0m ");
-        if(inst->unary.regname)
-            ir_print_operand(funcdef, &inst->unary);
+        ir_print_operand(funcdef, &inst->unary);
         printf("\n");
         break;
     case IR_OP_STORE:
@@ -234,13 +248,30 @@ void ir_dump_block(ir_funcdef_t* funcdef, ir_block_t* block)
         ir_dump_inst(funcdef, &block->insts.data[i]);
 }
 
+void ir_dump_arglist(ir_funcdef_t* funcdef)
+{
+    int i;
+
+    printf("(");
+    for(i=0; i<funcdef->params.len; i++)
+    {
+        ir_print_location(&funcdef->params.data[i].loc);
+        if(i != funcdef->params.len-1)
+            printf(", ");
+    }
+    printf(")");
+}
+
 void ir_dump_funcdef(ir_funcdef_t* funcdef)
 {
     int i;
 
-    printf("\e[0;96mfunc \e[1;93m@%s\e[0m:\n", funcdef->name);
+    printf("\e[0;96mfunc \e[1;93m@%s\e[0m", funcdef->name);
+    ir_dump_arglist(funcdef);
+    printf(":\n");
     for(i=0; i<funcdef->blocks.len; i++)
         ir_dump_block(funcdef, &funcdef->blocks.data[i]);
+    printf("\n");
 }
 
 void ir_dump(void)

@@ -472,6 +472,23 @@ static void parse_printstatement(stmnt_t* stmnt, int depth, bool last, char* lef
     }
 }
 
+static void parse_printdecl(decl_t* decl, int depth, bool last, char* leftstr);
+
+static void parse_printarglist(decl_t* decl, int depth, bool last, char* leftstr)
+{
+    int i;
+
+    char* newleft;
+
+    newleft = parse_printprefix(depth, last, leftstr);
+
+    printf("\e[1;32m<argument-list> \e[0m\n");
+    for(i=0; i<decl->args.len; i++)
+        parse_printdecl(&decl->args.data[i], depth + 1, i==decl->args.len-1, newleft);
+
+    free(newleft);
+}
+
 static void parse_printdecl(decl_t* decl, int depth, bool last, char* leftstr)
 {
     char* newleft;
@@ -479,6 +496,8 @@ static void parse_printdecl(decl_t* decl, int depth, bool last, char* leftstr)
     newleft = parse_printprefix(depth, last, leftstr);
 
     printf("\e[1;32m<declaration> \e[0;96m(type: %s), (name: %s)\e[0m\n", types.data[decl->type], decl->ident);
+    if(decl->form == DECL_FUNC)
+        parse_printarglist(decl, depth + 1, !decl->expr, newleft);
     if(decl->expr)
         parse_printexprast(decl->expr, depth + 1, true, newleft);
 

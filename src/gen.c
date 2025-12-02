@@ -126,9 +126,25 @@ void ir_freeblock(ir_block_t* block)
     list_ir_copy_free(&block->phicpys);
 }
 
+void ir_freeparam(ir_param_t* param)
+{
+    switch(param->loc.type)
+    {
+    case IR_LOCATION_REG:
+        free(param->loc.reg);
+        break;
+    case IR_LOCATION_VAR:
+        free(param->loc.var);
+        break;
+    default:
+        break;
+    }
+}
+
 void ir_freefuncdef(ir_funcdef_t* funcdef)
 {
     free(funcdef->name);
+    list_ir_param_free(&funcdef->params);
     map_str_ir_reg_free(&funcdef->regs);
     map_str_ir_var_free(&funcdef->vars);
     list_ir_block_free(&funcdef->blocks);
@@ -151,6 +167,8 @@ LIST_DEF(ir_funcdef)
 LIST_DEF_FREE_DECONSTRUCT(ir_funcdef, ir_freefuncdef)
 LIST_DEF(ir_operand)
 LIST_DEF_FREE_DECONSTRUCT(ir_operand, ir_operandfree)
+LIST_DEF(ir_param)
+LIST_DEF_FREE_DECONSTRUCT(ir_param, ir_freeparam)
 LIST_DEF(ir_copy)
 LIST_DEF_FREE_DECONSTRUCT(ir_copy, ir_copyfree)
 
@@ -518,6 +536,27 @@ static void ir_gen_decl(ir_funcdef_t* funcdef, decl_t* decl)
     free(var.name);
 }
 
+static void ir_gen_arglist(ir_funcdef_t* funcdef, list_decl_t* arglist)
+{
+    int i;
+
+    ir_var_t var;
+    ir_param_t param;
+
+    for(i=0; i<arglist->len; i++)
+    {
+        var.name = arglist->data[i].ident;
+        var.stackloc = funcdef->varframe;
+        funcdef->varframe += 4;
+        map_str_ir_var_set(&funcdef->vars, arglist->data[i].ident, var);
+
+        param.name = strdup(arglist->data[i].ident);
+        param.loc.type = IR_LOCATION_VAR;
+        param.loc.var = strdup(var.name);
+        list_ir_param_push(&funcdef->params, param);
+    }
+}
+
 static void ir_gen_globaldecl(globaldecl_t *globdecl)
 {
     int i;
@@ -529,6 +568,7 @@ static void ir_gen_globaldecl(globaldecl_t *globdecl)
         return;
 
     funcdef.name = strdup(globdecl->decl.ident);
+    list_ir_param_init(&funcdef.params, 0);
     funcdef.ntempreg = 0;
     funcdef.varframe = 0;
     list_ir_block_init(&funcdef.blocks, 1);
@@ -536,6 +576,8 @@ static void ir_gen_globaldecl(globaldecl_t *globdecl)
     map_str_ir_reg_alloc(&funcdef.regs);
     map_str_ir_var_alloc(&funcdef.vars);
     list_pir_block_init(&funcdef.postorder, 0);
+
+    ir_gen_arglist(&funcdef, &globdecl->decl.args);
     
     ir_initblock(&funcdef.blocks.data[0]);
     funcdef.blocks.data[0].name = strdup("entry");

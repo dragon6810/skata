@@ -70,9 +70,25 @@ typedef struct ir_constant_s
 
 typedef enum
 {
+    IR_LOCATION_REG=0,
+    IR_LOCATION_VAR,
+} ir_location_e;
+
+typedef struct ir_location_s
+{
+    ir_location_e type;
+    union
+    {
+        char *reg;
+        char *var;
+    };
+} ir_location_t;
+
+typedef enum
+{
     IR_OPERAND_REG=0,
-    IR_OPERAND_LIT,
     IR_OPERAND_VAR,
+    IR_OPERAND_LIT,
     IR_OPERAND_LABEL,
 } ir_operand_e;
 
@@ -152,10 +168,20 @@ struct ir_block_s
 
 LIST_DECL(ir_block_t, ir_block)
 
+typedef struct ir_param_s
+{
+    char* name;
+    ir_location_t loc;
+} ir_param_t;
+
+LIST_DECL(ir_param_t, ir_param)
+
 typedef struct ir_funcdef_s
 {
     // '@' prefix implicit
     char *name;
+
+    list_ir_param_t params;
 
     uint64_t ntempreg;
     map_str_ir_reg_t regs;

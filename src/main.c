@@ -103,7 +103,7 @@ void compile(void)
         ir_dump();
         goto freestuff;
     }
-    
+
     asmgen_arm();
     
 freestuff:
