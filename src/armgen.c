@@ -187,6 +187,7 @@ static void armgen_block(ir_funcdef_t* funcdef, ir_block_t* block)
 
 static void armgen_funcfooter(ir_funcdef_t* funcdef)
 {
+    printf("  LDP fp, lr, [sp], #16\n");
     if(funcdef->varframe)
             printf("  ADD sp, sp, #%d\n", (int) funcdef->varframe);
     printf("  RET\n");
@@ -202,6 +203,9 @@ static void armgen_funcheader(ir_funcdef_t* funcdef)
     if(funcdef->varframe)
         printf("  SUB sp, sp, #%d\n", (int) funcdef->varframe);
 
+    printf("  STP fp, lr, [sp, #-16]!\n");
+    printf("  MOV fp, sp\n");
+    
     for(i=nregparam=0, param=funcdef->params.data; i<funcdef->params.len; i++, param++)
     {
         assert(param->loc.type == IR_LOCATION_REG);

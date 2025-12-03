@@ -168,7 +168,6 @@ void ir_ssafunc(ir_funcdef_t* func)
                 continue;
 
             reg = ir_gen_alloctemp(func);
-            printf("%s: %s\n", func->vars.bins[v].val.name, reg);
             list_string_push(&namestack, reg);
             func->params.data[i].loc.type = IR_LOCATION_REG;
             func->params.data[i].loc.reg = strdup(reg);

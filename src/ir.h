@@ -53,6 +53,7 @@ typedef enum
     IR_OP_BR, // value, truelabel, falselabel
     IR_OP_JMP, // label
     IR_OP_PHI, // (VARIADIC); dst, label1, reg1, label2, reg2, ... labeln, regn
+    IR_OP_CALL, // (VARIADIC); dst, func, arg1, arg2, ... argn
     IR_OP_COUNT,
 } ir_inst_e;
 
@@ -90,6 +91,7 @@ typedef enum
     IR_OPERAND_VAR,
     IR_OPERAND_LIT,
     IR_OPERAND_LABEL,
+    IR_OPERAND_FUNC,
 } ir_operand_e;
 
 typedef struct ir_operand_s
@@ -103,6 +105,7 @@ typedef struct ir_operand_s
         ir_constant_t literal;
         ir_var_t *var;
         char *label;
+        char *func;
     };
 } ir_operand_t;
 

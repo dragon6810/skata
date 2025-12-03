@@ -326,7 +326,7 @@ static void parse_arglist(decl_t* decl)
         arg.ident = strdup(parse_eatform(TOKEN_IDENT));
         list_decl_init(&arg.args, 0);
 
-        list_decl_ppush(&decl->args, &arg);
+        list_decl_push(&decl->args, arg);
 
         if(strcmp(parse_peekstr(0), ")"))
             parse_eatstr(",");

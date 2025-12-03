@@ -32,10 +32,12 @@ void ir_definedregs(set_str_t* set, ir_inst_t* inst)
         set_str_add(set, inst->ternary[0].regname);
         break;
     case IR_OP_PHI:
+    case IR_OP_CALL:
         if(inst->variadic.len && inst->variadic.data[0].regname)
             set_str_add(set, inst->variadic.data[0].regname);
         break;
     default:
+        assert(0);
         break;
     }
 }
@@ -68,6 +70,10 @@ void ir_accessedregs(set_str_t* set, ir_inst_t* inst)
     case IR_OP_PHI:
         // skip over labels
         for(i=2; i<inst->variadic.len; i+=2)
+            if(inst->variadic.data[i].type == IR_OPERAND_REG) set_str_add(set, inst->variadic.data[i].regname);
+        break;
+    case IR_OP_CALL:
+        for(i=2; i<inst->variadic.len; i++)
             if(inst->variadic.data[i].type == IR_OPERAND_REG) set_str_add(set, inst->variadic.data[i].regname);
         break;
     default:
@@ -105,6 +111,10 @@ void ir_print_operand(ir_funcdef_t* funcdef, ir_operand_t* operand)
         break;
     case IR_OPERAND_LABEL:
         printf("\e[0;96mlabel \e[0;31m%s\e[0m", operand->label);
+        break;
+    case IR_OPERAND_FUNC:
+        printf("\e[1;93m@%s\e[0m", operand->func);
+        break;
     default:
         break;
     }
@@ -209,6 +219,20 @@ void ir_dump_inst(ir_funcdef_t* funcdef, ir_inst_t* inst)
         if(inst->var)
             printf(" \e[0;36m# $%s", inst->var);
         printf("\n");
+        break;
+    case IR_OP_CALL:
+        printf("  ");
+        ir_print_operand(funcdef, &inst->variadic.data[0]);
+        printf("\e[0;95m := ");
+        ir_print_operand(funcdef, &inst->variadic.data[1]);
+        printf("(");
+        for(i=2; i<inst->variadic.len; i++)
+        {
+            ir_print_operand(funcdef, &inst->variadic.data[i]);
+            if(i<inst->variadic.len-1)
+                printf(", ");
+        }
+        printf(")\n");
         break;
     default:
         assert(0 && "unkown ir opcode");

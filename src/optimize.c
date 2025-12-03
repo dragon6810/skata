@@ -29,7 +29,10 @@ bool ir_operandeq(ir_operand_t* a, ir_operand_t* b)
         return a->var == b->var;
     case IR_OPERAND_LABEL:
         return !strcmp(a->label, b->label);
+    case IR_OPERAND_FUNC:
+        return !strcmp(a->func, b->func);
     default:
+        assert(0);
         return false;
     }
 }
@@ -66,6 +69,7 @@ static void ir_replaceoperand(ir_funcdef_t* funcdef, ir_operand_t* opa, ir_opera
                 nops = 3;
                 break;
             case IR_OP_PHI:
+            case IR_OP_CALL:
                 nops = 0;
                 for(o=0; o<inst->variadic.len; o++)
                     if(ir_operandeq(&inst->variadic.data[o], opa))

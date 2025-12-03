@@ -310,6 +310,34 @@ static char* ir_gen_ternary(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
     return res;
 }
 
+static char* ir_gen_funccall(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
+{
+    int i;
+
+    ir_inst_t inst;
+    ir_operand_t operand;
+
+    inst.op = IR_OP_CALL;
+    list_ir_operand_init(&inst.variadic, 2);
+
+    inst.variadic.data[1].type = IR_OPERAND_FUNC;
+    inst.variadic.data[1].func = strdup(expr->operand->msg);
+
+    for(i=0; i<expr->variadic.len; i++)
+    {
+        operand.type = IR_OPERAND_REG;
+        operand.regname = ir_gen_expr(funcdef, expr->variadic.data[i], NULL);
+        list_ir_operand_push(&inst.variadic, operand);
+    }
+    
+    inst.variadic.data[0].type = IR_OPERAND_REG;
+    inst.variadic.data[0].regname = outreg ? (outreg = strdup(outreg)) : (outreg = ir_gen_alloctemp(funcdef));
+
+    list_ir_inst_push(&funcdef->blocks.data[funcdef->blocks.len-1].insts, inst);
+
+    return outreg;
+}
+
 // if outreg is NULL, it will alloc a new register
 // YOU are responsible for the returned string, unless you gave outreg
 static char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
@@ -373,6 +401,8 @@ static char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
 
         list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
         return res;
+    case EXPROP_CALL:
+        return ir_gen_funccall(funcdef, expr, outreg);
     default:
         assert(0 && "unsupported op by IR");
         break;
