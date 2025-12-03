@@ -9,6 +9,11 @@ static void ir_operandreplace(ir_operand_t* dst, ir_operand_t* src)
     case IR_OPERAND_REG:
         dst->regname = strdup(dst->regname);
         break;
+    case IR_OPERAND_LABEL:
+        dst->label = strdup(dst->label);
+        break;
+    case IR_OPERAND_FUNC:
+        dst->label = strdup(dst->func);
     default:
         break;
     }

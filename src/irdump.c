@@ -21,6 +21,11 @@ void ir_definedregs(set_str_t* set, ir_inst_t* inst)
 
     switch(inst->op)
     {
+    case IR_OP_RET:
+    case IR_OP_STORE:
+    case IR_OP_BR:
+    case IR_OP_JMP:
+        break;
     case IR_OP_MOVE:
     case IR_OP_LOAD:
         set_str_add(set, inst->binary[0].regname);

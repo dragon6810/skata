@@ -54,6 +54,29 @@ static void armgen_operand(ir_funcdef_t* funcdef, ir_operand_t* operand)
     }
 }
 
+static void armgen_emitcall(ir_funcdef_t* funcdef, ir_inst_t* inst)
+{
+    int i;
+
+    int nregparam;
+
+    for(i=2, nregparam=0; i<inst->variadic.len; i++)
+    {
+        assert(nregparam < narmregparam);
+
+        printf("  MOV %s, ", armregparams[nregparam]);
+        armgen_operand(funcdef, &inst->variadic.data[i]);
+        printf("\n");
+
+        nregparam++;
+    }
+
+    printf("  BL _%s\n", inst->variadic.data[1].func);
+    printf("  MOV ");
+    armgen_operand(funcdef, &inst->variadic.data[0]);
+    printf(", w0\n");
+}
+
 static void armgen_emitmul(ir_funcdef_t* funcdef, ir_inst_t* inst)
 {
     if(inst->ternary[2].type == IR_OPERAND_LIT)
@@ -165,8 +188,11 @@ static void armgen_inst(ir_funcdef_t* funcdef, ir_inst_t* inst)
         armgen_operand(funcdef, &inst->unary);
         printf("\n");
         break;
+    case IR_OP_CALL:
+        armgen_emitcall(funcdef, inst);
+        break;
     default:
-        printf("unimplemented ir inst for arm %d.\n", (int) inst->op);
+        printf("unimplemented ir inst %d for arm.\n", (int) inst->op);
         abort();
         break;
     }

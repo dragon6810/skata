@@ -5,5 +5,5 @@ int add(int a, int b)
 
 int main()
 {
-	return add(0, 0);
+	return add(0, 1);
 }
