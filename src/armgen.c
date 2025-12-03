@@ -20,6 +20,14 @@ static const char* armregs[] =
     "w9",
     "w10",
 };
+const int narmregparam = 4;
+static const char* armregparams[] =
+{
+    "w0",
+    "w1",
+    "w2",
+    "w3",
+};
 static const char* scratchreg = "w12";
 
 const int stackpad = 16;
@@ -105,15 +113,10 @@ static void armgen_inst(ir_funcdef_t* funcdef, ir_inst_t* inst)
         armgen_emitmul(funcdef, inst);
         break;
     case IR_OP_RET:
-        if(inst->unary.regname)
-        {
-            printf("  MOV w0, ");
-            armgen_operand(funcdef, &inst->unary);
-            printf("\n");
-        }
-        if(funcdef->varframe)
-            printf("  ADD sp, sp, #%d\n", (int) funcdef->varframe);
-        printf("  RET\n");
+        printf("  MOV w0, ");
+        armgen_operand(funcdef, &inst->unary);
+        printf("\n");
+        printf("  B _%s$exit\n", funcdef->name);
         break;
     case IR_OP_STORE:
         printf("  STR ");
@@ -182,6 +185,36 @@ static void armgen_block(ir_funcdef_t* funcdef, ir_block_t* block)
         armgen_inst(funcdef, &block->insts.data[i]);
 }
 
+static void armgen_funcfooter(ir_funcdef_t* funcdef)
+{
+    if(funcdef->varframe)
+            printf("  ADD sp, sp, #%d\n", (int) funcdef->varframe);
+    printf("  RET\n");
+}
+
+static void armgen_funcheader(ir_funcdef_t* funcdef)
+{
+    int i;
+    ir_param_t *param;
+
+    int nregparam;
+
+    if(funcdef->varframe)
+        printf("  SUB sp, sp, #%d\n", (int) funcdef->varframe);
+
+    for(i=nregparam=0, param=funcdef->params.data; i<funcdef->params.len; i++, param++)
+    {
+        assert(param->loc.type == IR_LOCATION_REG);
+        assert(nregparam < narmregparam); // TODO: stack parameters
+
+        printf("  MOV %s, %s\n", 
+            armregs[map_str_ir_reg_get(&funcdef->regs, param->loc.reg)->hardreg],
+            armregparams[nregparam]);
+
+        nregparam++;
+    }
+}
+
 static void armgen_funcdef(ir_funcdef_t* funcdef)
 {
     int i;
@@ -191,11 +224,12 @@ static void armgen_funcdef(ir_funcdef_t* funcdef)
 
     printf("_%s:\n", funcdef->name);
 
-    if(funcdef->varframe)
-        printf("  SUB sp, sp, #%d\n", (int) funcdef->varframe);
+    armgen_funcheader(funcdef);
 
     for(i=0; i<funcdef->blocks.len; i++)
         armgen_block(funcdef, &funcdef->blocks.data[i]);
+
+    armgen_funcfooter(funcdef);
 
     printf("\n");
 }
