@@ -59,22 +59,59 @@ static void armgen_emitcall(ir_funcdef_t* funcdef, ir_inst_t* inst)
     int i;
 
     int nregparam;
+    int stacktotal, stackcur;
 
-    for(i=2, nregparam=0; i<inst->variadic.len; i++)
+    for(i=2, nregparam=stacktotal=0; i<inst->variadic.len; i++)
     {
-        assert(nregparam < narmregparam);
+        if(nregparam < narmregparam)
+        {
+            nregparam++;
+            continue;
+        }
 
-        printf("  MOV %s, ", armregparams[nregparam]);
+        stacktotal += 4;
+    }
+
+    stacktotal = (stacktotal + stackpad - 1) & ~(stackpad - 1); 
+    if(stacktotal)
+        printf("  SUB sp, sp, #%d\n", stacktotal);
+
+    for(i=2, nregparam=stackcur=0; i<inst->variadic.len; i++)
+    {
+        if(nregparam < narmregparam)
+        {
+            printf("  MOV %s, ", armregparams[nregparam]);
+            armgen_operand(funcdef, &inst->variadic.data[i]);
+            printf("\n");
+
+            nregparam++;
+            continue;
+        }
+
+        if(inst->variadic.data[i].type != IR_OPERAND_REG)
+        {
+            printf("  MOV %s, ", scratchreg);
+            armgen_operand(funcdef, &inst->variadic.data[i]);
+            printf("\n");
+            printf("  STR %s, [sp, #%d]\n", scratchreg, stackcur);
+            stackcur += 4;
+            continue;
+        }
+
+        printf("  STR ");
         armgen_operand(funcdef, &inst->variadic.data[i]);
-        printf("\n");
-
-        nregparam++;
+        printf(", [sp, #%d]\n", stackcur);
+        stackcur += 4;
     }
 
     printf("  BL _%s\n", inst->variadic.data[1].func);
+
     printf("  MOV ");
     armgen_operand(funcdef, &inst->variadic.data[0]);
     printf(", w0\n");
+
+    if(stacktotal)
+        printf("  ADD sp, sp, #%d\n", stacktotal);
 }
 
 static void armgen_emitmul(ir_funcdef_t* funcdef, ir_inst_t* inst)
@@ -213,7 +250,8 @@ static void armgen_block(ir_funcdef_t* funcdef, ir_block_t* block)
 
 static void armgen_funcfooter(ir_funcdef_t* funcdef)
 {
-    printf("  LDP fp, lr, [sp], #16\n");
+    printf("  LDP fp, lr, [fp]\n");
+    printf("  ADD sp, sp, #16\n");
     if(funcdef->varframe)
             printf("  ADD sp, sp, #%d\n", (int) funcdef->varframe);
     printf("  RET\n");
@@ -224,7 +262,9 @@ static void armgen_funcheader(ir_funcdef_t* funcdef)
     int i;
     ir_param_t *param;
 
+    int framesize;
     int nregparam;
+    int stackparamoffs;
 
     if(funcdef->varframe)
         printf("  SUB sp, sp, #%d\n", (int) funcdef->varframe);
@@ -232,16 +272,24 @@ static void armgen_funcheader(ir_funcdef_t* funcdef)
     printf("  STP fp, lr, [sp, #-16]!\n");
     printf("  MOV fp, sp\n");
     
-    for(i=nregparam=0, param=funcdef->params.data; i<funcdef->params.len; i++, param++)
+    framesize = funcdef->varframe + 16;
+    for(i=nregparam=stackparamoffs=0, param=funcdef->params.data; i<funcdef->params.len; i++, param++)
     {
         assert(param->loc.type == IR_LOCATION_REG);
-        assert(nregparam < narmregparam); // TODO: stack parameters
 
-        printf("  MOV %s, %s\n", 
+        if(nregparam < narmregparam)
+        {
+            printf("  MOV %s, %s\n", 
+                armregs[map_str_ir_reg_get(&funcdef->regs, param->loc.reg)->hardreg],
+                armregparams[nregparam]);
+            nregparam++;
+            continue;
+        }
+
+        printf("  LDR %s, [sp, #%d]\n", 
             armregs[map_str_ir_reg_get(&funcdef->regs, param->loc.reg)->hardreg],
-            armregparams[nregparam]);
-
-        nregparam++;
+            framesize + stackparamoffs);
+        stackparamoffs += 4;
     }
 }
 
