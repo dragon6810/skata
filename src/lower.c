@@ -29,7 +29,7 @@ static void ir_insertcpy(ir_block_t* blk, ir_copy_t* cpy)
 }
 
 // returns true if dst is not used as any other src
-static bool ir_iscpyacyclic(ir_block_t* blk, uint64_t idx)
+static bool ir_iscpyacyclic(ir_funcdef_t* funcdef, ir_block_t* blk, uint64_t idx)
 {
     int i;
 
@@ -38,7 +38,7 @@ static bool ir_iscpyacyclic(ir_block_t* blk, uint64_t idx)
         if(idx == i)
             continue;
 
-        if(ir_operandeq(&blk->phicpys.data[i].src, &blk->phicpys.data[idx].dst))
+        if(ir_operandeq(funcdef, &blk->phicpys.data[i].src, &blk->phicpys.data[idx].dst))
             return false;
     }
 
@@ -52,7 +52,7 @@ static void ir_sequentializecpys(ir_funcdef_t* funcdef, ir_block_t* blk)
     // weed out acyclic copies
     for(i=0; i<blk->phicpys.len; i++)
     {
-        if(!ir_iscpyacyclic(blk, i))
+        if(!ir_iscpyacyclic(funcdef, blk, i))
             continue;
 
         ir_insertcpy(blk, &blk->phicpys.data[i]);
@@ -192,7 +192,7 @@ static void ir_lowerfunc(ir_funcdef_t* funcdef)
     int i;
 
     ir_elimcriticaledges(funcdef);
-    
+
     for(i=0; i<funcdef->blocks.len; i++)
         ir_findblkcpys(funcdef, &funcdef->blocks.data[i]);
 

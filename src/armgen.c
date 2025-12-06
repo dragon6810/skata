@@ -9,35 +9,124 @@ const char* armheader =
 ".text\n"
 ".global _main\n\n";
 
-const int narmreg = 7;
-static const char* armregs[] =
-{
-    "w4",
-    "w5",
-    "w6",
-    "w7",
-    "w8",
-    "w9",
-    "w10",
-};
-const int narmregparam = 4;
+const int narmreg = 6;
+const int narmregparam = 8;
 static const char* armregparams[] =
 {
     "w0",
     "w1",
     "w2",
     "w3",
+    "w4",
+    "w5",
+    "w6",
+    "w7",
 };
 static const char* scratchreg = "w12";
 
 const int stackpad = 16;
+
+void arm_specinit(void)
+{
+    hardreg_t reg;
+
+    list_hardreg_init(&regpool, 0);
+
+    reg.index = regpool.len;
+    reg.flags = HARDREG_CALLER | HARDREG_PARAM | HARDREG_RETURN;
+    reg.name = strdup("w0");
+    list_hardreg_ppush(&regpool, &reg);
+    reg.index = regpool.len;
+    reg.flags = HARDREG_CALLER | HARDREG_PARAM | HARDREG_RETURN;
+    reg.name = strdup("w1");
+    list_hardreg_ppush(&regpool, &reg);
+    reg.index = regpool.len;
+    reg.flags = HARDREG_CALLER | HARDREG_PARAM;
+    reg.name = strdup("w2");
+    list_hardreg_ppush(&regpool, &reg);
+    reg.flags = HARDREG_CALLER | HARDREG_PARAM;
+    reg.name = strdup("w3");
+    list_hardreg_ppush(&regpool, &reg);
+    reg.flags = HARDREG_CALLER | HARDREG_PARAM;
+    reg.name = strdup("w4");
+    list_hardreg_ppush(&regpool, &reg);
+    reg.flags = HARDREG_CALLER | HARDREG_PARAM;
+    reg.name = strdup("w5");
+    list_hardreg_ppush(&regpool, &reg);
+    reg.flags = HARDREG_CALLER | HARDREG_PARAM;
+    reg.name = strdup("w6");
+    list_hardreg_ppush(&regpool, &reg);
+    reg.flags = HARDREG_CALLER | HARDREG_PARAM;
+    reg.name = strdup("w7");
+    list_hardreg_ppush(&regpool, &reg);
+    reg.flags = HARDREG_CALLER | HARDREG_INDIRECTADR;
+    reg.name = strdup("w8");
+    list_hardreg_ppush(&regpool, &reg);
+    reg.flags = HARDREG_CALLER;
+    reg.name = strdup("w9");
+    list_hardreg_ppush(&regpool, &reg);
+    reg.flags = HARDREG_CALLER;
+    reg.name = strdup("w10");
+    list_hardreg_ppush(&regpool, &reg);
+    reg.flags = HARDREG_CALLER;
+    reg.name = strdup("w11");
+    list_hardreg_ppush(&regpool, &reg);
+    reg.flags = HARDREG_CALLER;
+    reg.name = strdup("w12");
+    list_hardreg_ppush(&regpool, &reg);
+    reg.flags = HARDREG_CALLER;
+    reg.name = strdup("w13");
+    list_hardreg_ppush(&regpool, &reg);
+    reg.flags = HARDREG_CALLER;
+    reg.name = strdup("w14");
+    list_hardreg_ppush(&regpool, &reg);
+    reg.flags = HARDREG_CALLER;
+    reg.name = strdup("w15");
+    list_hardreg_ppush(&regpool, &reg);
+    reg.flags = HARDREG_SCRATCH;
+    reg.name = strdup("w16");
+    list_hardreg_ppush(&regpool, &reg);
+    reg.flags = HARDREG_SCRATCH;
+    reg.name = strdup("w17");
+    list_hardreg_ppush(&regpool, &reg);
+    reg.flags = 0;
+    reg.name = strdup("w19");
+    list_hardreg_ppush(&regpool, &reg);
+    reg.flags = 0;
+    reg.name = strdup("w20");
+    list_hardreg_ppush(&regpool, &reg);
+    reg.flags = 0;
+    reg.name = strdup("w21");
+    list_hardreg_ppush(&regpool, &reg);
+    reg.flags = 0;
+    reg.name = strdup("w22");
+    list_hardreg_ppush(&regpool, &reg);
+    reg.flags = 0;
+    reg.name = strdup("w23");
+    list_hardreg_ppush(&regpool, &reg);
+    reg.flags = 0;
+    reg.name = strdup("w24");
+    list_hardreg_ppush(&regpool, &reg);
+    reg.flags = 0;
+    reg.name = strdup("w25");
+    list_hardreg_ppush(&regpool, &reg);
+    reg.flags = 0;
+    reg.name = strdup("w26");
+    list_hardreg_ppush(&regpool, &reg);
+    reg.flags = 0;
+    reg.name = strdup("w27");
+    list_hardreg_ppush(&regpool, &reg);
+    reg.flags = 0;
+    reg.name = strdup("w28");
+    list_hardreg_ppush(&regpool, &reg);
+}
 
 static void armgen_operand(ir_funcdef_t* funcdef, ir_operand_t* operand)
 {
     switch(operand->type)
     {
     case IR_OPERAND_REG:
-        printf("%s", armregs[map_str_ir_reg_get(&funcdef->regs, operand->regname)->hardreg]);
+        printf("%s", map_str_ir_reg_get(&funcdef->regs, operand->regname)->hardreg->name);
         break;
     case IR_OPERAND_LIT:
         printf("#%d", operand->literal.i32);
@@ -265,6 +354,7 @@ static void armgen_funcheader(ir_funcdef_t* funcdef)
     int framesize;
     int nregparam;
     int stackparamoffs;
+    ir_reg_t *reg;
 
     if(funcdef->varframe)
         printf("  SUB sp, sp, #%d\n", (int) funcdef->varframe);
@@ -279,15 +369,18 @@ static void armgen_funcheader(ir_funcdef_t* funcdef)
 
         if(nregparam < narmregparam)
         {
-            printf("  MOV %s, %s\n", 
-                armregs[map_str_ir_reg_get(&funcdef->regs, param->loc.reg)->hardreg],
-                armregparams[nregparam]);
+            reg = map_str_ir_reg_get(&funcdef->regs, param->loc.reg);
+
+            if(strcmp(reg->hardreg->name, armregparams[nregparam]))
+                printf("  MOV %s, %s\n", 
+                    reg->hardreg->name,
+                    armregparams[nregparam]);
             nregparam++;
             continue;
         }
 
         printf("  LDR %s, [sp, #%d]\n", 
-            armregs[map_str_ir_reg_get(&funcdef->regs, param->loc.reg)->hardreg],
+            map_str_ir_reg_get(&funcdef->regs, param->loc.reg)->hardreg->name,
             framesize + stackparamoffs);
         stackparamoffs += 4;
     }

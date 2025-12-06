@@ -199,6 +199,8 @@ char* ir_gen_alloctemp(ir_funcdef_t *funcdef)
     ir_reg_t reg;
     char name[16];
 
+    memset(&reg, 0, sizeof(reg));
+
     snprintf(name, 16, "%llu", (unsigned long long) funcdef->ntempreg++);
     reg.name = strdup(name);
     set_str_alloc(&reg.interfere);

@@ -23,7 +23,7 @@ typedef struct ir_reg_s
     char *name;
 
     set_str_t interfere; // interference graph edges
-    int hardreg;
+    struct hardreg_s *hardreg;
     int spill_offset; // stack offset from frame pointer if spilled
 } ir_reg_t;
 
@@ -219,7 +219,7 @@ void ir_initblock(ir_block_t* block);
 char* ir_gen_alloctemp(ir_funcdef_t *funcdef);
 void ir_varfree(ir_var_t* var);
 uint64_t ir_newblock(ir_funcdef_t* funcdef);
-bool ir_operandeq(ir_operand_t* a, ir_operand_t* b);
+bool ir_operandeq(ir_funcdef_t* funcdef, ir_operand_t* a, ir_operand_t* b);
 void ir_cpyoperand(ir_operand_t* dst, ir_operand_t* src);
 bool ir_registerwritten(ir_inst_t* inst, char* reg);
 // set shouldn't be initialized

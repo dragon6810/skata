@@ -3,7 +3,38 @@
 #include <assert.h>
 #include <stdio.h>
 
-int nreg = 8;
+uint64_t hash_hardreg(hardreg_t* val)
+{
+    return val->flags * 3 + hash_str(&val->name);
+}
+
+bool cmp_hardreg(hardreg_t* a, hardreg_t* b)
+{
+    return a->flags == b->flags && !strcmp(a->name, b->name);
+}
+
+void cpy_hardreg(hardreg_t* dst, hardreg_t* src)
+{
+    dst->flags = src->flags;
+    dst->name = strdup(src->name);
+}
+
+void free_hardreg(hardreg_t* val)
+{
+    free(val->name);
+}
+
+uint64_t hash_phardreg(hardreg_t** val)
+{
+    return (uint64_t) *val;
+}
+
+LIST_DEF(hardreg)
+LIST_DEF_FREE_DECONSTRUCT(hardreg, free_hardreg)
+SET_DEF(hardreg_t, hardreg, hash_hardreg, cmp_hardreg, cpy_hardreg, free_hardreg)
+SET_DEF(hardreg_t*, phardreg, hash_phardreg, NULL, NULL, NULL)
+
+list_hardreg_t regpool;
 
 static uint64_t regalloc_hashpreg(ir_reg_t** val)
 {
@@ -51,32 +82,62 @@ bool regalloc_colorreg(ir_funcdef_t* funcdef, ir_reg_t* reg)
 {
     int i;
 
-    bool openreg[nreg];
-    int hardreg;
+    set_phardreg_t openreg;
+    hardreg_t *hardreg;
 
-    for(i=0; i<nreg; i++)
-        openreg[i] = true;
+    if(reg->hardreg)
+        return true;
+
+    set_phardreg_alloc(&openreg);
+    for(i=0; i<regpool.len; i++)
+        set_phardreg_add(&openreg, &regpool.data[i]);
 
     // greedy colorer for now
     for(i=0; i<reg->interfere.nbin; i++)
     {
         if(reg->interfere.bins[i].state != SET_EL_FULL)
             continue;
-        hardreg = map_str_ir_reg_get(&funcdef->regs, reg->interfere.bins[i].val)->hardreg;
 
-        if(hardreg >= 0)
-            openreg[hardreg] = false;
+        hardreg = map_str_ir_reg_get(&funcdef->regs, reg->interfere.bins[i].val)->hardreg;
+        set_phardreg_remove(&openreg, hardreg);
     }
     
-    for(i=0; i<nreg; i++)
+    for(i=0; i<openreg.nbin; i++)
     {
-        if(!openreg[i])
+        if(openreg.bins[i].state != SET_EL_FULL)
             continue;
-        reg->hardreg = i;
+
+        reg->hardreg = openreg.bins[i].val;
+        set_phardreg_free(&openreg);
         return true;
     }
 
+    set_phardreg_free(&openreg);
     return false;
+}
+
+void regalloc_colorparams(ir_funcdef_t* funcdef)
+{
+    int i;
+    ir_param_t *param;
+
+    int regidx;
+
+    for(i=0, regidx=0, param=funcdef->params.data; i<funcdef->params.len && regidx<regpool.len; i++, param++)
+    {
+        assert(param->loc.type == IR_LOCATION_REG);
+
+        for(; regidx<regpool.len; regidx++)
+        {
+            if(~regpool.data[regidx].flags & HARDREG_PARAM)
+                continue;
+            
+            map_str_ir_reg_get(&funcdef->regs, param->loc.reg)->hardreg = &regpool.data[regidx];
+
+            regidx++;
+            break;
+        }
+    }
 }
 
 void regalloc_color(ir_funcdef_t* funcdef)
@@ -91,8 +152,9 @@ try:
 
     for(i=0; i<funcdef->regs.nbin; i++)
         if(funcdef->regs.bins[i].state == MAP_EL_FULL)
-            funcdef->regs.bins[i].val.hardreg = -1;
+            funcdef->regs.bins[i].val.hardreg = NULL;
 
+    regalloc_colorparams(funcdef);
     for(i=0; i<funcdef->regs.nbin; i++)
     {
         if(funcdef->regs.bins[i].state != MAP_EL_FULL)
@@ -117,15 +179,6 @@ try:
 
 void regalloc_funcdef(ir_funcdef_t* funcdef)
 {
-    int i;
-
-    for(i=0; i<funcdef->regs.nbin; i++)
-    {
-        if(funcdef->regs.bins[i].state != MAP_EL_FULL)
-            continue;
-        funcdef->regs.bins[i].val.hardreg = -1;
-    }
-
     regalloc_color(funcdef);
 }
 
@@ -168,7 +221,7 @@ static void dumpregedges(ir_reg_t* reg)
 
     char *edgekey;
 
-    printf("  %%%s(%%%s - %d)\n", reg->name, reg->name, reg->hardreg);
+    printf("  %%%s(%%%s - %s)\n", reg->name, reg->name, reg->hardreg->name);
     for(i=0; i<reg->interfere.nbin; i++)
     {
         if(reg->interfere.bins[i].state != SET_EL_FULL)

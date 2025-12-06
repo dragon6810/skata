@@ -87,7 +87,6 @@ void compile(void)
         goto freestuff;
     }
 
-    nreg = 13;
     reglifetime();
     regalloc();
     if(emitreggraph)
@@ -152,6 +151,8 @@ int main(int argc, char** argv)
         }
     }
     
+    arm_specinit();
+
     for(; i<argc; i++)
     {
         strcpy(srcpath, argv[i]);

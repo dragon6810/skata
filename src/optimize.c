@@ -19,14 +19,23 @@ static void ir_operandreplace(ir_operand_t* dst, ir_operand_t* src)
     }
 }
 
-bool ir_operandeq(ir_operand_t* a, ir_operand_t* b)
+bool ir_operandeq(ir_funcdef_t* funcdef, ir_operand_t* a, ir_operand_t* b)
 {
+    ir_reg_t *areg, *breg;
+
     if(a->type != b->type)
         return false;
 
     switch(a->type)
     {
     case IR_OPERAND_REG:
+        areg = map_str_ir_reg_get(&funcdef->regs, a->regname);
+        breg = map_str_ir_reg_get(&funcdef->regs, b->regname);
+        if(areg->hardreg && areg->hardreg == breg->hardreg)
+            return true;
+        if(!strcmp(a->regname, b->regname))
+            return true;
+        return false;
         return !strcmp(a->regname, b->regname);
     case IR_OPERAND_LIT:
         return a->literal.type == b->literal.type && a->literal.i32 == b->literal.i32;
@@ -77,7 +86,7 @@ static void ir_replaceoperand(ir_funcdef_t* funcdef, ir_operand_t* opa, ir_opera
             case IR_OP_CALL:
                 nops = 0;
                 for(o=0; o<inst->variadic.len; o++)
-                    if(ir_operandeq(&inst->variadic.data[o], opa))
+                    if(ir_operandeq(funcdef, &inst->variadic.data[o], opa))
                         ir_operandreplace(&inst->variadic.data[o], opb);
                 break;
             default:
@@ -88,7 +97,7 @@ static void ir_replaceoperand(ir_funcdef_t* funcdef, ir_operand_t* opa, ir_opera
             if(inst->op == IR_OP_MOVE)
                 o = 1;
             for(; o<nops; o++)
-                if(ir_operandeq(&inst->ternary[o], opa))
+                if(ir_operandeq(funcdef, &inst->ternary[o], opa))
                     ir_operandreplace(&inst->ternary[o], opb);
         }
     }
