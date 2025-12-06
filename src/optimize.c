@@ -2,21 +2,25 @@
 
 static void ir_operandreplace(ir_operand_t* dst, ir_operand_t* src)
 {
-    ir_operandfree(dst);
-    memcpy(dst, src, sizeof(ir_operand_t));
-    switch(dst->type)
+    ir_operand_t newop;
+
+    memcpy(&newop, src, sizeof(ir_operand_t));
+    switch(newop.type)
     {
     case IR_OPERAND_REG:
-        dst->regname = strdup(dst->regname);
+        newop.regname = strdup(newop.regname);
         break;
     case IR_OPERAND_LABEL:
-        dst->label = strdup(dst->label);
+        newop.label = strdup(newop.label);
         break;
     case IR_OPERAND_FUNC:
-        dst->label = strdup(dst->func);
+        newop.label = strdup(newop.func);
     default:
         break;
     }
+
+    ir_operandfree(dst);
+    memcpy(dst, &newop, sizeof(ir_operand_t));
 }
 
 bool ir_operandeq(ir_funcdef_t* funcdef, ir_operand_t* a, ir_operand_t* b)
@@ -120,10 +124,11 @@ void ir_eliminatemoves(ir_funcdef_t* funcdef)
             {
                 if(inst->op != IR_OP_MOVE)
                     continue;
+                if(inst->binary[0].type != IR_OPERAND_REG)
+                    continue;
 
                 ir_replaceoperand(funcdef, &inst->binary[0], &inst->binary[1]);
                 ir_operandfree(&inst->binary[0]);
-                ir_operandfree(&inst->binary[1]);
                 list_ir_inst_remove(&blk->insts, i);
                 changed = true;
                 break;

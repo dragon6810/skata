@@ -19,11 +19,20 @@ typedef struct hardreg_s
 } hardreg_t;
 
 LIST_DECL(hardreg_t, hardreg)
+LIST_DECL(hardreg_t*, phardreg)
 SET_DECL(hardreg_t, hardreg)
 SET_DECL(hardreg_t*, phardreg)
 
 extern list_hardreg_t regpool;
+extern set_phardreg_t calleepool;
+extern set_phardreg_t callerpool;
+extern set_phardreg_t scratchpool;
+extern list_phardreg_t scratchlist;
+extern list_phardreg_t parampool;
+extern list_phardreg_t retpool;
 
+// call after spec init
+void regalloc_init(void);
 void reglifetime(void);
 void regalloc(void);
 void dumpreggraph(void);

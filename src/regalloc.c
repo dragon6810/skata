@@ -31,10 +31,18 @@ uint64_t hash_phardreg(hardreg_t** val)
 
 LIST_DEF(hardreg)
 LIST_DEF_FREE_DECONSTRUCT(hardreg, free_hardreg)
+LIST_DEF(phardreg)
+LIST_DEF_FREE(phardreg)
 SET_DEF(hardreg_t, hardreg, hash_hardreg, cmp_hardreg, cpy_hardreg, free_hardreg)
 SET_DEF(hardreg_t*, phardreg, hash_phardreg, NULL, NULL, NULL)
 
 list_hardreg_t regpool;
+set_phardreg_t calleepool;
+set_phardreg_t callerpool;
+set_phardreg_t scratchpool;
+list_phardreg_t scratchlist;
+list_phardreg_t parampool;
+list_phardreg_t retpool;
 
 static uint64_t regalloc_hashpreg(ir_reg_t** val)
 {
@@ -42,6 +50,39 @@ static uint64_t regalloc_hashpreg(ir_reg_t** val)
 }
 
 SET_DEF(ir_reg_t*, pir_reg, regalloc_hashpreg, NULL, NULL, NULL)
+
+void regalloc_init(void)
+{
+    int i;
+    hardreg_t *reg;
+
+    set_phardreg_alloc(&calleepool);
+    set_phardreg_alloc(&callerpool);
+    set_phardreg_alloc(&scratchpool);
+    list_phardreg_init(&scratchlist, 0);
+    list_phardreg_init(&parampool, 0);
+    list_phardreg_init(&retpool, 0);
+
+    for(i=0, reg=regpool.data; i<regpool.len; i++, reg++)
+    {
+        if(reg->flags & HARDREG_CALLER)
+            set_phardreg_add(&callerpool, reg);
+        else
+            set_phardreg_add(&calleepool, reg);
+
+        if(reg->flags & HARDREG_SCRATCH)
+        {
+            set_phardreg_add(&scratchpool, reg);
+            list_phardreg_push(&scratchlist, reg);
+        }
+
+        if(reg->flags & HARDREG_PARAM)
+            list_phardreg_push(&parampool, reg);
+
+        if(reg->flags & HARDREG_RETURN)
+            list_phardreg_push(&retpool, reg);
+    }
+}
 
 static void regalloc_spillreg(ir_funcdef_t* funcdef, char* regname)
 {
@@ -92,6 +133,8 @@ bool regalloc_colorreg(ir_funcdef_t* funcdef, ir_reg_t* reg)
     for(i=0; i<regpool.len; i++)
         set_phardreg_add(&openreg, &regpool.data[i]);
 
+    set_phardreg_subtract(&openreg, &scratchpool);
+
     // greedy colorer for now
     for(i=0; i<reg->interfere.nbin; i++)
     {
@@ -121,22 +164,12 @@ void regalloc_colorparams(ir_funcdef_t* funcdef)
     int i;
     ir_param_t *param;
 
-    int regidx;
-
-    for(i=0, regidx=0, param=funcdef->params.data; i<funcdef->params.len && regidx<regpool.len; i++, param++)
+    for(i=0, param=funcdef->params.data; i<funcdef->params.len && i<regpool.len; i++, param++)
     {
-        assert(param->loc.type == IR_LOCATION_REG);
+        if(param->loc.type != IR_LOCATION_REG)
+            continue;
 
-        for(; regidx<regpool.len; regidx++)
-        {
-            if(~regpool.data[regidx].flags & HARDREG_PARAM)
-                continue;
-            
-            map_str_ir_reg_get(&funcdef->regs, param->loc.reg)->hardreg = &regpool.data[regidx];
-
-            regidx++;
-            break;
-        }
+        map_str_ir_reg_get(&funcdef->regs, param->loc.reg)->hardreg = &regpool.data[i];
     }
 }
 

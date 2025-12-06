@@ -152,6 +152,7 @@ int main(int argc, char** argv)
     }
     
     arm_specinit();
+    regalloc_init();
 
     for(; i<argc; i++)
     {

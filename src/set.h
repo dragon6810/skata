@@ -40,6 +40,8 @@ void set_##name##_clear(set_##name##_t* set);\
 void set_##name##_union(set_##name##_t* a, set_##name##_t* b);\
 /* stores the intersection in a*/\
 void set_##name##_intersection(set_##name##_t* a, set_##name##_t* b);\
+/* a = a - b */\
+void set_##name##_subtract(set_##name##_t* a, set_##name##_t* b);\
 bool set_##name##_isequal(const set_##name##_t* a, set_##name##_t* b);\
 void set_##name##_free(set_##name##_t* set);
 
@@ -217,6 +219,18 @@ void set_##name##_intersection(set_##name##_t* a, set_##name##_t* b)\
         a->bins[i].state = SET_EL_TOMB;\
         if(freefn)\
             freefn(&a->bins[i].val);\
+    }\
+}\
+void set_##name##_subtract(set_##name##_t* a, set_##name##_t* b)\
+{\
+    int i;\
+\
+    for(i=0; i<b->nbin; i++)\
+    {\
+        if(b->bins[i].state != SET_EL_FULL)\
+            continue;\
+\
+        set_##name##_remove(a, b->bins[i].val);\
     }\
 }\
 bool set_##name##_isequal(const set_##name##_t* a, set_##name##_t* b)\

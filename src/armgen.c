@@ -9,22 +9,9 @@ const char* armheader =
 ".text\n"
 ".global _main\n\n";
 
-const int narmreg = 6;
-const int narmregparam = 8;
-static const char* armregparams[] =
-{
-    "w0",
-    "w1",
-    "w2",
-    "w3",
-    "w4",
-    "w5",
-    "w6",
-    "w7",
-};
-static const char* scratchreg = "w12";
-
 const int stackpad = 16;
+
+set_phardreg_t savedregs;
 
 void arm_specinit(void)
 {
@@ -83,10 +70,10 @@ void arm_specinit(void)
     reg.flags = HARDREG_CALLER;
     reg.name = strdup("w15");
     list_hardreg_ppush(&regpool, &reg);
-    reg.flags = HARDREG_SCRATCH;
+    reg.flags = HARDREG_CALLER | HARDREG_SCRATCH;
     reg.name = strdup("w16");
     list_hardreg_ppush(&regpool, &reg);
-    reg.flags = HARDREG_SCRATCH;
+    reg.flags = HARDREG_CALLER | HARDREG_SCRATCH;
     reg.name = strdup("w17");
     list_hardreg_ppush(&regpool, &reg);
     reg.flags = 0;
@@ -143,71 +130,216 @@ static void armgen_operand(ir_funcdef_t* funcdef, ir_operand_t* operand)
     }
 }
 
-static void armgen_emitcall(ir_funcdef_t* funcdef, ir_inst_t* inst)
+static void armgen_emitparamcopy(ir_funcdef_t* funcdef, 
+    bool stackparam, uint64_t* stackoffs, uint64_t* regparam, ir_operand_t* operand)
+{
+    int i;
+
+    hardreg_t *scratch;
+
+    if(!stackparam)
+    {
+        switch(operand->type)
+        {
+        case IR_OPERAND_REG:
+            printf("  MOV %s, %s\n", parampool.data[*regparam]->name, 
+                map_str_ir_reg_get(&funcdef->regs, operand->regname)->hardreg->name);
+            break;
+        case IR_OPERAND_VAR:
+            printf("  LDR %s, [fp, #%d]\n", parampool.data[*regparam]->name, operand->var->stackloc);
+            break;
+        case IR_OPERAND_LIT:
+            printf("  MOV %s, #%d\n", parampool.data[*regparam]->name, operand->literal.i32);
+            break;
+        default:
+            assert(0);
+        }
+
+        (*regparam)++;
+        return;
+    }
+
+    for(i=0; i<scratchpool.nbin; i++)
+        if(scratchpool.bins[i].state == SET_EL_FULL)
+            break;
+    scratch = scratchpool.bins[i].val;
+
+    switch(operand->type)
+    {
+    case IR_OPERAND_REG:
+        printf("  STR %s, [sp, #%d]\n", map_str_ir_reg_get(&funcdef->regs, operand->regname)->hardreg->name, (int) *stackoffs);
+        break;
+    case IR_OPERAND_VAR:
+        printf("  LDR %s, [fp, #%d]\n", scratch->name, operand->var->stackloc);
+        printf("  STR %s, [sp, #%d]\n", scratch->name, (int) *stackoffs);
+        break;
+    case IR_OPERAND_LIT:
+        printf("  MOV %s, #%d\n", scratch->name, operand->literal.i32);
+        printf("  STR %s, [sp, #%d]\n", scratch->name, (int) *stackoffs);
+        break;
+    default:
+        assert(0);
+    }
+
+    *stackoffs += 4;
+}
+
+// sp should have already been moved
+static void armgen_emitparams(ir_funcdef_t* funcdef, ir_inst_t* inst)
+{
+    int i, j;
+
+    uint64_t nregarg, stackspot;
+    set_u64_t stackargs;
+    set_u64_t emitted;
+    ir_reg_t *logical;
+    bool change;
+
+    set_u64_alloc(&emitted);
+    set_u64_alloc(&stackargs);
+
+    for(i=2, nregarg=0; i<inst->variadic.len; i++)
+    {
+        if(nregarg < parampool.len)
+        {
+            nregarg++;
+            continue;
+        }
+
+        set_u64_add(&stackargs, i);
+    }
+
+    // acyclic parameters
+    do
+    {
+        for(i=2, change=false, nregarg=stackspot=0; i<inst->variadic.len; i++)
+        {
+            if(set_u64_contains(&emitted, i))
+            {
+                if(set_u64_contains(&stackargs, i))
+                    stackspot += 4;
+                else
+                    nregarg++;
+                continue;
+            }
+            
+            if(!set_u64_contains(&stackargs, i))
+            {
+                for(j=2; j<inst->variadic.len; j++)
+                {
+                    if(i == j || inst->variadic.data[j].type != IR_OPERAND_REG || set_u64_contains(&emitted, j))
+                        continue;
+
+                    logical = map_str_ir_reg_get(&funcdef->regs, inst->variadic.data[j].regname);
+                    if(logical->hardreg == parampool.data[nregarg])
+                        break;
+                }
+                // cycle!
+                if(j < inst->variadic.len)
+                {
+                    nregarg++;
+                    continue;
+                }
+            }
+
+            armgen_emitparamcopy(funcdef, set_u64_contains(&stackargs, i), &stackspot, &nregarg, &inst->variadic.data[i]);
+            set_u64_add(&emitted, i);
+            change = true;
+            break;
+        }
+    } while(change);
+
+    assert(emitted.nfull == inst->variadic.len - 2);
+
+    set_u64_free(&emitted);
+    set_u64_free(&stackargs);
+}
+
+// populates with registers that "straddle" the instruction, meaning they are alive before and after it.
+static void armgen_populateliveset(set_phardreg_t* set, ir_funcdef_t* funcdef, ir_block_t* blk, uint64_t inst)
+{
+    int i;
+
+    ir_regspan_t *span;
+
+    for(i=0, span=blk->spans.data; i<blk->spans.len; i++, span++)
+    {
+        if(span->span[0] >= inst || span->span[1] <= inst+1)
+            continue;
+
+        set_phardreg_add(set, map_str_ir_reg_get(&funcdef->regs, span->reg)->hardreg);
+    }
+}
+
+static void armgen_emitcall(ir_funcdef_t* funcdef, ir_block_t* blk, ir_inst_t* inst)
 {
     int i;
 
     int nregparam;
-    int stacktotal, stackcur;
+    int stacktotal, stackcur, paramsize;
+    set_phardreg_t saved;
+    ir_reg_t *reg;
 
-    for(i=2, nregparam=stacktotal=0; i<inst->variadic.len; i++)
+    set_phardreg_alloc(&saved);
+    armgen_populateliveset(&saved, funcdef, blk, inst - blk->insts.data);
+
+    stacktotal = saved.nfull * 4;
+    for(i=2, nregparam=paramsize=0; i<inst->variadic.len; i++)
     {
-        if(nregparam < narmregparam)
+        if(nregparam < parampool.len)
         {
             nregparam++;
             continue;
         }
 
         stacktotal += 4;
+        paramsize += 4;
     }
 
     stacktotal = (stacktotal + stackpad - 1) & ~(stackpad - 1); 
     if(stacktotal)
         printf("  SUB sp, sp, #%d\n", stacktotal);
 
-    for(i=2, nregparam=stackcur=0; i<inst->variadic.len; i++)
+    // save caller-saved
+    for(i=0, stackcur=paramsize; i<saved.nbin; i++)
     {
-        if(nregparam < narmregparam)
-        {
-            printf("  MOV %s, ", armregparams[nregparam]);
-            armgen_operand(funcdef, &inst->variadic.data[i]);
-            printf("\n");
-
-            nregparam++;
+        if(saved.bins[i].state != SET_EL_FULL)
             continue;
-        }
-
-        if(inst->variadic.data[i].type != IR_OPERAND_REG)
-        {
-            printf("  MOV %s, ", scratchreg);
-            armgen_operand(funcdef, &inst->variadic.data[i]);
-            printf("\n");
-            printf("  STR %s, [sp, #%d]\n", scratchreg, stackcur);
-            stackcur += 4;
-            continue;
-        }
-
-        printf("  STR ");
-        armgen_operand(funcdef, &inst->variadic.data[i]);
-        printf(", [sp, #%d]\n", stackcur);
+        
+        printf("  STR %s, [sp, #%d]\n", saved.bins[i].val->name, stackcur);
         stackcur += 4;
     }
 
+    armgen_emitparams(funcdef, inst);
+
     printf("  BL _%s\n", inst->variadic.data[1].func);
 
-    printf("  MOV ");
-    armgen_operand(funcdef, &inst->variadic.data[0]);
-    printf(", w0\n");
+    assert(inst->variadic.data[0].type == IR_OPERAND_REG);
+    reg = map_str_ir_reg_get(&funcdef->regs, inst->variadic.data[0].regname);
+    if(reg->hardreg != retpool.data[0])
+        printf("  MOV %s, %s\n", reg->hardreg->name, retpool.data[0]->name);
+
+    // restore caller-saved
+    for(i=0, stackcur=paramsize; i<saved.nbin; i++)
+    {
+        if(saved.bins[i].state != SET_EL_FULL)
+            continue;
+        
+        printf("  LDR %s, [sp, #%d]\n", saved.bins[i].val->name, stackcur);
+        stackcur += 4;
+    }
 
     if(stacktotal)
         printf("  ADD sp, sp, #%d\n", stacktotal);
+
+    set_phardreg_free(&saved);
 }
 
 static void armgen_emitmul(ir_funcdef_t* funcdef, ir_inst_t* inst)
 {
     if(inst->ternary[2].type == IR_OPERAND_LIT)
     {
-        printf("  MOV %s, ", scratchreg);
+        printf("  MOV %s, ", scratchlist.data[0]->name);
         armgen_operand(funcdef, &inst->ternary[2]);
         printf("\n");
 
@@ -215,7 +347,7 @@ static void armgen_emitmul(ir_funcdef_t* funcdef, ir_inst_t* inst)
         armgen_operand(funcdef, &inst->ternary[0]);
         printf(", ");
         armgen_operand(funcdef, &inst->ternary[1]);
-        printf(", %s\n", scratchreg);
+        printf(", %s\n", scratchlist.data[0]->name);
         
         return;
     }
@@ -229,7 +361,7 @@ static void armgen_emitmul(ir_funcdef_t* funcdef, ir_inst_t* inst)
     printf("\n");
 }
 
-static void armgen_inst(ir_funcdef_t* funcdef, ir_inst_t* inst)
+static void armgen_inst(ir_funcdef_t* funcdef, ir_block_t* blk, ir_inst_t* inst)
 {
     switch(inst->op)
     {
@@ -262,7 +394,7 @@ static void armgen_inst(ir_funcdef_t* funcdef, ir_inst_t* inst)
         armgen_emitmul(funcdef, inst);
         break;
     case IR_OP_RET:
-        printf("  MOV w0, ");
+        printf("  MOV %s, ", retpool.data[0]->name);
         armgen_operand(funcdef, &inst->unary);
         printf("\n");
         printf("  B _%s$exit\n", funcdef->name);
@@ -315,7 +447,7 @@ static void armgen_inst(ir_funcdef_t* funcdef, ir_inst_t* inst)
         printf("\n");
         break;
     case IR_OP_CALL:
-        armgen_emitcall(funcdef, inst);
+        armgen_emitcall(funcdef, blk, inst);
         break;
     default:
         printf("unimplemented ir inst %d for arm.\n", (int) inst->op);
@@ -334,16 +466,49 @@ static void armgen_block(ir_funcdef_t* funcdef, ir_block_t* block)
     printf("_%s$%s:\n", funcdef->name, block->name);
 
     for(i=0; i<block->insts.len; i++)
-        armgen_inst(funcdef, &block->insts.data[i]);
+        armgen_inst(funcdef, block, &block->insts.data[i]);
 }
 
 static void armgen_funcfooter(ir_funcdef_t* funcdef)
 {
+    int i;
+
+    int framesize;
+    int savedoffs;
+
+    framesize = funcdef->varframe + savedregs.nfull * 4 + 16;
+    framesize = (framesize + stackpad - 1) & ~(stackpad - 1); 
+
+    for(i=0, savedoffs=0; i<savedregs.nbin; i++)
+    {
+        if(savedregs.bins[i].state != SET_EL_FULL)
+            continue;
+
+        printf("  LDR %s, [fp, #%d]\n", savedregs.bins[i].val->name, savedoffs + 16);
+        savedoffs += 4;
+    }
+
+    printf("  ADD sp, fp, #%d\n", framesize);
+    
     printf("  LDP fp, lr, [fp]\n");
-    printf("  ADD sp, sp, #16\n");
-    if(funcdef->varframe)
-            printf("  ADD sp, sp, #%d\n", (int) funcdef->varframe);
     printf("  RET\n");
+
+    set_phardreg_free(&savedregs);
+}
+
+static void armgen_populatesaveset(ir_funcdef_t* funcdef)
+{
+    int i;
+
+    for(i=0; i<funcdef->regs.nbin; i++)
+    {
+        if(funcdef->regs.bins[i].state != MAP_EL_FULL)
+            continue;
+
+        set_phardreg_add(&savedregs, funcdef->regs.bins[i].val.hardreg);
+    }
+
+    set_phardreg_intersection(&savedregs, &calleepool);
 }
 
 static void armgen_funcheader(ir_funcdef_t* funcdef)
@@ -354,12 +519,28 @@ static void armgen_funcheader(ir_funcdef_t* funcdef)
     int framesize;
     int nregparam;
     int stackparamoffs;
+    int savedoffs;
     ir_reg_t *reg;
 
-    if(funcdef->varframe)
-        printf("  SUB sp, sp, #%d\n", (int) funcdef->varframe);
+    set_phardreg_alloc(&savedregs);
+    armgen_populatesaveset(funcdef);
 
-    printf("  STP fp, lr, [sp, #-16]!\n");
+    framesize = funcdef->varframe + savedregs.nfull * 4 + 16;
+    framesize = (framesize + stackpad - 1) & ~(stackpad - 1); 
+
+    printf("  SUB sp, sp, #%d\n", framesize);
+
+    for(i=0, savedoffs=0; i<savedregs.nbin; i++)
+    {
+        if(savedregs.bins[i].state != SET_EL_FULL)
+            continue;
+
+        printf("  STR %s, [sp, #%d]\n", savedregs.bins[i].val->name, savedoffs + 16);
+        savedoffs += 4;
+    }
+
+    printf("  STP fp, lr, [sp]\n");
+
     printf("  MOV fp, sp\n");
     
     framesize = funcdef->varframe + 16;
@@ -367,14 +548,14 @@ static void armgen_funcheader(ir_funcdef_t* funcdef)
     {
         assert(param->loc.type == IR_LOCATION_REG);
 
-        if(nregparam < narmregparam)
+        if(nregparam < parampool.len)
         {
             reg = map_str_ir_reg_get(&funcdef->regs, param->loc.reg);
 
-            if(strcmp(reg->hardreg->name, armregparams[nregparam]))
+            if(strcmp(reg->hardreg->name, parampool.data[nregparam]->name))
                 printf("  MOV %s, %s\n", 
                     reg->hardreg->name,
-                    armregparams[nregparam]);
+                    parampool.data[nregparam]->name);
             nregparam++;
             continue;
         }
