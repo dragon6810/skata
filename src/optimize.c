@@ -137,12 +137,42 @@ void ir_eliminatemoves(ir_funcdef_t* funcdef)
     }
 }
 
+void ir_lowersinglephi(ir_funcdef_t* funcdef)
+{
+    int b, i;
+    ir_block_t *blk;
+    ir_inst_t *inst;
+
+    ir_inst_t move;
+
+    for(b=0, blk=funcdef->blocks.data; b<funcdef->blocks.len; b++, blk++)
+    {
+        for(i=0, inst=blk->insts.data; i<blk->insts.len; i++, inst++)
+        {
+            if(inst->op != IR_OP_PHI)
+                continue;
+            if(inst->variadic.len != 3)
+                continue;
+
+            move.op = IR_OP_MOVE;
+            ir_cpyoperand(&move.binary[0], &inst->variadic.data[0]);
+            ir_cpyoperand(&move.binary[1], &inst->variadic.data[2]);
+
+            ir_instfree(inst);
+            *inst = move;
+        }
+    }
+}
+
 void ir_middleoptimize(void)
 {
     int i;
 
     for(i=0; i<ir.defs.len; i++)
+    {
+        ir_lowersinglephi(&ir.defs.data[i]);
         ir_eliminatemoves(&ir.defs.data[i]);
+    }
 }
 
 void ir_backoptimize(void)

@@ -56,23 +56,29 @@ static void ir_rename(ir_funcdef_t* func, ir_var_t* var, ir_block_t* blk)
         }
     }
 
-    // rename successor phi-nodes
-    for(i=0; i<blk->out.len; i++)
+    if(namestack.len)
     {
-        pidx = map_str_u64_get(&blk->out.data[i]->varphis, var->name);
-        if(!pidx)
-            continue;
-        idx = *pidx;
+        // rename successor phi-nodes
+        for(i=0; i<blk->out.len; i++)
+        {
+            pidx = map_str_u64_get(&blk->out.data[i]->varphis, var->name);
+            if(!pidx)
+                continue;
+            idx = *pidx;
 
-        inst = &blk->out.data[i]->insts.data[idx];
+            inst = &blk->out.data[i]->insts.data[idx];
 
-        operand.type = IR_OPERAND_LABEL;
-        operand.label = strdup(blk->name);
-        list_ir_operand_ppush(&inst->variadic, &operand);
+            operand.type = IR_OPERAND_LABEL;
+            operand.label = strdup(blk->name);
+            list_ir_operand_ppush(&inst->variadic, &operand);
 
-        operand.type = IR_OPERAND_REG;
-        operand.regname = strdup(namestack.data[namestack.len-1]);
-        list_ir_operand_ppush(&inst->variadic, &operand);
+            operand.type = IR_OPERAND_REG;
+            puts(var->name);
+            puts(blk->name);
+            puts(blk->out.data[i]->name);
+            operand.regname = strdup(namestack.data[namestack.len-1]);
+            list_ir_operand_ppush(&inst->variadic, &operand);
+        }
     }
 
     // rename children in dominator tree
