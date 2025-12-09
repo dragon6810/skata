@@ -22,7 +22,7 @@ bool emitreggraph = false;
 
 char srcpath[PATH_MAX];
 
-void compile(void)
+char* loadsrctext(void)
 {
     FILE *ptr;
     int len;
@@ -44,7 +44,12 @@ void compile(void)
     
     fclose(ptr);
 
-    type_init();
+    return srctext;
+}
+
+void compile(void)
+{
+    loadsrctext();
 
     lex();
     free(srctext);
@@ -56,7 +61,6 @@ void compile(void)
 
         list_globaldecl_free(&ast);
         list_token_free(&tokens);
-        type_free();
         return;
     }
     
@@ -108,7 +112,7 @@ void compile(void)
 freestuff:
     ir_free();
     list_token_free(&tokens);
-    type_free();
+    list_globaldecl_free(&ast);
 }
 
 void usage(char* program)

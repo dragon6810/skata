@@ -33,18 +33,13 @@ static void println(int line, int col)
     assert(col < linelen);
 
     for(i=0; i<linelen; i++)
-    {
-        if(str[i] == '\t')
-            printf("    ");
-        else
-            printf("%c", str[i]);
-    }
+        printf("%c", str[i]);
 
     printf("      | ");
     for(i=0; i<col; i++)
     {
         if(str[i] == '\t')
-            printf("    ");
+            printf("\t");
         else
             printf(" ");
     }

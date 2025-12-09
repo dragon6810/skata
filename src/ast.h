@@ -3,8 +3,9 @@
 
 #include <stdbool.h>
 
-#include "token.h"
 #include "list.h"
+#include "token.h"
+#include "type.h"
 
 typedef enum
 {
@@ -45,6 +46,7 @@ typedef enum
     EXPROP_PREDEC, // --
     EXPROP_POSTINC, // ++
     EXPROP_POSTDEC, // --
+    EXPROP_CAST, // (<type>)
 
     // variadic operators
     EXPROP_CALL, // ( ... )
@@ -57,6 +59,7 @@ LIST_DECL(expr_t*, pexpr)
 struct expr_s
 {
     exprop_e op;
+    type_t type;
     union
     {
         expr_t *operands[3]; // binary and trinary op
@@ -64,7 +67,11 @@ struct expr_s
         char* msg; // atom
     };
     
-    list_pexpr_t variadic; // function call
+    union
+    {
+        list_pexpr_t variadic; // function call
+        type_t casttype; // cast
+    };
 };
 
 typedef struct decl_s decl_t;
@@ -75,7 +82,7 @@ struct decl_s
 {
     decltype_e form;
 
-    int type;
+    type_t type;
     char *ident;
 
     expr_t *expr;
@@ -129,6 +136,8 @@ LIST_DECL(globaldecl_t, globaldecl)
 
 extern list_globaldecl_t ast;
 
+void parse_type(type_t* type);
+bool parse_istype();
 token_e parse_peekform(int offs);
 const char* parse_peekstr(int offs);
 const char* parse_eatform(token_e form);

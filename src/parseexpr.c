@@ -84,7 +84,14 @@ static void parse_printexpr_r(const expr_t* expr)
         }
         printf(")");
         return;
+    case EXPROP_CAST:
+        nterms = 1;
+        printf("cast (%s) ( ", type_names[expr->casttype.type]);
+        parse_printexpr_r(expr->operand);
+        printf(" )");
+        return;
     default:
+        assert(0);
         return;
     }
 
@@ -116,7 +123,7 @@ static int parse_postfixopbp(exprop_e op)
     {
     case EXPROP_POSTINC:
     case EXPROP_POSTDEC:
-        return 10;
+        return 11;
     default:
         return 0;
     }
@@ -130,6 +137,8 @@ static int parse_prefixopbp(exprop_e op)
     case EXPROP_POS:
     case EXPROP_PREINC:
     case EXPROP_PREDEC:
+        return 10;
+    case EXPROP_CAST:
         return 9;
     default:
         return 0;
@@ -207,6 +216,17 @@ static expr_t* parse_expr_r(int minbp)
         else if(!strcmp(parse_peekstr(0), "("))
         {
             parse_eat();
+
+            if(parse_istype())
+            {
+                expr = malloc(sizeof(expr_t));
+                expr->op = EXPROP_CAST;
+                parse_type(&expr->casttype);
+                if(!parse_eatstr(")"))
+                    exit(0);
+                expr->operand = parse_expr_r(parse_prefixopbp(EXPROP_CAST));
+                break;
+            }
             expr = parse_expr_r(0);
             parse_eatstr(")");
             break;

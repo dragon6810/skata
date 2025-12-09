@@ -98,10 +98,6 @@ token_e parse_peekform(int offs)
     token_t *tok;
 
     tok = curtok + offs;
-    if(tok->form == TOKEN_IDENT && type_find(tok->msg) >= 0)
-        return TOKEN_TYPE;
-    if(tok->form == TOKEN_RID && type_find(rid_strs[tok->rid]) >= 0)
-        return TOKEN_TYPE;
     return tok->form;
 }
 
@@ -170,7 +166,6 @@ const char* parse_eatform(token_e form)
             break;
         }
         error(true, curtok->line, curtok->line, "expected %s\n", str);
-        exit(1);
     }
 
     curtok++;
@@ -212,10 +207,50 @@ const char* parse_eat(void)
     }
 }
 
+void parse_type(type_t* type)
+{
+    const char *tokstr;
+
+    tokstr = parse_peekstr(0);
+    if(!strcmp(tokstr, "void"))
+        type->type = TYPE_VOID;
+    else if(!strcmp(tokstr, "char"))
+        type->type = TYPE_I8;
+    else if(!strcmp(tokstr, "short"))
+        type->type = TYPE_I16;
+    else if(!strcmp(tokstr, "int"))
+        type->type = TYPE_I32;
+    else if(!strcmp(tokstr, "long"))
+        type->type = TYPE_I64;
+    else
+        error(true, parse_getexpectedline(), parse_getexpectedcol(), "expected type\n");
+
+    curtok++;
+}
+
+bool parse_istype()
+{
+    const char *tokstr;
+
+    tokstr = parse_peekstr(0);
+    if(!strcmp(tokstr, "void"))
+        return true;
+    else if(!strcmp(tokstr, "char"))
+        return true;
+    else if(!strcmp(tokstr, "short"))
+        return true;
+    else if(!strcmp(tokstr, "int"))
+        return true;
+    else if(!strcmp(tokstr, "long"))
+        return true;
+
+    return false;
+}
+
 static void parse_decl(decl_t* decl)
 {
     decl->form = DECL_VAR;
-    decl->type = type_find(parse_eatform(TOKEN_TYPE));
+    parse_type(&decl->type);
     decl->ident = strdup(parse_eatform(TOKEN_IDENT));
     decl->expr = NULL;
 
@@ -260,8 +295,9 @@ static void parse_statement(stmnt_t* stmnt)
         stmnt->ifstmnt.expr = parse_expr();
         if(!stmnt->ifstmnt.expr)
         {
-            printf("expected expression\n");
-            exit(1);
+            error(false, parse_getexpectedline(), parse_getexpectedcol(), "expected expression\n");
+            while(curtok->form != TOKEN_EOF && strcmp(parse_peekstr(0), ")"))
+                curtok++;
         }
         
         parse_eatstr(")");
@@ -281,10 +317,11 @@ static void parse_statement(stmnt_t* stmnt)
         parse_eatstr("(");
         
         stmnt->whilestmnt.expr = parse_expr();
-        if(!stmnt->expr)
+        if(!stmnt->whilestmnt.expr)
         {
-            printf("expected expression\n");
-            exit(1);
+            error(false, parse_getexpectedline(), parse_getexpectedcol(), "expected expression\n");
+            while(curtok->form != TOKEN_EOF && strcmp(parse_peekstr(0), ")"))
+                curtok++;
         }
         
         parse_eatstr(")");
@@ -310,11 +347,12 @@ static void parse_compound(compound_t* cmpnd)
     list_decl_init(&cmpnd->decls, 0);
     list_stmnt_init(&cmpnd->stmnts, 0);
 
-    parse_eatstr("{");
+    if(!parse_eatstr("{"))
+        exit(EXIT_FAILURE);
 
     while(strcmp(parse_peekstr(0), "}"))
     {
-        if(parse_peekform(0) == TOKEN_TYPE)
+        if(parse_istype())
         {
             parse_decl(&decl);
             list_decl_ppush(&cmpnd->decls, &decl);
@@ -338,7 +376,7 @@ static void parse_arglist(decl_t* decl)
         if(!strcmp(parse_peekstr(0), ")"))
             break;
 
-        arg.type = type_find(parse_eatform(TOKEN_TYPE));
+        parse_type(&arg.type);
         arg.ident = strdup(parse_eatform(TOKEN_IDENT));
         list_decl_init(&arg.args, 0);
 
@@ -355,7 +393,7 @@ static void parse_globaldecl(void)
 
     decl.hasfuncdef = false;
     decl.decl.form = DECL_VAR;
-    decl.decl.type = type_find(parse_eatform(TOKEN_TYPE));
+    parse_type(&decl.decl.type);
     decl.decl.ident = strdup(parse_eatform(TOKEN_IDENT));
     decl.decl.expr = NULL;
     list_decl_init(&decl.decl.args, 0);
@@ -511,7 +549,7 @@ static void parse_printdecl(decl_t* decl, int depth, bool last, char* leftstr)
 
     newleft = parse_printprefix(depth, last, leftstr);
 
-    printf("\e[1;32m<declaration> \e[0;96m(type: %s), (name: %s)\e[0m\n", types.data[decl->type], decl->ident);
+    printf("\e[1;32m<declaration> \e[0;96m(type: %s), (name: %s)\e[0m\n", type_names[decl->type.type], decl->ident);
     if(decl->form == DECL_FUNC)
         parse_printarglist(decl, depth + 1, !decl->expr, newleft);
     if(decl->expr)
