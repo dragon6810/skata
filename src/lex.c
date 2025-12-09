@@ -1,5 +1,6 @@
 #include "token.h"
 
+#include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -218,4 +219,27 @@ void lex(void)
     do
         lex_nexttok();
     while(tokens.data[tokens.len-1].form != TOKEN_EOF);
+}
+
+int tokenlen(token_t* tok)
+{
+    switch(tok->form)
+    {
+    case TOKEN_EOF:
+        return 0;
+    case TOKEN_IDENT:
+        return strlen(tok->msg);
+    case TOKEN_RID:
+        return strlen(rid_strs[tok->rid]);
+    case TOKEN_NUMBER:
+        return strlen(tok->msg);
+    case TOKEN_STRING:
+        return strlen(tok->msg);
+    case TOKEN_PUNC:
+        return strlen(punc_strs[tok->punc]);
+    case TOKEN_TYPE:
+        return strlen(tok->msg);
+    default:
+        assert(0);
+    }
 }

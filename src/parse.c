@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 
+#include "error.h"
 #include "type.h"
 
 list_globaldecl_t ast;
@@ -126,6 +127,20 @@ const char* parse_peekstr(int offs)
     }
 }
 
+static int parse_getexpectedline(void)
+{
+    if(curtok == tokens.data)
+        return 0;
+    return (curtok-1)->line;
+}
+
+static int parse_getexpectedcol(void)
+{
+    if(curtok == tokens.data)
+        return 0;
+    return (curtok-1)->column + tokenlen(curtok-1);
+}
+
 const char* parse_eatform(token_e form)
 {
     const char *str;
@@ -154,7 +169,7 @@ const char* parse_eatform(token_e form)
             str = "type";
             break;
         }
-        printf("expected %s\n", str);
+        error(true, curtok->line, curtok->line, "expected %s\n", str);
         exit(1);
     }
 
@@ -162,18 +177,19 @@ const char* parse_eatform(token_e form)
     return parse_peekstr(-1);
 }
 
-void parse_eatstr(const char* str)
+bool parse_eatstr(const char* str)
 {
     const char *tokstr;
 
     tokstr = parse_peekstr(0);
     if(strcmp(tokstr, str))
     {
-        printf("expected '%s'\n", str);
-        exit(1);
+        error(false, parse_getexpectedline(), parse_getexpectedcol(), "expected '%s'\n", str);
+        return false;
     }
 
     curtok++;
+    return true;
 }
 
 const char* parse_eat(void)
@@ -542,6 +558,8 @@ void parse(void)
     curtok = tokens.data;
     while(curtok->form != TOKEN_EOF)
         parse_globaldecl();
+
+    failiferr();
 }
 
 void dumpast(void)

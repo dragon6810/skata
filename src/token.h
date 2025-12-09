@@ -74,5 +74,6 @@ extern char* srctext;
 extern list_token_t tokens;
 
 void lex(void);
+int tokenlen(token_t* tok);
 
 #endif

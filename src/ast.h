@@ -132,7 +132,7 @@ extern list_globaldecl_t ast;
 token_e parse_peekform(int offs);
 const char* parse_peekstr(int offs);
 const char* parse_eatform(token_e form);
-void parse_eatstr(const char* str);
+bool parse_eatstr(const char* str);
 const char* parse_eat(void);
 void parse_printexpr(const expr_t* expr);
 
