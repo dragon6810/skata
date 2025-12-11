@@ -5,6 +5,16 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define U64_ROUNDUPTOPOW2(len)\
+len--;\
+len |= len >> 1;\
+len |= len >> 2;\
+len |= len >> 4;\
+len |= len >> 8;\
+len |= len >> 16;\
+len |= len >> 32;\
+len++
+
 #define LIST_DECL(T, name) \
 \
 typedef struct list_##name##_s\
@@ -17,6 +27,7 @@ typedef struct list_##name##_s\
 void list_##name##_init(list_##name##_t* list, uint64_t len);\
 void list_##name##_ppush(list_##name##_t* list, T* val);\
 void list_##name##_push(list_##name##_t* list, T val);\
+void list_##name##_resize(list_##name##_t* list, uint64_t len);\
 void list_##name##_remove(list_##name##_t* list, uint64_t idx);\
 void list_##name##_insert(list_##name##_t* list, uint64_t idx, T val);\
 T* list_##name##_find(list_##name##_t* list, T val);\
@@ -68,6 +79,25 @@ void list_##name##_push(list_##name##_t* list, typeof(*list->data) val)\
     }\
 \
     list->data[list->len++] = val;\
+}\
+void list_##name##_resize(list_##name##_t* list, uint64_t len)\
+{\
+    uint64_t cap;\
+    typeof(list->data) newdata;\
+\
+    cap = len;\
+    U64_ROUNDUPTOPOW2(cap);\
+\
+    newdata = malloc(sizeof(*list->data) * cap);\
+    if(len <= list->len)\
+        memcpy(newdata, list->data, sizeof(*list->data) * len);\
+    else\
+        memcpy(newdata, list->data, sizeof(*list->data) * list->len);\
+\
+    list_##name##_free(list);\
+    list->len = len;\
+    list->cap = cap;\
+    list->data = newdata;\
 }\
 void list_##name##_remove(list_##name##_t* list, uint64_t idx)\
 {\

@@ -1,5 +1,6 @@
 #include "ast.h"
 
+#include <inttypes.h>
 #include <stdio.h>
 
 #include "token.h"
@@ -20,6 +21,25 @@ static void parse_printexpr_r(const expr_t* expr)
     switch(expr->op)
     {
     case EXPROP_LIT:
+        switch(expr->type.type)
+        {
+        case TYPE_I8:
+        case TYPE_I16:
+        case TYPE_I32:
+        case TYPE_I64:
+            printf("%" PRIi64, expr->i64);
+            break;
+        case TYPE_U8:
+        case TYPE_U16:
+        case TYPE_U32:
+        case TYPE_U64:
+            printf("%" PRIu64, expr->u64);
+            break;
+        default:
+            assert(0);
+            break;
+        }
+        break;
     case EXPROP_VAR:
         printf("%s", expr->msg);
         return;
@@ -182,6 +202,17 @@ static void parse_infixopbp(exprop_e op, int bp[2])
     }
 }
 
+static expr_t* parse_number(void)
+{
+    expr_t* expr;
+
+    expr = malloc(sizeof(expr_t));
+    expr->op = EXPROP_LIT;
+    sscanf(parse_eat(), "%" PRIu64, &expr->u64);
+
+    return expr;
+}   
+
 static expr_t* parse_expr_r(int minbp)
 {
     expr_t *expr, *lhs, *rhs, *thenexpr, *elseexpr;
@@ -195,12 +226,12 @@ static expr_t* parse_expr_r(int minbp)
     switch(parse_peekform(0))
     {
     case TOKEN_NUMBER:
-        expr = malloc(sizeof(expr_t));
-        expr->op = EXPROP_LIT;
-        expr->msg = strdup(parse_eat());
+        expr = parse_number();
         break;
     case TOKEN_IDENT:
         expr = malloc(sizeof(expr_t));
+        expr->line = parse_getline();
+        expr->col = parse_getcol();
         expr->op = EXPROP_VAR;
         expr->msg = strdup(parse_eat());
         break;
@@ -220,6 +251,8 @@ static expr_t* parse_expr_r(int minbp)
             if(parse_istype())
             {
                 expr = malloc(sizeof(expr_t));
+                expr->line = parse_getline();
+                expr->col = parse_getcol();
                 expr->op = EXPROP_CAST;
                 parse_type(&expr->casttype);
                 if(!parse_eatstr(")"))
@@ -237,6 +270,8 @@ static expr_t* parse_expr_r(int minbp)
         parse_eat();
 
         expr = malloc(sizeof(expr_t));
+        expr->line = parse_getline();
+        expr->col = parse_getcol();
         expr->op = op;
         expr->operand = parse_expr_r(parse_prefixopbp(op));
 
@@ -270,6 +305,8 @@ static expr_t* parse_expr_r(int minbp)
             lhs = expr;
 
             expr = malloc(sizeof(expr_t));
+            expr->line = parse_getline();
+            expr->col = parse_getcol();
             expr->op = EXPROP_CALL;
             expr->operand = lhs;
             list_pexpr_init(&expr->variadic, 0);
@@ -310,6 +347,8 @@ static expr_t* parse_expr_r(int minbp)
 
             lhs = expr;
             expr = malloc(sizeof(expr_t));
+            expr->line = parse_getline();
+            expr->col = parse_getcol();
             expr->op = EXPROP_COND;
             expr->operands[0] = lhs;
             expr->operands[1] = thenexpr;
@@ -333,6 +372,8 @@ static expr_t* parse_expr_r(int minbp)
             lhs = expr;
 
             expr = malloc(sizeof(expr_t));
+            expr->line = parse_getline();
+            expr->col = parse_getcol();
             expr->op = op;
             expr->operand = lhs;
 
@@ -354,6 +395,8 @@ static expr_t* parse_expr_r(int minbp)
         lhs = expr;
 
         expr = malloc(sizeof(expr_t));
+        expr->line = parse_getline();
+        expr->col = parse_getcol();
         expr->op = op;
         expr->operands[0] = lhs;
         expr->operands[1] = rhs;

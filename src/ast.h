@@ -28,7 +28,7 @@ typedef enum
     EXPROP_LIT=0,
     EXPROP_VAR,
 
-    // trinary operators
+    // ternary operators
     EXPROP_COND, // ? :
 
     // binary operators
@@ -52,18 +52,46 @@ typedef enum
     EXPROP_CALL, // ( ... )
 } exprop_e;
 
+// -1 is variadic, 0 is atom
+static const int exprop_nop[] = 
+{
+    0,
+    0,
+    3,
+    2,
+    2,
+    2,
+    2,
+    2,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    -1,
+};
+
 typedef struct expr_s expr_t;
 
 LIST_DECL(expr_t*, pexpr)
 
 struct expr_s
 {
+    int line, col;
+
     exprop_e op;
     type_t type;
+    bool lval; // if false, rval
     union
     {
         expr_t *operands[3]; // binary and trinary op
         expr_t *operand; // unary op
+        int32_t i32;
+        uint32_t u32;
+        int64_t i64;
+        uint64_t u64;
         char* msg; // atom
     };
     
@@ -77,6 +105,7 @@ struct expr_s
 typedef struct decl_s decl_t;
 
 LIST_DECL(decl_t, decl)
+LIST_DECL(decl_t*, pdecl)
 
 struct decl_s
 {
@@ -140,6 +169,8 @@ void parse_type(type_t* type);
 bool parse_istype();
 token_e parse_peekform(int offs);
 const char* parse_peekstr(int offs);
+int parse_getline(void);
+int parse_getcol(void);
 const char* parse_eatform(token_e form);
 bool parse_eatstr(const char* str);
 const char* parse_eat(void);

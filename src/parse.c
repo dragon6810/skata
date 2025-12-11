@@ -14,6 +14,7 @@ static void parse_freedecl(decl_t* decl)
     free(decl->ident);
     if(decl->form == DECL_FUNC)
         list_decl_free(&decl->args);
+    type_free(&decl->type);
 }
 
 static void parse_freeglobaldecl(globaldecl_t* decl)
@@ -39,9 +40,14 @@ static void parse_freeexpr(expr_t* expr)
     case EXPROP_CALL:
         list_pexpr_free(&expr->variadic);
         break;
+    case EXPROP_CAST:
+        type_free(&expr->casttype);
+        break;
     default:
         break;
     }
+
+    type_free(&expr->type);
 
     free(expr);
 }
@@ -53,6 +59,8 @@ static void parse_freepexpr(expr_t** expr)
 
 LIST_DEF(pexpr)
 LIST_DEF_FREE_DECONSTRUCT(pexpr, parse_freepexpr)
+LIST_DEF(pdecl)
+LIST_DEF_FREE(pdecl)
 
 static void parse_freestmnt(stmnt_t* stmnt)
 {
@@ -121,6 +129,16 @@ const char* parse_peekstr(int offs)
     default:
         return "";
     }
+}
+
+int parse_getline(void)
+{
+    return curtok->line;
+}
+
+int parse_getcol(void)
+{
+    return curtok->column;
 }
 
 static int parse_getexpectedline(void)

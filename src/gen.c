@@ -356,7 +356,7 @@ static char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
 
         inst.binary[1].type = IR_OPERAND_LIT;
         inst.binary[1].literal.type = IR_PRIM_I32;
-        inst.binary[1].literal.i32 = atoi(expr->msg);
+        inst.binary[1].literal.i32 = expr->i64;
         list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
         return res;
     case EXPROP_VAR:

@@ -9,10 +9,12 @@
 #include "ir.h"
 #include "map.h"
 #include "regalloc.h"
+#include "semantics.h"
 #include "token.h"
 #include "type.h"
 
 bool emitast = false;
+bool emitpostsem = false;
 bool emitir = false;
 bool emitflow = false;
 bool emitdomtree = false;
@@ -56,6 +58,16 @@ void compile(void)
 
     parse();
     if(emitast)
+    {
+        dumpast();
+
+        list_globaldecl_free(&ast);
+        list_token_free(&tokens);
+        return;
+    }
+
+    semantics();
+    if(emitpostsem)
     {
         dumpast();
 
@@ -134,8 +146,11 @@ int main(int argc, char** argv)
     {
         if(argv[i][0] != '-')
             break;
-        if(!strcmp(argv[i], "-emit-ast"))
+        if(0);
+        else if(!strcmp(argv[i], "-emit-ast"))
             emitast = true;
+        else if(!strcmp(argv[i], "-emit-postsem"))
+            emitpostsem = true;
         else if(!strcmp(argv[i], "-emit-ir"))
             emitir = true;
         else if(!strcmp(argv[i], "-emit-flow"))
