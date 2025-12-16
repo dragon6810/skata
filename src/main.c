@@ -14,7 +14,6 @@
 #include "type.h"
 
 bool emitast = false;
-bool emitpostsem = false;
 bool emitir = false;
 bool emitflow = false;
 bool emitdomtree = false;
@@ -57,17 +56,8 @@ void compile(void)
     free(srctext);
 
     parse();
-    if(emitast)
-    {
-        dumpast();
-
-        list_globaldecl_free(&ast);
-        list_token_free(&tokens);
-        return;
-    }
-
     semantics();
-    if(emitpostsem)
+    if(emitast)
     {
         dumpast();
 
@@ -149,8 +139,6 @@ int main(int argc, char** argv)
         if(0);
         else if(!strcmp(argv[i], "-emit-ast"))
             emitast = true;
-        else if(!strcmp(argv[i], "-emit-postsem"))
-            emitpostsem = true;
         else if(!strcmp(argv[i], "-emit-ir"))
             emitir = true;
         else if(!strcmp(argv[i], "-emit-flow"))

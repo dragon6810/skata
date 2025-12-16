@@ -5,7 +5,6 @@
 #include <limits.h>
 
 extern bool emitast;
-extern bool emitpostsem;
 extern bool emitir;
 extern bool emitflow;
 extern bool emitdomtree;

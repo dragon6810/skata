@@ -368,18 +368,16 @@ static void parse_compound(compound_t* cmpnd)
     if(!parse_eatstr("{"))
         exit(EXIT_FAILURE);
 
+    while(parse_istype())
+    {
+        parse_decl(&decl);
+        list_decl_ppush(&cmpnd->decls, &decl);
+    }
+
     while(strcmp(parse_peekstr(0), "}"))
     {
-        if(parse_istype())
-        {
-            parse_decl(&decl);
-            list_decl_ppush(&cmpnd->decls, &decl);
-        }
-        else
-        {
-            parse_statement(&stmnt);
-            list_stmnt_ppush(&cmpnd->stmnts, &stmnt);
-        }
+        parse_statement(&stmnt);
+        list_stmnt_ppush(&cmpnd->stmnts, &stmnt);
     }
 
     parse_eatstr("}");
@@ -396,6 +394,7 @@ static void parse_arglist(decl_t* decl)
 
         parse_type(&arg.type);
         arg.ident = strdup(parse_eatform(TOKEN_IDENT));
+        arg.expr = NULL;
         list_decl_init(&arg.args, 0);
 
         list_decl_push(&decl->args, arg);

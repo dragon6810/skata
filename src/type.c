@@ -3,14 +3,15 @@
 const char* type_names[TYPE_COUNT] =
 {
     "void",
-    "u8",
     "i8",
-    "u16",
+    "u8",
     "i16",
-    "u32",
+    "u16",
     "i32",
-    "u64",
+    "u32",
     "i64",
+    "u64",
+    "func",
 };
 
 void type_free(type_t* type)

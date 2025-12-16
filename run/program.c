@@ -1,4 +1,4 @@
-int fn(int x)
+int fn()
 {
 	return 1;
 }
@@ -7,5 +7,6 @@ int main()
 {
 	short x;
 
-	return (int) x;
+	x = 1;
+	return x;
 }

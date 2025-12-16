@@ -7,6 +7,8 @@
 
 list_pdecl_t scope;
 
+const static type_t semantics_inttype = { .type = TYPE_I32 };
+
 static type_t semantics_getvariabletype(expr_t* expr)
 {
     int i;
@@ -15,8 +17,8 @@ static type_t semantics_getvariabletype(expr_t* expr)
 
     // more narrow scopes get precedence,
     // so loop from top to bottom
-    for(i=scope.len-1; i>=0; i++)
-        if(strcmp(expr->msg, scope.data[i]->ident))
+    for(i=scope.len-1; i>=0; i--)
+        if(!strcmp(expr->msg, scope.data[i]->ident))
             break;
     
     if(i<0)
@@ -30,8 +32,6 @@ static type_t semantics_getvariabletype(expr_t* expr)
 
 static type_e semantics_getliteraltype(uint64_t lit)
 {
-    uint64_t val;
-
     if(lit <= INT32_MAX)
         return TYPE_I32;
     if(lit <= UINT32_MAX)
@@ -39,6 +39,25 @@ static type_e semantics_getliteraltype(uint64_t lit)
     if(lit <= INT64_MAX)
         return TYPE_I64;
     return TYPE_U64;
+}
+
+static void semantics_typecpy(type_t* dst, type_t* src)
+{
+    *dst = *src;
+
+    switch(dst->type)
+    {
+    case TYPE_FUNC:
+        if(dst->func.ret)
+        {
+            dst->func.ret = malloc(sizeof(type_t));
+            semantics_typecpy(dst->func.ret, src->func.ret);
+        }
+        list_type_dup(&dst->func.args, &src->func.args);
+        break;
+    default:
+        break;
+    }
 }
 
 static bool semantics_typecmp(const type_t* a, const type_t* b)
@@ -72,33 +91,16 @@ static void semantics_cast(type_t type, expr_t* expr)
 
     assert(expr);
 
+    if(semantics_typecmp(&expr->type, &type))
+        return;
+
     newexpr = malloc(sizeof(expr_t));
     *newexpr = *expr;
 
     expr->op = EXPROP_CAST;
-    expr->casttype.type = type;
     expr->operand = newexpr;
-    expr->type.type = type;
-}
-
-// list should be uninitialized
-static void semantics_getoperands(list_pexpr_t* list, expr_t* expr)
-{
-    int i;
-
-    int nop;
-
-    assert(expr);
-
-    nop = exprop_nop[expr->op];
-    if(nop == -1)
-        list_pexpr_dup(list, &expr->variadic);
-    else
-    {
-        list_pexpr_init(list, nop);
-        for(i=0; i<nop; i++)
-            list->data[i] = expr->operands[i];
-    }
+    semantics_typecpy(&expr->type, &type);
+    semantics_typecpy(&expr->casttype, &type);
 }
 
 static void semantics_expr(expr_t* expr);
@@ -111,13 +113,19 @@ static void semantics_binaryexpr(expr_t* expr)
     {
         semantics_expr(expr->operands[i]);
         if(expr->operands[i]->type.type < TYPE_I32)
-            semantics_cast(TYPE_I32, expr->operands[i]);
+            semantics_cast(semantics_inttype, expr->operands[i]);
     }
 
-    expr->type.type = TYPE_I32;
-    for(i=0; i<2; i++)
-        if(expr->operands[i]->type.type > expr->type.type)
-            expr->type.type = expr->operands[i]->type.type;
+    if(expr->operands[1]->type.type > expr->operands[0]->type.type)
+    {
+        semantics_cast(expr->operands[1]->type, expr->operands[0]);
+        semantics_typecpy(&expr->type, &expr->operands[1]->type);
+    }
+    else
+    {
+        semantics_cast(expr->operands[0]->type, expr->operands[1]);
+        semantics_typecpy(&expr->type, &expr->operands[0]->type);
+    }
 }
 
 static void semantics_condition(expr_t* expr)
@@ -143,7 +151,7 @@ static void semantics_ternaryexpr(expr_t* expr)
     {
         semantics_expr(expr->operands[i]);
         if(expr->operands[i]->type.type < TYPE_I32)
-            semantics_cast(TYPE_I32, expr->operands[i]);
+            semantics_cast(semantics_inttype, expr->operands[i]);
     }
 
     expr->type.type = TYPE_I32;
@@ -161,11 +169,11 @@ static void semantics_assignexpr(expr_t* expr)
     for(i=0; i<2; i++)
         semantics_expr(expr->operands[i]);
 
-    if(!expr->operands[i]->lval)
+    if(!expr->operands[0]->lval)
         error(true, expr->line, expr->col, "expression is not assignable");
 
     expr->type = expr->operands[0]->type;
-    if(expr->type.type != expr->operands[1]->type.type)
+    if(!semantics_typecmp(&expr->type, &expr->operands[1]->type))
         semantics_cast(expr->type, expr->operands[1]);
 }
 
@@ -187,6 +195,7 @@ static void semantics_noop(expr_t* expr)
     expr_t* child;
 
     semantics_expr(expr->operand);
+    child = expr->operand;
 
     memcpy(expr, child, sizeof(expr_t));
     free(child);
@@ -220,13 +229,16 @@ static void semantics_callexpr(expr_t* expr)
         semantics_expr(expr->variadic.data[i+1]);
         if(!semantics_typecmp(&expr->variadic.data[i+1]->type, &functype->func.args.data[i]))
             continue;
-        semantics_cast(expr->variadic.data[i+1], expr->variadic.data[i+1]);
+        semantics_cast(functype->func.args.data[i], expr->variadic.data[i+1]);
     }
 }
 
 static void semantics_expr(expr_t* expr)
 {
-    int i;
+    type_t type;
+
+    if(!expr)
+        return;
 
     expr->lval = false;
 
@@ -236,11 +248,13 @@ static void semantics_expr(expr_t* expr)
         expr->type.type = semantics_getliteraltype(expr->u64);
         break;
     case EXPROP_VAR:
-        expr->type = semantics_getvariabletype(expr);
+        type = semantics_getvariabletype(expr);
+        semantics_typecpy(&expr->type, &type);
         expr->lval = true;
         break;
     case EXPROP_COND:
         semantics_ternaryexpr(expr);
+        break;
     case EXPROP_ASSIGN:
         semantics_assignexpr(expr);
         break;
@@ -275,6 +289,7 @@ static void semantics_expr(expr_t* expr)
 static void semantics_return(globaldecl_t* func, stmnt_t* stmnt)
 {
     semantics_expr(stmnt->expr);
+    semantics_cast(func->decl.type, stmnt->expr);
 }
 
 static void semantics_compound(globaldecl_t* func, compound_t* compound);
@@ -293,12 +308,12 @@ static void semantics_statement(globaldecl_t* func, stmnt_t* stmnt)
         semantics_return(func, stmnt);
         break;
     case STMNT_IF:
-        semanitcs_condition(stmnt->ifstmnt.expr);
-        semanitcs_statement(stmnt->ifstmnt.ifblk);
+        semantics_condition(stmnt->ifstmnt.expr);
+        semantics_statement(func, stmnt->ifstmnt.ifblk);
         break;
     case STMNT_WHILE:
-        semanitcs_condition(stmnt->whilestmnt.expr);
-        semanitcs_statement(stmnt->whilestmnt.body);
+        semantics_condition(stmnt->whilestmnt.expr);
+        semantics_statement(func, stmnt->whilestmnt.body);
         break;
     default:
         break;

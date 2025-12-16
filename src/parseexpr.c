@@ -39,7 +39,7 @@ static void parse_printexpr_r(const expr_t* expr)
             assert(0);
             break;
         }
-        break;
+        return;
     case EXPROP_VAR:
         printf("%s", expr->msg);
         return;
@@ -105,8 +105,7 @@ static void parse_printexpr_r(const expr_t* expr)
         printf(")");
         return;
     case EXPROP_CAST:
-        nterms = 1;
-        printf("cast (%s) ( ", type_names[expr->casttype.type]);
+        printf("( cast (%s) ", type_names[expr->casttype.type]);
         parse_printexpr_r(expr->operand);
         printf(" )");
         return;
@@ -207,6 +206,8 @@ static expr_t* parse_number(void)
     expr_t* expr;
 
     expr = malloc(sizeof(expr_t));
+    expr->line = parse_getline();
+    expr->col = parse_getcol();
     expr->op = EXPROP_LIT;
     sscanf(parse_eat(), "%" PRIu64, &expr->u64);
 
@@ -243,7 +244,7 @@ static expr_t* parse_expr_r(int minbp)
         else if(!strcmp(parse_peekstr(0), "++"))
             op = EXPROP_PREINC;
         else if(!strcmp(parse_peekstr(0), "--"))
-            op = EXPROP_POSTINC;
+            op = EXPROP_PREDEC;
         else if(!strcmp(parse_peekstr(0), "("))
         {
             parse_eat();
