@@ -113,7 +113,7 @@ static void armgen_operand(ir_funcdef_t* funcdef, ir_operand_t* operand)
     switch(operand->type)
     {
     case IR_OPERAND_REG:
-        printf("%s", map_str_ir_reg_get(&funcdef->regs, operand->regname)->hardreg->name);
+        printf("%s", map_str_ir_reg_get(&funcdef->regs, operand->reg.name)->hardreg->name);
         break;
     case IR_OPERAND_LIT:
         printf("#%d", operand->literal.i32);
@@ -143,7 +143,7 @@ static void armgen_emitparamcopy(ir_funcdef_t* funcdef,
         {
         case IR_OPERAND_REG:
             printf("  MOV %s, %s\n", parampool.data[*regparam]->name, 
-                map_str_ir_reg_get(&funcdef->regs, operand->regname)->hardreg->name);
+                map_str_ir_reg_get(&funcdef->regs, operand->reg.name)->hardreg->name);
             break;
         case IR_OPERAND_VAR:
             printf("  LDR %s, [fp, #%d]\n", parampool.data[*regparam]->name, operand->var->stackloc);
@@ -167,7 +167,7 @@ static void armgen_emitparamcopy(ir_funcdef_t* funcdef,
     switch(operand->type)
     {
     case IR_OPERAND_REG:
-        printf("  STR %s, [sp, #%d]\n", map_str_ir_reg_get(&funcdef->regs, operand->regname)->hardreg->name, (int) *stackoffs);
+        printf("  STR %s, [sp, #%d]\n", map_str_ir_reg_get(&funcdef->regs, operand->reg.name)->hardreg->name, (int) *stackoffs);
         break;
     case IR_OPERAND_VAR:
         printf("  LDR %s, [fp, #%d]\n", scratch->name, operand->var->stackloc);
@@ -230,7 +230,7 @@ static void armgen_emitparams(ir_funcdef_t* funcdef, ir_inst_t* inst)
                     if(i == j || inst->variadic.data[j].type != IR_OPERAND_REG || set_u64_contains(&emitted, j))
                         continue;
 
-                    logical = map_str_ir_reg_get(&funcdef->regs, inst->variadic.data[j].regname);
+                    logical = map_str_ir_reg_get(&funcdef->regs, inst->variadic.data[j].reg.name);
                     if(logical->hardreg == parampool.data[nregarg])
                         break;
                 }
@@ -315,7 +315,7 @@ static void armgen_emitcall(ir_funcdef_t* funcdef, ir_block_t* blk, ir_inst_t* i
     printf("  BL _%s\n", inst->variadic.data[1].func);
 
     assert(inst->variadic.data[0].type == IR_OPERAND_REG);
-    reg = map_str_ir_reg_get(&funcdef->regs, inst->variadic.data[0].regname);
+    reg = map_str_ir_reg_get(&funcdef->regs, inst->variadic.data[0].reg.name);
     if(reg->hardreg != retpool.data[0])
         printf("  MOV %s, %s\n", reg->hardreg->name, retpool.data[0]->name);
 

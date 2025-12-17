@@ -1,12 +1,12 @@
 int fn()
 {
-	return 1;
+	
 }
 
 int main()
 {
-	short x;
+	int x;
 
-	x = 1;
+	x = 0;
 	return x;
 }

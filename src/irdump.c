@@ -28,18 +28,18 @@ void ir_definedregs(set_str_t* set, ir_inst_t* inst)
         break;
     case IR_OP_MOVE:
     case IR_OP_LOAD:
-        set_str_add(set, inst->binary[0].regname);
+        set_str_add(set, inst->binary[0].reg.name);
         break;
     case IR_OP_ADD:
     case IR_OP_SUB:
     case IR_OP_MUL:
     case IR_OP_CMPEQ:
-        set_str_add(set, inst->ternary[0].regname);
+        set_str_add(set, inst->ternary[0].reg.name);
         break;
     case IR_OP_PHI:
     case IR_OP_CALL:
-        if(inst->variadic.len && inst->variadic.data[0].regname)
-            set_str_add(set, inst->variadic.data[0].regname);
+        if(inst->variadic.len && inst->variadic.data[0].reg.name)
+            set_str_add(set, inst->variadic.data[0].reg.name);
         break;
     default:
         assert(0);
@@ -57,29 +57,29 @@ void ir_accessedregs(set_str_t* set, ir_inst_t* inst)
     {
     case IR_OP_MOVE:
     case IR_OP_STORE:
-        if(inst->binary[1].type == IR_OPERAND_REG) set_str_add(set, inst->binary[1].regname);
+        if(inst->binary[1].type == IR_OPERAND_REG) set_str_add(set, inst->binary[1].reg.name);
         break;
     case IR_OP_ADD:
     case IR_OP_SUB:
     case IR_OP_MUL:
     case IR_OP_CMPEQ:
-        if(inst->ternary[1].type == IR_OPERAND_REG) set_str_add(set, inst->ternary[1].regname);
-        if(inst->ternary[2].type == IR_OPERAND_REG) set_str_add(set, inst->ternary[2].regname);
+        if(inst->ternary[1].type == IR_OPERAND_REG) set_str_add(set, inst->ternary[1].reg.name);
+        if(inst->ternary[2].type == IR_OPERAND_REG) set_str_add(set, inst->ternary[2].reg.name);
         break;
     case IR_OP_RET:
-        if(inst->unary.type == IR_OPERAND_REG && inst->unary.regname) set_str_add(set, inst->unary.regname);
+        if(inst->unary.type == IR_OPERAND_REG && inst->unary.reg.name) set_str_add(set, inst->unary.reg.name);
         break;
     case IR_OP_BR:
-        if(inst->ternary[0].type == IR_OPERAND_REG) set_str_add(set, inst->ternary[0].regname);
+        if(inst->ternary[0].type == IR_OPERAND_REG) set_str_add(set, inst->ternary[0].reg.name);
         break;
     case IR_OP_PHI:
         // skip over labels
         for(i=2; i<inst->variadic.len; i+=2)
-            if(inst->variadic.data[i].type == IR_OPERAND_REG) set_str_add(set, inst->variadic.data[i].regname);
+            if(inst->variadic.data[i].type == IR_OPERAND_REG) set_str_add(set, inst->variadic.data[i].reg.name);
         break;
     case IR_OP_CALL:
         for(i=2; i<inst->variadic.len; i++)
-            if(inst->variadic.data[i].type == IR_OPERAND_REG) set_str_add(set, inst->variadic.data[i].regname);
+            if(inst->variadic.data[i].type == IR_OPERAND_REG) set_str_add(set, inst->variadic.data[i].reg.name);
         break;
     default:
         break;
@@ -101,15 +101,69 @@ void ir_print_location(ir_location_t* location)
     }
 }
 
+static void ir_print_prim(ir_primitive_e prim)
+{
+    printf("\e[0;96m");
+    switch(prim)
+    {
+    case IR_PRIM_I8:
+        printf("i8");
+        break;
+    case IR_PRIM_U8:
+        printf("u8");
+        break;
+    case IR_PRIM_I16:
+        printf("i16");
+        break;
+    case IR_PRIM_U16:
+        printf("u16");
+        break;
+    case IR_PRIM_I32:
+        printf("i32");
+        break;
+    case IR_PRIM_U32:
+        printf("u32");
+        break;
+    case IR_PRIM_I64:
+        printf("i64");
+        break;
+    case IR_PRIM_U64:
+        printf("u64");
+        break;
+    default:
+        assert(0);
+        break;
+    }
+    printf("\e[0m");
+}
+
+void ir_print_type(ir_type_t type)
+{
+    switch(type.type)
+    {
+    case IR_TYPE_VOID:
+        printf("\e[0;96mvoid\e[0m");
+        break;
+    case IR_TYPE_PRIM:
+        ir_print_prim(type.prim);
+        break;
+    default:
+        assert(0);
+        break;
+    }
+}
+
 void ir_print_operand(ir_funcdef_t* funcdef, ir_operand_t* operand)
 {
     switch(operand->type)
     {
     case IR_OPERAND_REG:
-        printf("\e[0;31m%%%s\e[0m", operand->regname);
+        ir_print_prim(operand->reg.type);
+        printf(" \e[0;31m%%%s\e[0m", operand->reg.name);
         break;
     case IR_OPERAND_LIT:
-        printf("\e[0;93m%d\e[0m", operand->literal.i32);
+        ir_print_prim(operand->literal.type);
+        printf(" \e[0;93m%d\e[0m", operand->literal.i32);
         break;
     case IR_OPERAND_VAR:
         printf("\e[0;31m$%s\e[0m", operand->var->name);

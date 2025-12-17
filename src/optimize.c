@@ -8,7 +8,7 @@ static void ir_operandreplace(ir_operand_t* dst, ir_operand_t* src)
     switch(newop.type)
     {
     case IR_OPERAND_REG:
-        newop.regname = strdup(newop.regname);
+        newop.reg.name = strdup(newop.reg.name);
         break;
     case IR_OPERAND_LABEL:
         newop.label = strdup(newop.label);
@@ -33,14 +33,14 @@ bool ir_operandeq(ir_funcdef_t* funcdef, ir_operand_t* a, ir_operand_t* b)
     switch(a->type)
     {
     case IR_OPERAND_REG:
-        areg = map_str_ir_reg_get(&funcdef->regs, a->regname);
-        breg = map_str_ir_reg_get(&funcdef->regs, b->regname);
+        areg = map_str_ir_reg_get(&funcdef->regs, a->reg.name);
+        breg = map_str_ir_reg_get(&funcdef->regs, b->reg.name);
         if(areg->hardreg && areg->hardreg == breg->hardreg)
             return true;
-        if(!strcmp(a->regname, b->regname))
+        if(!strcmp(a->reg.name, b->reg.name))
             return true;
         return false;
-        return !strcmp(a->regname, b->regname);
+        return !strcmp(a->reg.name, b->reg.name);
     case IR_OPERAND_LIT:
         return a->literal.type == b->literal.type && a->literal.i32 == b->literal.i32;
     case IR_OPERAND_VAR:

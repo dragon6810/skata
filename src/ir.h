@@ -5,6 +5,7 @@
 
 #include "map.h"
 #include "set.h"
+#include "type.h"
 
 typedef struct ir_regspan_s
 {
@@ -17,10 +18,24 @@ typedef struct ir_regspan_s
 LIST_DECL(ir_regspan_t, ir_regspan)
 MAP_DECL(char*, ir_regspan_t, str, ir_regspan)
 
+typedef enum
+{
+    IR_PRIM_I8,
+    IR_PRIM_U8,
+    IR_PRIM_I16,
+    IR_PRIM_U16,
+    IR_PRIM_I32,
+    IR_PRIM_U32,
+    IR_PRIM_I64,
+    IR_PRIM_U64,
+    IR_PRIM_COUNT,
+} ir_primitive_e;
+
 typedef struct ir_reg_s
 {
     // '%' prefix implicit
     char *name;
+    ir_primitive_e type;
 
     set_str_t interfere; // interference graph edges
     struct hardreg_s *hardreg;
@@ -29,11 +44,27 @@ typedef struct ir_reg_s
 
 SET_DECL(ir_reg_t*, pir_reg)
 
+typedef enum
+{
+    IR_TYPE_VOID=0,
+    IR_TYPE_PRIM,
+} ir_type_e;
+
+typedef struct ir_type_s
+{
+    ir_type_e type;
+    union
+    {
+        ir_primitive_e prim;
+    };
+} ir_type_t;
+
 typedef struct ir_var_s
 {
     // '$' prefix implicit
     char *name;
 
+    ir_type_t type;
     int stackloc;
 } ir_var_t;
 
@@ -54,19 +85,24 @@ typedef enum
     IR_OP_JMP, // label
     IR_OP_PHI, // (VARIADIC); dst, label1, reg1, label2, reg2, ... labeln, regn
     IR_OP_CALL, // (VARIADIC); dst, func, arg1, arg2, ... argn
+    IR_OP_CAST, // dst, src
     IR_OP_COUNT,
 } ir_inst_e;
 
-typedef enum ir_primitive_s
-{
-    IR_PRIM_I32=0,
-    IR_PRIM_COUNT,
-} ir_primitive_t;
-
 typedef struct ir_constant_s
 {
-    ir_primitive_t type;
-    int32_t i32;
+    ir_primitive_e type;
+    union
+    {
+        int8_t i8;
+        uint8_t u8;
+        int16_t i16;
+        uint16_t u16;
+        int32_t i32;
+        uint32_t u32;
+        int32_t i64;
+        uint32_t u64;
+    };
 } ir_constant_t;
 
 typedef enum
@@ -101,7 +137,11 @@ typedef struct ir_operand_s
     {
         // TODO: reg and var become dangling
         // switch them to be names soon
-        char *regname;
+        struct
+        {
+            char *name;
+            ir_primitive_e type;
+        } reg;
         ir_constant_t literal;
         ir_var_t *var;
         char *label;
@@ -216,7 +256,8 @@ void ir_lower(void);
 void ir_backoptimize(void);
 // sets name to NULL
 void ir_initblock(ir_block_t* block);
-char* ir_gen_alloctemp(ir_funcdef_t *funcdef);
+ir_primitive_e ir_type2prim(type_e type);
+char* ir_gen_alloctemp(ir_funcdef_t *funcdef, ir_primitive_e type);
 void ir_varfree(ir_var_t* var);
 void ir_instfree(ir_inst_t* inst);
 uint64_t ir_newblock(ir_funcdef_t* funcdef);
