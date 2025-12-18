@@ -5,6 +5,7 @@
 
 #include "asmgen.h"
 #include "ast.h"
+#include "back.h"
 #include "flags.h"
 #include "ir.h"
 #include "map.h"
@@ -18,6 +19,7 @@ bool emitir = false;
 bool emitflow = false;
 bool emitdomtree = false;
 bool emitssa = false;
+bool emitbackir = false;
 bool emitlowered = false;
 bool emitreggraph = false;
 
@@ -93,6 +95,14 @@ void compile(void)
         goto freestuff;
     }
 
+    back_castreduction();
+    ir_middleoptimize();
+    if(emitbackir)
+    {
+        ir_dump();
+        goto freestuff;
+    }
+
     reglifetime();
     regalloc();
     if(emitreggraph)
@@ -147,6 +157,8 @@ int main(int argc, char** argv)
             emitdomtree = true;
         else if(!strcmp(argv[i], "-emit-ssa"))
             emitssa = true;
+        else if(!strcmp(argv[i], "-emit-backir"))
+            emitbackir = true;
         else if(!strcmp(argv[i], "-emit-lowered"))
             emitlowered = true;
         else if(!strcmp(argv[i], "-emit-reggraph"))
