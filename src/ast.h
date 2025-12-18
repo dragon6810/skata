@@ -27,6 +27,7 @@ typedef enum
     // atoms
     EXPROP_LIT=0,
     EXPROP_VAR,
+    EXPROP_FUNC,
 
     // ternary operators
     EXPROP_COND, // ? :

@@ -1,5 +1,6 @@
 #include "semantics.h"
 
+#include <assert.h>
 #include <stdio.h>
 
 #include "ast.h"
@@ -8,27 +9,6 @@
 list_pdecl_t scope;
 
 const static type_t semantics_inttype = { .type = TYPE_I32 };
-
-static type_t semantics_getvariabletype(expr_t* expr)
-{
-    int i;
-
-    assert(expr->op == EXPROP_VAR);
-
-    // more narrow scopes get precedence,
-    // so loop from top to bottom
-    for(i=scope.len-1; i>=0; i--)
-        if(!strcmp(expr->msg, scope.data[i]->ident))
-            break;
-    
-    if(i<0)
-    {
-        error(true, expr->line, expr->col, "use of undeclared identifier '%s'\n", expr->msg);
-        exit(1);
-    }
-
-    return scope.data[i]->type;
-}
 
 static type_e semantics_getliteraltype(uint64_t lit)
 {
@@ -215,28 +195,72 @@ static void semantics_callexpr(expr_t* expr)
 
     assert(expr->variadic.len);
 
-    functype = &expr->variadic.data[0]->type;
-    if(functype->type != TYPE_FUNC)
-        error(true, expr->line, expr->col, "expected function or function pointer\n");
+    semantics_expr(expr->operand);
 
-    if(expr->variadic.len - 1 < functype->func.args.len)
-        error(true, expr->line, expr->col, "too few arguments to function call\n");
-    if(expr->variadic.len - 1 > functype->func.args.len)
+    functype = &expr->operand->type;
+    if(functype->type != TYPE_FUNC)
+        error(true, expr->operand->line, expr->operand->col, "expected function or function pointer\n");
+
+    if(expr->variadic.len < functype->func.args.len)
+        error(true, expr->line, expr->col, "too few arguments to function call, expected %d\n");
+    if(expr->variadic.len > functype->func.args.len)
         error(true, expr->line, expr->col, "too many arguments to function call\n");
 
     for(i=0; i<functype->func.args.len; i++)
     {
-        semantics_expr(expr->variadic.data[i+1]);
-        if(!semantics_typecmp(&expr->variadic.data[i+1]->type, &functype->func.args.data[i]))
-            continue;
-        semantics_cast(functype->func.args.data[i], expr->variadic.data[i+1]);
+        semantics_expr(expr->variadic.data[i]);
+        semantics_cast(functype->func.args.data[i], expr->variadic.data[i]);
     }
+
+    semantics_typecpy(&expr->type, functype->func.ret);
+}
+
+static void semantics_var(expr_t* expr)
+{
+    int i, j;
+
+    type_t type;
+
+    assert(expr->op == EXPROP_VAR);
+
+    // more narrow scopes get precedence,
+    // so loop from top to bottom
+    for(i=scope.len-1; i>=0; i--)
+    {
+        if(!strcmp(expr->msg, scope.data[i]->ident))
+            break;
+    }
+    
+    if(i<0)
+    {
+        error(true, expr->line, expr->col, "use of undeclared identifier '%s'\n", expr->msg);
+        exit(1);
+    }
+
+    if(scope.data[i]->form == DECL_FUNC)
+    {
+        expr->type.type = TYPE_FUNC;
+        
+        expr->type.func.ret = malloc(sizeof(type_t));
+        semantics_typecpy(expr->type.func.ret, &scope.data[i]->type);
+
+        list_type_init(&expr->type.func.args, 0);
+        for(j=0; j<scope.data[i]->args.len; j++)
+        {
+            semantics_typecpy(&type, &scope.data[i]->args.data[j].type);
+            list_type_ppush(&expr->type.func.args, &type);
+        }
+
+        expr->lval = false;
+        return;
+    }
+
+    semantics_typecpy(&expr->type, &scope.data[i]->type);
+    expr->lval = true;
 }
 
 static void semantics_expr(expr_t* expr)
 {
-    type_t type;
-
     if(!expr)
         return;
 
@@ -248,9 +272,7 @@ static void semantics_expr(expr_t* expr)
         expr->type.type = semantics_getliteraltype(expr->u64);
         break;
     case EXPROP_VAR:
-        type = semantics_getvariabletype(expr);
-        semantics_typecpy(&expr->type, &type);
-        expr->lval = true;
+        semantics_var(expr);
         break;
     case EXPROP_COND:
         semantics_ternaryexpr(expr);
@@ -339,14 +361,24 @@ static void semantics_compound(globaldecl_t* func, compound_t* compound)
 
 static void semantics_funcdef(globaldecl_t* func)
 {
-    list_pdecl_init(&scope, 0);
+    int i;
+
+    uint64_t scopesize;
+
+    list_pdecl_push(&scope, &func->decl);
+
+    scopesize = scope.len;
+    for(i=0; i<func->decl.args.len; i++)
+        list_pdecl_push(&scope, &func->decl.args.data[i]);
     semantics_compound(func, &func->funcdef);
-    list_pdecl_free(&scope);
+    list_pdecl_resize(&scope, scopesize);
 }
 
 void semantics(void)
 {
     int i;
+
+    list_pdecl_init(&scope, 0);
 
     for(i=0; i<ast.len; i++)
     {
@@ -354,4 +386,6 @@ void semantics(void)
             continue;
         semantics_funcdef(&ast.data[i]);
     }
+
+    list_pdecl_free(&scope);
 }

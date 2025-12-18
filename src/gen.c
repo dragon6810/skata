@@ -205,8 +205,11 @@ ir_primitive_e ir_type2prim(type_e type)
         return IR_PRIM_I64;
     case TYPE_U64:
         return IR_PRIM_U64;
+    case TYPE_FUNC:
+        return IR_PRIM_PTR;
     default:
-        assert(0 && "attempting to convert non-primitive type to an IR primitive!");
+        printf("attempting to convert non-primitive type %d to an IR primitive!\n", (int) type);
+        abort();
     }
 }
 
@@ -663,22 +666,35 @@ static void ir_gen_arglist(ir_funcdef_t* funcdef, list_decl_t* arglist)
 {
     int i;
 
-    ir_var_t var;
+    ir_inst_t inst;
+    ir_var_t var, *pvar;
+    char *reg;
     ir_param_t param;
 
     for(i=0; i<arglist->len; i++)
     {
+        reg = ir_gen_alloctemp(funcdef, ir_type2prim(arglist->data[i].type.type));
+
+        param.name = strdup(arglist->data[i].ident);
+        param.loc.type = IR_LOCATION_REG;
+        param.loc.reg = reg;
+        list_ir_param_push(&funcdef->params, param);
+
         var.name = arglist->data[i].ident;
         var.stackloc = funcdef->varframe;
         var.type.type = IR_TYPE_PRIM;
         var.type.prim = ir_type2prim(arglist->data[i].type.type);
         funcdef->varframe += 4;
-        map_str_ir_var_set(&funcdef->vars, arglist->data[i].ident, var);
+        pvar = map_str_ir_var_set(&funcdef->vars, arglist->data[i].ident, var);
 
-        param.name = strdup(arglist->data[i].ident);
-        param.loc.type = IR_LOCATION_VAR;
-        param.loc.var = strdup(var.name);
-        list_ir_param_push(&funcdef->params, param);
+        inst.op = IR_OP_STORE;
+        inst.binary[0].type = IR_OPERAND_VAR;
+        inst.binary[0].var = pvar;
+        inst.binary[1].type = IR_OPERAND_REG;
+        inst.binary[1].reg.name = strdup(reg);
+        inst.binary[1].reg.type = ir_type2prim(arglist->data[i].type.type);
+
+        list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
     }
 }
 
@@ -702,11 +718,11 @@ static void ir_gen_globaldecl(globaldecl_t *globdecl)
     map_str_ir_var_alloc(&funcdef.vars);
     list_pir_block_init(&funcdef.postorder, 0);
 
-    ir_gen_arglist(&funcdef, &globdecl->decl.args);
-    
     ir_initblock(&funcdef.blocks.data[0]);
     funcdef.blocks.data[0].name = strdup("entry");
     map_str_u64_set(&funcdef.blktbl, funcdef.blocks.data[0].name, 0);
+    
+    ir_gen_arglist(&funcdef, &globdecl->decl.args);
 
     for(i=0; i<globdecl->funcdef.decls.len; i++)
         ir_gen_decl(&funcdef, &globdecl->funcdef.decls.data[i]);

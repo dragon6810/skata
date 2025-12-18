@@ -20,6 +20,7 @@ MAP_DECL(char*, ir_regspan_t, str, ir_regspan)
 
 typedef enum
 {
+    IR_PRIM_PTR,
     IR_PRIM_I8,
     IR_PRIM_U8,
     IR_PRIM_I16,
@@ -94,14 +95,15 @@ typedef struct ir_constant_s
     ir_primitive_e type;
     union
     {
+        uint64_t ptr;
         int8_t i8;
         uint8_t u8;
         int16_t i16;
         uint16_t u16;
         int32_t i32;
         uint32_t u32;
-        int32_t i64;
-        uint32_t u64;
+        int64_t i64;
+        uint64_t u64;
     };
 } ir_constant_t;
 

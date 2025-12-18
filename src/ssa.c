@@ -126,7 +126,6 @@ void ir_ssafunc(ir_funcdef_t* func)
     ir_block_t *df;
     ir_inst_t inst;
     uint64_t idx;
-    char *reg;
 
     for(v=0; v<func->vars.nbin; v++)
     {
@@ -171,18 +170,6 @@ void ir_ssafunc(ir_funcdef_t* func)
             continue;
 
         list_string_init(&namestack, 0);
-        for(i=0; i<func->params.len; i++)
-        {
-            if(strcmp(func->params.data[i].name, func->vars.bins[v].val.name))
-                continue;
-
-            reg = ir_gen_alloctemp(func, func->vars.bins[v].val.type.prim);
-            list_string_push(&namestack, reg);
-            func->params.data[i].loc.type = IR_LOCATION_REG;
-            func->params.data[i].loc.reg = strdup(reg);
-
-            break;
-        }
         ir_rename(func, &func->vars.bins[v].val, &func->blocks.data[0]);
         list_string_free(&namestack);
 

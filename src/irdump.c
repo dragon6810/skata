@@ -130,21 +130,6 @@ void ir_instoperands(list_pir_operand_t* list, ir_inst_t* inst)
         list->data[i] = &inst->ternary[i];
 }
 
-void ir_print_location(ir_location_t* location)
-{
-    switch(location->type)
-    {
-    case IR_LOCATION_REG:
-        printf("\e[0;31m%%%s\e[0m", location->reg);
-        break;
-    case IR_LOCATION_VAR:
-        printf("\e[0;31m$%s\e[0m", location->var);
-        break;
-    default:
-        break;
-    }
-}
-
 static void ir_print_prim(ir_primitive_e prim)
 {
     printf("\e[0;96m");
@@ -193,6 +178,28 @@ void ir_print_type(ir_type_t type)
         break;
     default:
         assert(0);
+        break;
+    }
+}
+
+void ir_print_location(ir_funcdef_t* funcdef, ir_location_t* location)
+{
+    ir_reg_t *reg;
+    ir_var_t *var;
+
+    switch(location->type)
+    {
+    case IR_LOCATION_REG:
+        reg = map_str_ir_reg_get(&funcdef->regs, location->reg);
+        ir_print_prim(reg->type);
+        printf(" \e[0;31m%%%s\e[0m", location->reg);
+        break;
+    case IR_LOCATION_VAR:
+        var = map_str_ir_var_get(&funcdef->vars, location->var);
+        ir_print_type(var->type);
+        printf(" \e[0;31m$%s\e[0m", location->var);
+        break;
+    default:
         break;
     }
 }
@@ -389,7 +396,7 @@ void ir_dump_arglist(ir_funcdef_t* funcdef)
     printf("(");
     for(i=0; i<funcdef->params.len; i++)
     {
-        ir_print_location(&funcdef->params.data[i].loc);
+        ir_print_location(funcdef, &funcdef->params.data[i].loc);
         if(i != funcdef->params.len-1)
             printf(", ");
     }

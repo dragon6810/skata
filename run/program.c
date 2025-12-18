@@ -1,12 +1,9 @@
-int fn()
+short add(short a, int b)
 {
-	
+	return a + b;
 }
 
 int main()
 {
-	short x;
-
-	x = 0;
-	return x;
+	return add(0, 1);
 }
