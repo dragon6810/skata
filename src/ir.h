@@ -155,6 +155,7 @@ typedef struct ir_copy_s
 } ir_copy_t;
 
 LIST_DECL(ir_operand_t, ir_operand)
+LIST_DECL(ir_operand_t*, pir_operand)
 LIST_DECL(ir_copy_t, ir_copy)
 
 typedef struct ir_inst_s
@@ -169,7 +170,11 @@ typedef struct ir_inst_s
     };
 
     // opcode-specific studd
-    char* var; // what variable is this phi-node setting? can be NULL.
+    union
+    {
+        char* var; // what variable is this phi-node setting? can be NULL.
+        bool hasval; // for return statements
+    };
 } ir_inst_t;
 
 LIST_DECL(ir_inst_t, ir_inst)
@@ -257,17 +262,19 @@ void ir_backoptimize(void);
 // sets name to NULL
 void ir_initblock(ir_block_t* block);
 ir_primitive_e ir_type2prim(type_e type);
+ir_primitive_e ir_regtype(ir_funcdef_t* funcdef, char* regname);
 char* ir_gen_alloctemp(ir_funcdef_t *funcdef, ir_primitive_e type);
 void ir_varfree(ir_var_t* var);
 void ir_instfree(ir_inst_t* inst);
 uint64_t ir_newblock(ir_funcdef_t* funcdef);
-bool ir_operandeq(ir_funcdef_t* funcdef, ir_operand_t* a, ir_operand_t* b);
-void ir_cpyoperand(ir_operand_t* dst, ir_operand_t* src);
+void ir_cpyoperand(ir_operand_t* dst, const ir_operand_t* src);
 bool ir_registerwritten(ir_inst_t* inst, char* reg);
 // set shouldn't be initialized
 void ir_definedregs(set_str_t* set, ir_inst_t* inst);
 // set shouldn't be initialized
 void ir_accessedregs(set_str_t* set, ir_inst_t* inst);
+// list shouldn't be intialized
+void ir_instoperands(list_pir_operand_t* list, ir_inst_t* inst);
 
 void ir_free(void);
 void ir_dump(void);

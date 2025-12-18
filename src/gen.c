@@ -22,11 +22,11 @@ void ir_regfree(ir_reg_t* reg)
 
 void ir_varcpy(ir_var_t* dst, ir_var_t* src)
 {
+    memcpy(dst, src, sizeof(ir_var_t));
     dst->name = strdup(src->name);
-    dst->stackloc = src->stackloc;
 }
 
-void ir_cpyoperand(ir_operand_t* dst, ir_operand_t* src)
+void ir_cpyoperand(ir_operand_t* dst, const ir_operand_t* src)
 {
     memcpy(dst, src, sizeof(ir_operand_t));
     switch(dst->type)
@@ -38,6 +38,10 @@ void ir_cpyoperand(ir_operand_t* dst, ir_operand_t* src)
     case IR_OPERAND_LABEL:
         if(dst->label)
             dst->label = strdup(dst->label);
+        break;
+    case IR_OPERAND_FUNC:
+        if(dst->func)
+            dst->func = strdup(dst->func);
         break;
     default:
         break;
@@ -53,6 +57,9 @@ void ir_operandfree(ir_operand_t* operand)
         break;
     case IR_OPERAND_LABEL:
         free(operand->label);
+        break;
+    case IR_OPERAND_FUNC:
+        free(operand->func);
         break;
     default:
         break;
@@ -169,6 +176,8 @@ LIST_DEF(ir_funcdef)
 LIST_DEF_FREE_DECONSTRUCT(ir_funcdef, ir_freefuncdef)
 LIST_DEF(ir_operand)
 LIST_DEF_FREE_DECONSTRUCT(ir_operand, ir_operandfree)
+LIST_DEF(pir_operand)
+LIST_DEF_FREE(pir_operand)
 LIST_DEF(ir_param)
 LIST_DEF_FREE_DECONSTRUCT(ir_param, ir_freeparam)
 LIST_DEF(ir_copy)
@@ -264,7 +273,7 @@ uint64_t ir_newblock(ir_funcdef_t* funcdef)
 // YOU are responsible for the returned string, unless you gave outreg
 static char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg);
 
-static ir_primitive_e ir_gen_regtype(ir_funcdef_t* funcdef, char* regname)
+ir_primitive_e ir_regtype(ir_funcdef_t* funcdef, char* regname)
 {
     ir_reg_t *reg;
 
@@ -290,10 +299,10 @@ static char* ir_gen_ternary(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
     inst.op = IR_OP_CMPEQ;
     inst.ternary[0].type = IR_OPERAND_REG;
     inst.ternary[0].reg.name = ir_gen_alloctemp(funcdef, ir_type2prim(expr->operands[0]->type.type));
-    inst.ternary[0].reg.type = ir_gen_regtype(funcdef, inst.ternary[0].reg.name);
+    inst.ternary[0].reg.type = ir_regtype(funcdef, inst.ternary[0].reg.name);
     inst.ternary[1].type = IR_OPERAND_REG;
     inst.ternary[1].reg.name = ir_gen_expr(funcdef, expr->operands[0], NULL);
-    inst.ternary[1].reg.type = ir_gen_regtype(funcdef, inst.ternary[1].reg.name);
+    inst.ternary[1].reg.type = ir_regtype(funcdef, inst.ternary[1].reg.name);
     inst.ternary[2].type = IR_OPERAND_LIT;
     inst.ternary[2].literal.type = ir_type2prim(expr->operands[0]->type.type);
     inst.ternary[2].literal.u64 = 0;
@@ -302,7 +311,7 @@ static char* ir_gen_ternary(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
     // branch
     inst.op = IR_OP_BR;
     inst.ternary[0].reg.name = strdup(inst.ternary[0].reg.name);
-    inst.ternary[0].reg.type = ir_gen_regtype(funcdef, inst.ternary[0].reg.name);
+    inst.ternary[0].reg.type = ir_regtype(funcdef, inst.ternary[0].reg.name);
     inst.ternary[2].type = IR_OPERAND_LABEL;
     list_ir_inst_ppush(&funcdef->blocks.data[condblk].insts, &inst);
     
@@ -340,17 +349,17 @@ static char* ir_gen_ternary(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
     list_ir_operand_init(&inst.variadic, 5);
     inst.variadic.data[0].type = IR_OPERAND_REG;
     inst.variadic.data[0].reg.name = strdup(res);
-    inst.variadic.data[0].reg.type = ir_gen_regtype(funcdef, res);
+    inst.variadic.data[0].reg.type = ir_regtype(funcdef, res);
     inst.variadic.data[1].type = IR_OPERAND_LABEL;
     inst.variadic.data[1].label = strdup(funcdef->blocks.data[ifblk].name);
     inst.variadic.data[2].type = IR_OPERAND_REG;
     inst.variadic.data[2].reg.name = areg;
-    inst.variadic.data[2].reg.type = ir_gen_regtype(funcdef, areg);
+    inst.variadic.data[2].reg.type = ir_regtype(funcdef, areg);
     inst.variadic.data[3].type = IR_OPERAND_LABEL;
     inst.variadic.data[3].label = strdup(funcdef->blocks.data[elseblk].name);
     inst.variadic.data[4].type = IR_OPERAND_REG;
     inst.variadic.data[4].reg.name = breg;
-    inst.variadic.data[4].reg.type = ir_gen_regtype(funcdef, breg);
+    inst.variadic.data[4].reg.type = ir_regtype(funcdef, breg);
     list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
 
     return res;
@@ -360,6 +369,7 @@ static char* ir_gen_funccall(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
 {
     int i;
 
+    char *res;
     ir_inst_t inst;
     ir_operand_t operand;
 
@@ -373,33 +383,42 @@ static char* ir_gen_funccall(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
     {
         operand.type = IR_OPERAND_REG;
         operand.reg.name = ir_gen_expr(funcdef, expr->variadic.data[i], NULL);
-        operand.reg.type = ir_gen_regtype(funcdef, operand.reg.name);
+        operand.reg.type = ir_regtype(funcdef, operand.reg.name);
         list_ir_operand_push(&inst.variadic, operand);
     }
+
+    if(outreg)
+        res = outreg;
+    else
+        res = ir_gen_alloctemp(funcdef, ir_type2prim(expr->variadic.data[0]->type.type));
     
     inst.variadic.data[0].type = IR_OPERAND_REG;
-    inst.variadic.data[0].reg.name = outreg ? (outreg = strdup(outreg)) 
-                                  : (outreg = ir_gen_alloctemp(funcdef, ir_type2prim(expr->variadic.data[0]->type.type)));
-    inst.variadic.data[0].reg.type = ir_gen_regtype(funcdef, outreg);
+    inst.variadic.data[0].reg.name = strdup(res);
+    inst.variadic.data[0].reg.type = ir_regtype(funcdef, res);
 
     list_ir_inst_push(&funcdef->blocks.data[funcdef->blocks.len-1].insts, inst);
 
-    return outreg;
+    return res;
 }
 
 // if outreg is NULL, it will alloc a new register
 // YOU are responsible for the returned string, unless you gave outreg
-static char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
+char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
 {
     char *res;
     ir_inst_t inst;
+
+    if(outreg)
+        res = outreg;
+    else
+        res = ir_gen_alloctemp(funcdef, ir_type2prim(expr->type.type));
 
     switch(expr->op)
     {
     case EXPROP_LIT:
         inst.op = IR_OP_MOVE;
         inst.binary[0].type = IR_OPERAND_REG;
-        inst.binary[0].reg.name = strdup(res = (outreg ? outreg : ir_gen_alloctemp(funcdef, ir_type2prim(expr->type.type))));
+        inst.binary[0].reg.name = strdup(res);
         inst.binary[0].reg.type = ir_type2prim(expr->type.type);
 
         inst.binary[1].type = IR_OPERAND_LIT;
@@ -411,8 +430,8 @@ static char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
         inst.op = IR_OP_LOAD;
 
         inst.binary[0].type = IR_OPERAND_REG;
-        inst.binary[0].reg.name = strdup(res = (outreg ? outreg : ir_gen_alloctemp(funcdef, ir_type2prim(expr->type.type))));
-        inst.binary[0].reg.type = ir_gen_regtype(funcdef, res);
+        inst.binary[0].reg.name = strdup(res);
+        inst.binary[0].reg.type = ir_regtype(funcdef, res);
 
         inst.binary[1].type = IR_OPERAND_VAR;
         inst.binary[1].var = map_str_ir_var_get(&funcdef->vars, expr->msg);
@@ -426,7 +445,7 @@ static char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
         list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
         return res;
     case EXPROP_COND:
-        return ir_gen_ternary(funcdef, expr, outreg);
+        return ir_gen_ternary(funcdef, expr, res);
     case EXPROP_ADD:
         inst.op = IR_OP_ADD;
         break;
@@ -442,9 +461,8 @@ static char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
         inst.binary[0].var = map_str_ir_var_get(&funcdef->vars, expr->operands[0]->msg);
 
         inst.binary[1].type = IR_OPERAND_REG;
-        inst.binary[1].reg.name = ir_gen_expr(funcdef, expr->operands[1], outreg);
-        inst.binary[1].reg.type = ir_gen_regtype(funcdef, inst.binary[1].reg.name);
-        res = strdup(inst.binary[1].reg.name);
+        inst.binary[1].reg.name = strdup(ir_gen_expr(funcdef, expr->operands[1], res));
+        inst.binary[1].reg.type = ir_regtype(funcdef, inst.binary[1].reg.name);
 
         if(!inst.binary[0].var)
         {
@@ -459,12 +477,11 @@ static char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
     case EXPROP_CAST:
         inst.op = IR_OP_CAST;
         inst.binary[0].type = IR_OPERAND_REG;
-        inst.binary[0].reg.name = outreg ? (res = outreg) 
-                                : (res = ir_gen_alloctemp(funcdef, ir_type2prim(expr->operands[0]->type.type)));
-        inst.binary[0].reg.type = ir_gen_regtype(funcdef, res);
+        inst.binary[0].reg.name = strdup(res);
+        inst.binary[0].reg.type = ir_regtype(funcdef, res);
         inst.binary[1].type = IR_OPERAND_REG;
-        inst.binary[1].reg.name = ir_gen_expr(funcdef, expr->operands[1], NULL);
-        inst.binary[1].reg.type = ir_gen_regtype(funcdef, inst.binary[1].reg.name);
+        inst.binary[1].reg.name = strdup(ir_gen_expr(funcdef, expr->operand, NULL));
+        inst.binary[1].reg.type = ir_regtype(funcdef, inst.binary[1].reg.name);
 
         list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
         return res;
@@ -474,17 +491,16 @@ static char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
     }
 
     inst.ternary[1].type = IR_OPERAND_REG;
-    inst.ternary[1].reg.name = ir_gen_expr(funcdef, expr->operands[0], NULL);
-    inst.ternary[1].reg.type = ir_gen_regtype(funcdef, inst.ternary[1].reg.name);
+    inst.ternary[1].reg.name = strdup(ir_gen_expr(funcdef, expr->operands[0], NULL));
+    inst.ternary[1].reg.type = ir_regtype(funcdef, inst.ternary[1].reg.name);
 
     inst.ternary[2].type = IR_OPERAND_REG;
-    inst.ternary[2].reg.name = ir_gen_expr(funcdef, expr->operands[1], NULL);
-    inst.ternary[2].reg.type = ir_gen_regtype(funcdef, inst.ternary[2].reg.name);
+    inst.ternary[2].reg.name = strdup(ir_gen_expr(funcdef, expr->operands[1], NULL));
+    inst.ternary[2].reg.type = ir_regtype(funcdef, inst.ternary[2].reg.name);
     
     inst.ternary[0].type = IR_OPERAND_REG;
-    inst.ternary[0].reg.name = strdup(res = (outreg ? outreg 
-                             : ir_gen_alloctemp(funcdef, ir_type2prim(expr->operands[0]->type.type))));
-    inst.ternary[0].reg.type = ir_gen_regtype(funcdef, res);
+    inst.ternary[0].reg.name = strdup(res);
+    inst.ternary[0].reg.type = ir_regtype(funcdef, res);
     list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
 
     return res;
@@ -497,7 +513,8 @@ static void ir_gen_return(ir_funcdef_t *funcdef, expr_t *expr)
     inst.op = IR_OP_RET;
     inst.unary.type = IR_OPERAND_REG;
     inst.unary.reg.name = ir_gen_expr(funcdef, expr, NULL);
-    inst.unary.reg.type = ir_gen_regtype(funcdef, inst.unary.reg.name);
+    inst.unary.reg.type = ir_regtype(funcdef, inst.unary.reg.name);
+    inst.hasval = true;
 
     list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
 }
@@ -516,10 +533,10 @@ static void ir_gen_if(ir_funcdef_t* funcdef, ifstmnt_t* ifstmnt)
     inst.op = IR_OP_CMPEQ;
     inst.ternary[0].type = IR_OPERAND_REG;
     inst.ternary[0].reg.name = ir_gen_alloctemp(funcdef, ir_type2prim(ifstmnt->expr->type.type));
-    inst.ternary[0].reg.type = ir_gen_regtype(funcdef, inst.ternary[0].reg.name);
+    inst.ternary[0].reg.type = ir_regtype(funcdef, inst.ternary[0].reg.name);
     inst.ternary[1].type = IR_OPERAND_REG;
     inst.ternary[1].reg.name = ir_gen_expr(funcdef, ifstmnt->expr, NULL);
-    inst.ternary[1].reg.type = ir_gen_regtype(funcdef, inst.ternary[1].reg.name);
+    inst.ternary[1].reg.type = ir_regtype(funcdef, inst.ternary[1].reg.name);
     inst.ternary[2].type = IR_OPERAND_LIT;
     inst.ternary[2].literal.type = ir_type2prim(ifstmnt->expr->type.type);
     inst.ternary[2].literal.u64 = 0;
@@ -563,10 +580,10 @@ static void ir_gen_while(ir_funcdef_t* funcdef, whilestmnt_t* whilestmnt)
     inst.op = IR_OP_CMPEQ;
     inst.ternary[0].type = IR_OPERAND_REG;
     inst.ternary[0].reg.name = ir_gen_alloctemp(funcdef, ir_type2prim(whilestmnt->expr->type.type));
-    inst.ternary[0].reg.type = ir_gen_regtype(funcdef, inst.ternary[0].reg.name);
+    inst.ternary[0].reg.type = ir_regtype(funcdef, inst.ternary[0].reg.name);
     inst.ternary[1].type = IR_OPERAND_REG;
     inst.ternary[1].reg.name = ir_gen_expr(funcdef, whilestmnt->expr, NULL);
-    inst.ternary[1].reg.type = ir_gen_regtype(funcdef, inst.ternary[1].reg.name);
+    inst.ternary[1].reg.type = ir_regtype(funcdef, inst.ternary[1].reg.name);
     inst.ternary[2].type = IR_OPERAND_LIT;
     inst.ternary[2].literal.type = ir_type2prim(whilestmnt->expr->type.type);
     inst.ternary[2].literal.u64 = 0;
@@ -633,6 +650,8 @@ static void ir_gen_decl(ir_funcdef_t* funcdef, decl_t* decl)
 
     var.name = strdup(decl->ident);
     var.stackloc = funcdef->varframe;
+    var.type.type = IR_TYPE_PRIM;
+    var.type.prim = ir_type2prim(decl->type.type);
     funcdef->varframe += 4;
 
     map_str_ir_var_set(&funcdef->vars, decl->ident, var);
@@ -651,6 +670,8 @@ static void ir_gen_arglist(ir_funcdef_t* funcdef, list_decl_t* arglist)
     {
         var.name = arglist->data[i].ident;
         var.stackloc = funcdef->varframe;
+        var.type.type = IR_TYPE_PRIM;
+        var.type.prim = ir_type2prim(arglist->data[i].type.type);
         funcdef->varframe += 4;
         map_str_ir_var_set(&funcdef->vars, arglist->data[i].ident, var);
 

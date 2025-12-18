@@ -5,7 +5,7 @@ int fn()
 
 int main()
 {
-	int x;
+	short x;
 
 	x = 0;
 	return x;

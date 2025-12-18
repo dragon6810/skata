@@ -86,6 +86,50 @@ void ir_accessedregs(set_str_t* set, ir_inst_t* inst)
     }
 }
 
+void ir_instoperands(list_pir_operand_t* list, ir_inst_t* inst)
+{
+    int i;
+
+    int noperands;
+    
+    assert(inst);
+
+    switch(inst->op)
+    {
+    case IR_OP_RET:
+        noperands = inst->hasval;
+        break;
+    case IR_OP_JMP:
+        noperands = 1;
+        break;
+    case IR_OP_MOVE:
+    case IR_OP_STORE:
+    case IR_OP_LOAD:
+    case IR_OP_CAST:
+        noperands = 2;
+        break;
+    case IR_OP_ADD:
+    case IR_OP_SUB:
+    case IR_OP_MUL:
+    case IR_OP_CMPEQ:
+    case IR_OP_BR:
+        noperands = 3;
+        break;
+    case IR_OP_PHI:
+    case IR_OP_CALL:
+        list_pir_operand_init(list, inst->variadic.len);
+        for(i=0; i<inst->variadic.len; i++)
+            list->data[i] = &inst->variadic.data[i];
+        return;
+    default:
+        assert(0);
+    }
+
+    list_pir_operand_init(list, noperands);
+    for(i=0; i<noperands; i++)
+        list->data[i] = &inst->ternary[i];
+}
+
 void ir_print_location(ir_location_t* location)
 {
     switch(location->type)
@@ -292,6 +336,13 @@ void ir_dump_inst(ir_funcdef_t* funcdef, ir_inst_t* inst)
                 printf(", ");
         }
         printf(")\n");
+        break;
+    case IR_OP_CAST:
+        printf("  ");
+        ir_print_operand(funcdef, &inst->binary[0]);
+        printf("\e[0;95m := cast ");
+        ir_print_operand(funcdef, &inst->binary[1]);
+        printf("\n");
         break;
     default:
         assert(0 && "unkown ir opcode");

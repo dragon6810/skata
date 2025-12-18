@@ -28,6 +28,33 @@ static void ir_insertcpy(ir_block_t* blk, ir_copy_t* cpy)
     list_ir_inst_insert(&blk->insts, idx, inst);
 }
 
+static bool ir_operandsamelocation(ir_funcdef_t* funcdef, const ir_operand_t* a, const ir_operand_t* b)
+{
+    ir_reg_t *areg, *breg;
+
+    if(a->type != b->type)
+        return false;
+    
+    switch(a->type)
+    {
+    case IR_OPERAND_REG:
+        if(strcmp(a->reg.name, b->reg.name))
+            return false;
+        
+        areg = map_str_ir_reg_get(&funcdef->regs, a->reg.name);
+        breg = map_str_ir_reg_get(&funcdef->regs, a->reg.name);
+
+        if(!areg->hardreg || areg->hardreg != breg->hardreg)
+            return false;
+
+        return true;
+    case IR_OPERAND_VAR:
+        return !strcmp(a->var->name, b->var->name);
+    default:
+        return false;
+    }
+}
+
 // returns true if dst is not used as any other src
 static bool ir_iscpyacyclic(ir_funcdef_t* funcdef, ir_block_t* blk, uint64_t idx)
 {
@@ -38,7 +65,7 @@ static bool ir_iscpyacyclic(ir_funcdef_t* funcdef, ir_block_t* blk, uint64_t idx
         if(idx == i)
             continue;
 
-        if(ir_operandeq(funcdef, &blk->phicpys.data[i].src, &blk->phicpys.data[idx].dst))
+        if(ir_operandsamelocation(funcdef, &blk->phicpys.data[i].src, &blk->phicpys.data[idx].dst))
             return false;
     }
 

@@ -1,6 +1,6 @@
 CC = clang
 LDFLAGS = -fsanitize=address
-CFLAGS = -MMD -Wall -Werror -fsanitize=address -g
+CFLAGS = -MMD -Wall -Werror -fsanitize=address -O0 -g
 
 BIN_DIR = bin
 OBJ_DIR = obj
