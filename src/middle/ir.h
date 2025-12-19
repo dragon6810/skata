@@ -255,8 +255,6 @@ extern ir_t ir;
 
 void ir_operandfree(ir_operand_t* operand);
 
-void ir_lower(void);
-void ir_backoptimize(void);
 // sets name to NULL
 void ir_initblock(ir_block_t* block);
 ir_primitive_e ir_regtype(ir_funcdef_t* funcdef, char* regname);

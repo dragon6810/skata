@@ -47,6 +47,35 @@ char* loadsrctext(void)
     return srctext;
 }
 
+bool compileback(void)
+{
+    back_castreduction();
+    if(emitbackir)
+    {
+        ir_dump();
+        return true;
+    }
+
+    reglifetime();
+    regalloc();
+    if(emitreggraph)
+    {
+        dumpreggraph();
+        return true;
+    }
+
+    back_lower();
+    if(emitlowered)
+    {
+        ir_dump();
+        return true;
+    }
+
+    back_gen();
+    
+    return false;
+}
+
 bool compilemiddle(void)
 {
     flow();
@@ -112,34 +141,9 @@ void compile(void)
         return;
     }
 
-    back_castreduction();
-    if(emitbackir)
-    {
-        ir_dump();
-        goto freestuff;
-    }
-
-    reglifetime();
-    regalloc();
-    if(emitreggraph)
-    {
-        dumpreggraph();
-        goto freestuff;
-    }
-
-    ir_lower();
-    // ir_backoptimize();
-    if(emitlowered)
-    {
-        ir_dump();
-        goto freestuff;
-    }
-
-    back_gen();
+    compileback();
     
-freestuff:
     ir_free();
-    front_free();
 }
 
 void usage(char* program)

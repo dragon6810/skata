@@ -267,6 +267,7 @@ static void armgen_emitparamcopy(ir_funcdef_t* funcdef,
 {
     int i;
 
+    ir_reg_t *reg;
     hardreg_t *scratch;
     ir_primitive_e prim;
 
@@ -306,15 +307,21 @@ static void armgen_emitparamcopy(ir_funcdef_t* funcdef,
     switch(operand->type)
     {
     case IR_OPERAND_REG:
-        printf("  STR %s, [sp, #%d]\n", map_str_ir_reg_get(&funcdef->regs, operand->reg.name)->hardreg->name, (int) *stackoffs);
+        reg = map_str_ir_reg_get(&funcdef->regs, operand->reg.name);
+        printf("  %s %s, [sp, #%d]\n",
+            armgen_storeinst(reg->type),
+            *map_u64_str_get(&reg->hardreg->names, reg->type), (int) *stackoffs);
         break;
     case IR_OPERAND_VAR:
-        printf("  %s %s, [fp, #%d]\n", armgen_loadinst(operand->var->type.prim), scratch->name, operand->var->stackloc);
-        printf("  %s %s, [sp, #%d]\n", armgen_storeinst(operand->var->type.prim), scratch->name, (int) *stackoffs);
+        printf("  %s %s, [fp, #%d]\n", armgen_loadinst(operand->var->type.prim),
+            *map_u64_str_get(&scratch->names, operand->var->type.prim), operand->var->stackloc);
+        printf("  %s %s, [sp, #%d]\n", armgen_storeinst(operand->var->type.prim),
+            *map_u64_str_get(&scratch->names, operand->var->type.prim), (int) *stackoffs);
         break;
     case IR_OPERAND_LIT:
         printf("  MOV %s, #%"PRIi64"\n", scratch->name, operand->literal.u64);
-        printf("  %s %s, [sp, #%d]\n", armgen_storeinst(operand->literal.type), scratch->name, (int) *stackoffs);
+        printf("  %s %s, [sp, #%d]\n", armgen_storeinst(operand->literal.type),
+            *map_u64_str_get(&scratch->names, operand->literal.type), (int) *stackoffs);
         break;
     default:
         assert(0);
@@ -446,7 +453,10 @@ static void armgen_emitcall(ir_funcdef_t* funcdef, ir_block_t* blk, ir_inst_t* i
         if(saved.bins[i].state != SET_EL_FULL)
             continue;
         
-        printf("  STR %s, [sp, #%d]\n", saved.bins[i].val->name, stackcur);
+        printf("  %s %s, [sp, #%d]\n", 
+            armgen_storeinst(saved.bins[i].val->type),
+            *map_u64_str_get(&saved.bins[i].val->hardreg->names, saved.bins[i].val->type), 
+            stackcur);
         stackcur += 4;
     }
 
@@ -457,7 +467,9 @@ static void armgen_emitcall(ir_funcdef_t* funcdef, ir_block_t* blk, ir_inst_t* i
     assert(inst->variadic.data[0].type == IR_OPERAND_REG);
     reg = map_str_ir_reg_get(&funcdef->regs, inst->variadic.data[0].reg.name);
     if(reg->hardreg != retpool.data[0])
-        printf("  MOV %s, %s\n", reg->hardreg->name, retpool.data[0]->name);
+        printf("  MOV %s, %s\n", 
+            *map_u64_str_get(&reg->hardreg->names, inst->variadic.data[0].type), 
+            *map_u64_str_get(&retpool.data[0]->names, inst->variadic.data[0].type));
 
     // restore caller-saved
     for(i=0, stackcur=paramsize; i<saved.nbin; i++)
@@ -496,7 +508,7 @@ static void armgen_emitmul(ir_funcdef_t* funcdef, ir_inst_t* inst)
 {
     if(inst->ternary[2].type == IR_OPERAND_LIT)
     {
-        printf("  MOV %s, ", scratchlist.data[0]->name);
+        printf("  MOV %s, ", *map_u64_str_get(&scratchlist.data[0]->names, inst->ternary[2].literal.type));
         armgen_operand(funcdef, &inst->ternary[2]);
         printf("\n");
 
@@ -504,7 +516,7 @@ static void armgen_emitmul(ir_funcdef_t* funcdef, ir_inst_t* inst)
         armgen_operand(funcdef, &inst->ternary[0]);
         printf(", ");
         armgen_operand(funcdef, &inst->ternary[1]);
-        printf(", %s\n", scratchlist.data[0]->name);
+        printf(", %s\n", *map_u64_str_get(&scratchlist.data[0]->names, inst->ternary[2].literal.type));
         
         return;
     }
@@ -551,7 +563,7 @@ static void armgen_inst(ir_funcdef_t* funcdef, ir_block_t* blk, ir_inst_t* inst)
         armgen_emitmul(funcdef, inst);
         break;
     case IR_OP_RET:
-        printf("  MOV %s, ", retpool.data[0]->name);
+        printf("  MOV %s, ", *map_u64_str_get(&retpool.data[0]->names, funcdef->rettype.prim));
         armgen_operand(funcdef, &inst->unary);
         printf("\n");
         printf("  B _%s$exit\n", funcdef->name);
@@ -695,13 +707,16 @@ static void armgen_funcheader(ir_funcdef_t* funcdef)
 
     printf("  SUB sp, sp, #%d\n", framesize);
 
-    for(i=0, savedoffs=0; i<savedregs.nbin; i++)
+    for(i=0, savedoffs=16; i<savedregs.nbin; i++)
     {
         if(savedregs.bins[i].state != SET_EL_FULL)
             continue;
 
-        printf("  STR %s, [sp, #%d]\n", savedregs.bins[i].val->name, savedoffs + 16);
-        savedoffs += 4;
+        printf("  %s %s, [sp, #%d]\n", 
+            armgen_storeinst(savedregs.bins[i].val->type),
+            *map_u64_str_get(&savedregs.bins[i].val->hardreg->names, savedregs.bins[i].val->type), 
+            savedoffs);
+        savedoffs += ir_primbytesize(savedregs.bins[i].val->type);
     }
 
     printf("  STP fp, lr, [sp]\n");
@@ -713,20 +728,21 @@ static void armgen_funcheader(ir_funcdef_t* funcdef)
     {
         assert(param->loc.type == IR_LOCATION_REG);
 
+        reg = map_str_ir_reg_get(&funcdef->regs, param->loc.reg);
         if(nregparam < parampool.len)
         {
-            reg = map_str_ir_reg_get(&funcdef->regs, param->loc.reg);
 
             if(strcmp(reg->hardreg->name, parampool.data[nregparam]->name))
                 printf("  MOV %s, %s\n", 
-                    reg->hardreg->name,
-                    parampool.data[nregparam]->name);
+                    *map_u64_str_get(&reg->hardreg->names, reg->type),
+                    *map_u64_str_get(&parampool.data[nregparam]->names, reg->type));
             nregparam++;
             continue;
         }
 
-        printf("  LDR %s, [sp, #%d]\n", 
-            map_str_ir_reg_get(&funcdef->regs, param->loc.reg)->hardreg->name,
+        printf("  %s %s, [sp, #%d]\n", 
+            armgen_loadinst(reg->type),
+            *map_u64_str_get(&reg->hardreg->names, reg->type),
             framesize + stackparamoffs);
         stackparamoffs += 4;
     }

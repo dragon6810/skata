@@ -5,7 +5,7 @@
 #include "middle/ir.h"
 
 // copies ownership of operands
-static void ir_insertcpy(ir_block_t* blk, ir_copy_t* cpy)
+static void insertcpy(ir_block_t* blk, ir_copy_t* cpy)
 {
     uint64_t idx;
     ir_inst_t inst;
@@ -30,7 +30,7 @@ static void ir_insertcpy(ir_block_t* blk, ir_copy_t* cpy)
     list_ir_inst_insert(&blk->insts, idx, inst);
 }
 
-static bool ir_operandsamelocation(ir_funcdef_t* funcdef, const ir_operand_t* a, const ir_operand_t* b)
+static bool operandsamelocation(ir_funcdef_t* funcdef, const ir_operand_t* a, const ir_operand_t* b)
 {
     ir_reg_t *areg, *breg;
 
@@ -58,7 +58,7 @@ static bool ir_operandsamelocation(ir_funcdef_t* funcdef, const ir_operand_t* a,
 }
 
 // returns true if dst is not used as any other src
-static bool ir_iscpyacyclic(ir_funcdef_t* funcdef, ir_block_t* blk, uint64_t idx)
+static bool iscpyacyclic(ir_funcdef_t* funcdef, ir_block_t* blk, uint64_t idx)
 {
     int i;
 
@@ -67,24 +67,24 @@ static bool ir_iscpyacyclic(ir_funcdef_t* funcdef, ir_block_t* blk, uint64_t idx
         if(idx == i)
             continue;
 
-        if(ir_operandsamelocation(funcdef, &blk->phicpys.data[i].src, &blk->phicpys.data[idx].dst))
+        if(operandsamelocation(funcdef, &blk->phicpys.data[i].src, &blk->phicpys.data[idx].dst))
             return false;
     }
 
     return true;
 }
 
-static void ir_sequentializecpys(ir_funcdef_t* funcdef, ir_block_t* blk)
+static void sequentializecpys(ir_funcdef_t* funcdef, ir_block_t* blk)
 {
     int i;
 
     // weed out acyclic copies
     for(i=0; i<blk->phicpys.len; i++)
     {
-        if(!ir_iscpyacyclic(funcdef, blk, i))
+        if(!iscpyacyclic(funcdef, blk, i))
             continue;
 
-        ir_insertcpy(blk, &blk->phicpys.data[i]);
+        insertcpy(blk, &blk->phicpys.data[i]);
         list_ir_copy_remove(&blk->phicpys, i);
         i--;
     }
@@ -93,7 +93,7 @@ static void ir_sequentializecpys(ir_funcdef_t* funcdef, ir_block_t* blk)
     assert(!blk->phicpys.len);
 }
 
-static void ir_findphicpys(ir_funcdef_t* funcdef, ir_inst_t* inst)
+static void findphicpys(ir_funcdef_t* funcdef, ir_inst_t* inst)
 {
     int i;
     ir_copy_t cpy;
@@ -116,7 +116,7 @@ static void ir_findphicpys(ir_funcdef_t* funcdef, ir_inst_t* inst)
     }
 }
 
-static void ir_findblkcpys(ir_funcdef_t* funcdef, ir_block_t* blk)
+static void findblkcpys(ir_funcdef_t* funcdef, ir_block_t* blk)
 {
     int i;
 
@@ -125,13 +125,13 @@ static void ir_findblkcpys(ir_funcdef_t* funcdef, ir_block_t* blk)
         if(blk->insts.data[i].op != IR_OP_PHI)
             continue;
             
-        ir_findphicpys(funcdef, &blk->insts.data[i]);
+        findphicpys(funcdef, &blk->insts.data[i]);
         list_ir_inst_remove(&blk->insts, i);
         i--;
     }
 }
 
-static void ir_replacephiedge(ir_block_t* blk, const char* oldlabel, const char* newlabel)
+static void replacephiedge(ir_block_t* blk, const char* oldlabel, const char* newlabel)
 {
     int i, j;
 
@@ -155,7 +155,7 @@ static void ir_replacephiedge(ir_block_t* blk, const char* oldlabel, const char*
     }
 }
 
-static void ir_elimcriticaledges(ir_funcdef_t* funcdef)
+static void elimcriticaledges(ir_funcdef_t* funcdef)
 {
     int i, b, e;
     ir_block_t *blk;
@@ -188,7 +188,7 @@ static void ir_elimcriticaledges(ir_funcdef_t* funcdef)
                 edge = &funcdef->blocks.data[phiblk];
                 newblk = &funcdef->blocks.data[idx];
 
-                ir_replacephiedge(edge, blk->name, newblk->name);
+                replacephiedge(edge, blk->name, newblk->name);
 
                 pinst = &blk->insts.data[blk->insts.len-1];
                 for(i=1; i<3; i++)
@@ -216,23 +216,23 @@ static void ir_elimcriticaledges(ir_funcdef_t* funcdef)
     } while(foundedge);
 }
 
-static void ir_lowerfunc(ir_funcdef_t* funcdef)
+static void lowerfunc(ir_funcdef_t* funcdef)
 {
     int i;
 
-    ir_elimcriticaledges(funcdef);
+    elimcriticaledges(funcdef);
 
     for(i=0; i<funcdef->blocks.len; i++)
-        ir_findblkcpys(funcdef, &funcdef->blocks.data[i]);
+        findblkcpys(funcdef, &funcdef->blocks.data[i]);
 
     for(i=0; i<funcdef->blocks.len; i++)
-        ir_sequentializecpys(funcdef, &funcdef->blocks.data[i]);
+        sequentializecpys(funcdef, &funcdef->blocks.data[i]);
 }
 
-void ir_lower(void)
+void back_lower(void)
 {
     int i;
 
     for(i=0; i<ir.defs.len; i++)
-        ir_lowerfunc(&ir.defs.data[i]);
+        lowerfunc(&ir.defs.data[i]);
 }
