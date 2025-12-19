@@ -28,6 +28,7 @@ void ir_definedregs(set_str_t* set, ir_inst_t* inst)
         break;
     case IR_OP_MOVE:
     case IR_OP_LOAD:
+    case IR_OP_CAST:
         set_str_add(set, inst->binary[0].reg.name);
         break;
     case IR_OP_ADD:
@@ -57,6 +58,7 @@ void ir_accessedregs(set_str_t* set, ir_inst_t* inst)
     {
     case IR_OP_MOVE:
     case IR_OP_STORE:
+    case IR_OP_CAST:
         if(inst->binary[1].type == IR_OPERAND_REG) set_str_add(set, inst->binary[1].reg.name);
         break;
     case IR_OP_ADD:

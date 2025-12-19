@@ -231,6 +231,7 @@ typedef struct ir_funcdef_s
     // '@' prefix implicit
     char *name;
 
+    ir_type_t rettype;
     list_ir_param_t params;
 
     uint64_t ntempreg;
@@ -269,7 +270,8 @@ char* ir_gen_alloctemp(ir_funcdef_t *funcdef, ir_primitive_e type);
 void ir_varfree(ir_var_t* var);
 void ir_instfree(ir_inst_t* inst);
 uint64_t ir_newblock(ir_funcdef_t* funcdef);
-void ir_cpyoperand(ir_operand_t* dst, const ir_operand_t* src);
+int ir_primbytesize(ir_primitive_e prim);
+void ir_cpyoperand(ir_operand_t* dst, ir_operand_t* src);
 bool ir_registerwritten(ir_inst_t* inst, char* reg);
 // set shouldn't be initialized
 void ir_definedregs(set_str_t* set, ir_inst_t* inst);

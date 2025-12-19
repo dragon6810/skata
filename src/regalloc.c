@@ -5,7 +5,7 @@
 
 uint64_t hash_hardreg(hardreg_t* val)
 {
-    return val->flags * 3 + hash_str(&val->name);
+    return hash_str(&val->name) * 3 + val->flags;
 }
 
 bool cmp_hardreg(hardreg_t* a, hardreg_t* b)
@@ -17,11 +17,13 @@ void cpy_hardreg(hardreg_t* dst, hardreg_t* src)
 {
     dst->flags = src->flags;
     dst->name = strdup(src->name);
+    map_u64_str_dup(&dst->names, &src->names);
 }
 
 void free_hardreg(hardreg_t* val)
 {
     free(val->name);
+    map_u64_str_free(&val->names);
 }
 
 uint64_t hash_phardreg(hardreg_t** val)

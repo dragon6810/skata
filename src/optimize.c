@@ -5,7 +5,7 @@
 static bool madechange;
 
 // preserves dst type
-static void ir_operandreplace(ir_operand_t* dst, const ir_operand_t* src)
+static void ir_operandreplace(ir_operand_t* dst, ir_operand_t* src)
 {
     if(dst == src)
         return;

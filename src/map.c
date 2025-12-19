@@ -60,3 +60,4 @@ void map_freestr(char** str)
 
 MAP_DEF(char*, char*, str, str, hash_str, map_strcmp, map_strcpy, map_strcpy, map_freestr, map_freestr)
 MAP_DEF(char*, uint64_t, str, u64, hash_str, map_strcmp, map_strcpy, NULL, map_freestr, NULL)
+MAP_DEF(uint64_t, char*, u64, str, hash_u64, NULL, NULL, map_strcpy, NULL, map_freestr)

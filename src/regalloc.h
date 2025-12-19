@@ -16,6 +16,8 @@ typedef struct hardreg_s
     // HARDREG_XX
     uint32_t flags;
     char *name;
+    // ir_prim_e -> str
+    map_u64_str_t names;
 } hardreg_t;
 
 LIST_DECL(hardreg_t, hardreg)

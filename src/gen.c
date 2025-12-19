@@ -26,7 +26,7 @@ void ir_varcpy(ir_var_t* dst, ir_var_t* src)
     dst->name = strdup(src->name);
 }
 
-void ir_cpyoperand(ir_operand_t* dst, const ir_operand_t* src)
+void ir_cpyoperand(ir_operand_t* dst, ir_operand_t* src)
 {
     memcpy(dst, src, sizeof(ir_operand_t));
     switch(dst->type)
