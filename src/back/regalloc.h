@@ -1,7 +1,7 @@
 #ifndef _REGALLOC_H
 #define _REGALLOC_H
 
-#include "ir.h"
+#include "middle/ir.h"
 
 // default to callee saved
 #define HARDREG_CALLER      0x01

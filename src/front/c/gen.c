@@ -1,4 +1,4 @@
-#include "ir.h"
+#include "middle/ir.h"
 
 #include <assert.h>
 #include <stdio.h>

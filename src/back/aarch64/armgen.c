@@ -1,10 +1,10 @@
-#include "asmgen.h"
+#include "back/back.h"
 
 #include <assert.h>
 #include <inttypes.h>
 #include <stdio.h>
 
-#include "regalloc.h"
+#include "back/regalloc.h"
 
 const char* armheader = 
 ".text\n"
@@ -34,7 +34,7 @@ static void arm_genregnames(hardreg_t* reg)
     reg->name[0] = 'r';
 }
 
-void arm_specinit(void)
+void back_init(void)
 {
     hardreg_t reg;
 
@@ -155,6 +155,8 @@ void arm_specinit(void)
     reg.name = strdup("r28");
     arm_genregnames(&reg);
     list_hardreg_ppush(&regpool, &reg);
+
+    regalloc_init();
 }
 
 static const char* armgen_loadinst(ir_primitive_e prim)
@@ -749,7 +751,7 @@ static void armgen_funcdef(ir_funcdef_t* funcdef)
     printf("\n");
 }
 
-void asmgen_arm(void)
+void back_gen(void)
 {
     int i;
 

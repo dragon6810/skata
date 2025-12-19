@@ -117,7 +117,7 @@ static void ir_populateworklist(list_pir_block_t* worklist, ir_funcdef_t* func, 
     }
 }
 
-void ir_ssafunc(ir_funcdef_t* func)
+static void ir_ssafunc(ir_funcdef_t* func)
 {
     int v, i;
     
@@ -180,7 +180,7 @@ void ir_ssafunc(ir_funcdef_t* func)
     }
 }
 
-void ir_ssa(void)
+void ssa(void)
 {
     int i;
 

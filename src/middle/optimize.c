@@ -47,7 +47,7 @@ static void ir_operandreplace(ir_operand_t* dst, ir_operand_t* src)
     memcpy(dst, &newop, sizeof(ir_operand_t));
 }
 
-bool ir_operandhasreg(ir_funcdef_t* funcdef, ir_operand_t* operand, const char* reg)
+static bool ir_operandhasreg(ir_funcdef_t* funcdef, ir_operand_t* operand, const char* reg)
 {
     if(operand->type != IR_OPERAND_REG)
         return false;
@@ -85,7 +85,7 @@ static void ir_aliasreg(ir_funcdef_t* funcdef, const char* reg, ir_operand_t* op
     free(regname);
 }
 
-void ir_eliminatemoves(ir_funcdef_t* funcdef)
+static void ir_eliminatemoves(ir_funcdef_t* funcdef)
 {
     int b, i;
     ir_block_t *blk;
@@ -120,7 +120,7 @@ static void ir_convertlit(ir_constant_t* lit, ir_primitive_e type)
     lit->type = type;
 }
 
-void ir_eliminatelitcasts(ir_funcdef_t* funcdef)
+static void ir_eliminatelitcasts(ir_funcdef_t* funcdef)
 {
     int b, i;
     ir_block_t *blk;
@@ -143,7 +143,7 @@ void ir_eliminatelitcasts(ir_funcdef_t* funcdef)
     }
 }
 
-void ir_lowersinglephi(ir_funcdef_t* funcdef)
+static void ir_lowersinglephi(ir_funcdef_t* funcdef)
 {
     int b, i;
     ir_block_t *blk;
@@ -172,7 +172,7 @@ void ir_lowersinglephi(ir_funcdef_t* funcdef)
     }
 }
 
-void ir_middleoptimize(void)
+void optimize(void)
 {
     int i;
 
@@ -187,9 +187,4 @@ void ir_middleoptimize(void)
             ir_eliminatemoves(&ir.defs.data[i]);
         } while(madechange);
     }
-}
-
-void ir_backoptimize(void)
-{
-    
 }

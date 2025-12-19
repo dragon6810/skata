@@ -2,7 +2,7 @@
 #include <stdio.h>
 
 #include "ast.h"
-#include "error.h"
+#include "front/error.h"
 
 list_pdecl_t scope;
 

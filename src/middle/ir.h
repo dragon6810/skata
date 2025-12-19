@@ -255,10 +255,6 @@ extern ir_t ir;
 
 void ir_operandfree(ir_operand_t* operand);
 
-void ir_gen(void);
-void ir_flow(void);
-void ir_ssa(void);
-void ir_middleoptimize(void);
 void ir_lower(void);
 void ir_backoptimize(void);
 // sets name to NULL

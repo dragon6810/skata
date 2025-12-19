@@ -18,7 +18,10 @@ BACK_AARCH64_DIR = aarch64
 LANG = c
 PLATFORM = aarch64
 
-SRC_FILE = $(wildcard $(SRC_DIR)/*.c) $(wildcard $(SRC_DIR)/$(MIDDLE_DIR)/*.c)
+SRC_FILE = $(wildcard $(SRC_DIR)/*.c)
+SRC_FILE += $(wildcard $(SRC_DIR)/$(FRONT_DIR)/*.c)
+SRC_FILE += $(wildcard $(SRC_DIR)/$(MIDDLE_DIR)/*.c)
+SRC_FILE += $(wildcard $(SRC_DIR)/$(BACK_DIR)/*.c)
 OBJ_FILE = $(addprefix $(OBJ_DIR)/, $(addsuffix .o, $(SRC_FILE)))
 DEP_FILE = $(OBJ_FILE:.o=.d)
 BIN_FILE = $(BIN_DIR)/skata

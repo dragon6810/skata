@@ -3,13 +3,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "asmgen.h"
-#include "back.h"
+#include "back/back.h"
+#include "back/regalloc.h"
 #include "flags.h"
 #include "front/front.h"
-#include "ir.h"
 #include "map.h"
-#include "regalloc.h"
+#include "middle/ir.h"
+#include "middle/middle.h"
 
 bool emitast = false;
 bool emitir = false;
@@ -47,6 +47,31 @@ char* loadsrctext(void)
     return srctext;
 }
 
+bool compilemiddle(void)
+{
+    flow();
+    if(emitflow)
+    {
+        ir_dumpflow();
+        return true;
+    }
+    if(emitdomtree)
+    {
+        ir_dumpdomtree();
+        return true;
+    }
+
+    ssa();
+    optimize();
+    if(emitssa)
+    {
+        ir_dump();
+        return true;
+    }
+
+    return false;
+}
+
 bool compilefront(void)
 {
     lex();
@@ -69,7 +94,7 @@ bool compilefront(void)
         front_free();
         return true;
     }
-    
+
     front_free();
     return false;
 }
@@ -81,28 +106,13 @@ void compile(void)
     if(compilefront())
         return;
 
-    ir_flow();
-    if(emitflow)
+    if(compilemiddle())
     {
-        ir_dumpflow();
-        goto freestuff;
-    }
-    if(emitdomtree)
-    {
-        ir_dumpdomtree();
-        goto freestuff;
-    }
-
-    ir_ssa();
-    ir_middleoptimize();
-    if(emitssa)
-    {
-        ir_dump();
-        goto freestuff;
+        ir_free();
+        return;
     }
 
     back_castreduction();
-    ir_middleoptimize();
     if(emitbackir)
     {
         ir_dump();
@@ -125,7 +135,7 @@ void compile(void)
         goto freestuff;
     }
 
-    asmgen_arm();
+    back_gen();
     
 freestuff:
     ir_free();
@@ -175,8 +185,7 @@ int main(int argc, char** argv)
         }
     }
     
-    arm_specinit();
-    regalloc_init();
+    back_init();
 
     for(; i<argc; i++)
     {

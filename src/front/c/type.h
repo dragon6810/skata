@@ -1,7 +1,7 @@
 #ifndef _TYPE_H
 #define _TYPE_H
 
-#include "ir.h"
+#include "middle/ir.h"
 #include "map.h"
 
 #define TYPE_FLAG_CONST 0x01

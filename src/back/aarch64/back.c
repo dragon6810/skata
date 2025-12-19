@@ -1,6 +1,6 @@
-#include "back.h"
+#include "back/back.h"
 
-#include "ir.h"
+#include "middle/ir.h"
 
 static bool back_castreduction_iscastimplicit(ir_primitive_e dst, ir_primitive_e src)
 {

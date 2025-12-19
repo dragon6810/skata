@@ -166,13 +166,13 @@ static void ir_postorderfunc(ir_funcdef_t* funcdef)
 }
 
 // a --> b
-void ir_flowedge(ir_block_t* a, ir_block_t* b)
+static void ir_flowedge(ir_block_t* a, ir_block_t* b)
 {
     list_pir_block_push(&a->out, b);
     list_pir_block_push(&b->in, a);
 }
 
-void ir_flowblk(ir_funcdef_t* funcdef, ir_block_t* blk)
+static void ir_flowblk(ir_funcdef_t* funcdef, ir_block_t* blk)
 {
     int i;
     ir_inst_t *inst;
@@ -200,7 +200,7 @@ void ir_flowblk(ir_funcdef_t* funcdef, ir_block_t* blk)
         ir_flowedge(blk, blk+1);
 }
 
-void ir_flowfunc(ir_funcdef_t* funcdef)
+static void ir_flowfunc(ir_funcdef_t* funcdef)
 {
     int i;
 
@@ -214,7 +214,7 @@ void ir_flowfunc(ir_funcdef_t* funcdef)
         ir_flowblk(funcdef, &funcdef->blocks.data[i]);
 }
 
-void ir_flow(void)
+void flow(void)
 {
     int i;
 

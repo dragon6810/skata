@@ -2,7 +2,7 @@
 
 #include <stdio.h>
 
-#include "error.h"
+#include "front/error.h"
 #include "type.h"
 
 list_globaldecl_t ast;

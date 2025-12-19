@@ -1,6 +1,8 @@
-#include "ir.h"
+#include "middle/middle.h"
 
 #include <stdio.h>
+
+#include "middle/ir.h"
 
 // copies ownership of operands
 static void ir_insertcpy(ir_block_t* blk, ir_copy_t* cpy)
@@ -202,7 +204,7 @@ static void ir_elimcriticaledges(ir_funcdef_t* funcdef)
                 inst.unary.label = strdup(edge->name);
                 list_ir_inst_ppush(&newblk->insts, &inst);
 
-                ir_flow();
+                flow();
 
                 foundedge = true;
                 break;
