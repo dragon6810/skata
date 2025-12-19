@@ -5,7 +5,6 @@
 
 #include "map.h"
 #include "set.h"
-#include "type.h"
 
 typedef struct ir_regspan_s
 {
@@ -264,7 +263,6 @@ void ir_lower(void);
 void ir_backoptimize(void);
 // sets name to NULL
 void ir_initblock(ir_block_t* block);
-ir_primitive_e ir_type2prim(type_e type);
 ir_primitive_e ir_regtype(ir_funcdef_t* funcdef, char* regname);
 char* ir_gen_alloctemp(ir_funcdef_t *funcdef, ir_primitive_e type);
 void ir_varfree(ir_var_t* var);

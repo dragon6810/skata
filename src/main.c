@@ -4,15 +4,12 @@
 #include <string.h>
 
 #include "asmgen.h"
-#include "ast.h"
 #include "back.h"
 #include "flags.h"
+#include "front/front.h"
 #include "ir.h"
 #include "map.h"
 #include "regalloc.h"
-#include "semantics.h"
-#include "token.h"
-#include "type.h"
 
 bool emitast = false;
 bool emitir = false;
@@ -50,10 +47,8 @@ char* loadsrctext(void)
     return srctext;
 }
 
-void compile(void)
+bool compilefront(void)
 {
-    loadsrctext();
-
     lex();
     free(srctext);
 
@@ -62,18 +57,29 @@ void compile(void)
     if(emitast)
     {
         dumpast();
-
-        list_globaldecl_free(&ast);
-        list_token_free(&tokens);
-        return;
+        front_free();
+        return true;
     }
     
-    ir_gen();
+    gen();
     if(emitir)
     {
         ir_dump();
-        goto freestuff;
+        ir_free();
+        front_free();
+        return true;
     }
+    
+    front_free();
+    return false;
+}
+
+void compile(void)
+{
+    loadsrctext();
+
+    if(compilefront())
+        return;
 
     ir_flow();
     if(emitflow)
@@ -123,8 +129,7 @@ void compile(void)
     
 freestuff:
     ir_free();
-    list_token_free(&tokens);
-    list_globaldecl_free(&ast);
+    front_free();
 }
 
 void usage(char* program)

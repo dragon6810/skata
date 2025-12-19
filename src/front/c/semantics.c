@@ -1,5 +1,3 @@
-#include "semantics.h"
-
 #include <assert.h>
 #include <stdio.h>
 

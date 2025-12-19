@@ -1,6 +1,7 @@
 #ifndef _TYPE_H
 #define _TYPE_H
 
+#include "ir.h"
 #include "map.h"
 
 #define TYPE_FLAG_CONST 0x01
@@ -42,7 +43,8 @@ typedef struct type_s
     };
 } type_t;
 
+ir_primitive_e type_toprim(type_e type);
+
 void type_free(type_t* type);
-const char* type_name(type_t* type);
 
 #endif
