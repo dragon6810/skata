@@ -160,6 +160,18 @@ static void armgen_emitcast(ir_funcdef_t* funcdef, ir_inst_t* inst)
 
     switch(dstprim)
     {
+    case IR_PRIM_I16:
+        switch(srcprim)
+        {
+        case IR_PRIM_I32:
+            printf("  AND %s, %s, #0xFFFF\n",
+                *map_u64_str_get(&dst->hardreg->names, IR_PRIM_I32), 
+                *map_u64_str_get(&src->hardreg->names, IR_PRIM_I32));
+            break;
+        default:
+            assert(0);
+        }
+        break;
     case IR_PRIM_U16:
         switch(srcprim)
         {
@@ -587,14 +599,14 @@ static void armgen_block(ir_funcdef_t* funcdef, ir_block_t* block)
         armgen_inst(funcdef, block, &block->insts.data[i]);
 }
 
-static void armgen_funcfooter(ir_funcdef_t* funcdef)
+static void armgen_epilouge(ir_funcdef_t* funcdef)
 {
     int i;
 
     int framesize;
     int savedoffs;
 
-    for(i=0, savedoffs=16; i<savedregs.nbin; i++)
+    for(i=0, savedoffs=16+funcdef->varframe; i<savedregs.nbin; i++)
     {
         if(savedregs.bins[i].state != SET_EL_FULL)
             continue;
@@ -607,7 +619,7 @@ static void armgen_funcfooter(ir_funcdef_t* funcdef)
         savedoffs += ir_primbytesize(savedregs.bins[i].val->type);
     }
 
-    framesize = (savedoffs + funcdef->varframe + stackpad - 1) & ~(stackpad - 1);
+    framesize = (savedoffs + stackpad - 1) & ~(stackpad - 1);
 
     printf("  ADD sp, fp, #%d\n", framesize);
     
@@ -718,7 +730,7 @@ static void armgen_funcdef(ir_funcdef_t* funcdef)
     for(i=0; i<funcdef->blocks.len; i++)
         armgen_block(funcdef, &funcdef->blocks.data[i]);
 
-    armgen_funcfooter(funcdef);
+    armgen_epilouge(funcdef);
 
     printf("\n");
 }

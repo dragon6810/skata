@@ -9,6 +9,8 @@
 typedef enum
 {
     TYPE_VOID=0,
+
+    TYPE_U1, // boolean value, "truth"
     TYPE_I8,
     TYPE_U8,
     TYPE_I16,

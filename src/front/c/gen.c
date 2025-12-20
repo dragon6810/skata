@@ -410,6 +410,9 @@ char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
     case EXPROP_MULT:
         inst.op = IR_OP_MUL;
         break;
+    case EXPROP_NEQ:
+        inst.op = IR_OP_CMPNEQ;
+        break;
     case EXPROP_ASSIGN:
         inst.op = IR_OP_STORE;
         inst.binary[0].type = IR_OPERAND_VAR;
@@ -428,6 +431,21 @@ char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
         return res;
     case EXPROP_CALL:
         return ir_gen_funccall(funcdef, expr, outreg);
+    case EXPROP_LOGICNOT:
+        inst.op = IR_OP_CMPEQ;
+
+        inst.ternary[0].type = IR_OPERAND_REG;
+        inst.ternary[0].reg.name = strdup(res);
+
+        inst.ternary[1].type = IR_OPERAND_REG;
+        inst.ternary[1].reg.name = strdup(ir_gen_expr(funcdef, expr->operand, NULL));
+
+        inst.ternary[2].type = IR_OPERAND_LIT;
+        inst.ternary[2].literal.type = ir_regtype(funcdef, inst.ternary[1].reg.name);
+        inst.ternary[2].literal.u64 = 0;
+
+        list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
+        return res;
     case EXPROP_CAST:
         inst.op = IR_OP_CAST;
         inst.binary[0].type = IR_OPERAND_REG;
@@ -477,21 +495,10 @@ static void ir_gen_if(ir_funcdef_t* funcdef, ifstmnt_t* ifstmnt)
 
     condblk = funcdef->blocks.len - 1;
 
-    // compare
-    inst.op = IR_OP_CMPEQ;
-    inst.ternary[0].type = IR_OPERAND_REG;
-    inst.ternary[0].reg.name = ir_gen_alloctemp(funcdef, type_toprim(ifstmnt->expr->type.type));
-    inst.ternary[1].type = IR_OPERAND_REG;
-    inst.ternary[1].reg.name = ir_gen_expr(funcdef, ifstmnt->expr, NULL);
-    inst.ternary[2].type = IR_OPERAND_LIT;
-    inst.ternary[2].literal.type = type_toprim(ifstmnt->expr->type.type);
-    inst.ternary[2].literal.u64 = 0;
-    list_ir_inst_ppush(&funcdef->blocks.data[condblk].insts, &inst);
-
     // branch
     inst.op = IR_OP_BR;
     inst.ternary[0].type = IR_OPERAND_REG;
-    inst.ternary[0].reg.name = strdup(inst.ternary[0].reg.name);
+    inst.ternary[0].reg.name = ir_gen_expr(funcdef, ifstmnt->expr, NULL);
     inst.ternary[2].type = IR_OPERAND_LABEL;
     list_ir_inst_ppush(&funcdef->blocks.data[condblk].insts, &inst);
     
@@ -522,20 +529,10 @@ static void ir_gen_while(ir_funcdef_t* funcdef, whilestmnt_t* whilestmnt)
     condblock = funcdef->blocks.len;
     ir_newblock(funcdef);
 
-    // check for condition
-    inst.op = IR_OP_CMPEQ;
-    inst.ternary[0].type = IR_OPERAND_REG;
-    inst.ternary[0].reg.name = ir_gen_alloctemp(funcdef, type_toprim(whilestmnt->expr->type.type));
-    inst.ternary[1].type = IR_OPERAND_REG;
-    inst.ternary[1].reg.name = ir_gen_expr(funcdef, whilestmnt->expr, NULL);
-    inst.ternary[2].type = IR_OPERAND_LIT;
-    inst.ternary[2].literal.type = type_toprim(whilestmnt->expr->type.type);
-    inst.ternary[2].literal.u64 = 0;
-    list_ir_inst_ppush(&funcdef->blocks.data[condblock].insts, &inst);
-
     // if true, jump to loop body
     inst.op = IR_OP_BR;
-    inst.ternary[0].reg.name = strdup(inst.ternary[0].reg.name);
+    inst.ternary[0].type = IR_OPERAND_REG;
+    inst.ternary[0].reg.name = ir_gen_expr(funcdef, whilestmnt->expr, NULL);
     inst.ternary[2].type = IR_OPERAND_LABEL;
     iinst = funcdef->blocks.data[condblock].insts.len;
     list_ir_inst_ppush(&funcdef->blocks.data[condblock].insts, &inst);

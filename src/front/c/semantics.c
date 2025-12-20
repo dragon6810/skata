@@ -106,17 +106,38 @@ static void semantics_binaryexpr(expr_t* expr)
     }
 }
 
+static void semantics_truthify(expr_t* expr)
+{
+    type_t inttype;
+    expr_t *oldexpr, *zero;
+
+    if(expr->type.type == TYPE_U1)
+        return;
+
+    if(expr->type.type < TYPE_I32)
+    {
+        inttype.type = TYPE_I32;
+        semantics_cast(inttype, expr);
+    }
+
+    zero = malloc(sizeof(expr_t));
+    zero->op = EXPROP_LIT;
+    zero->type.type = expr->type.type;
+    zero->u64 = 0;
+
+    oldexpr = malloc(sizeof(expr_t));
+    memcpy(oldexpr, expr, sizeof(expr_t));
+
+    expr->op = EXPROP_NEQ;
+    expr->operands[0] = oldexpr;
+    expr->operands[1] = zero;
+    expr->type.type = TYPE_U1;
+}
+
 static void semantics_condition(expr_t* expr)
 {
     semantics_expr(expr);
-
-    // TODO: in the future, check for integeral type
-    // i havent implemented non-integral types yet
-    switch(expr->type.type)
-    {
-    default:
-        break;
-    }
+    semantics_truthify(expr);
 }
 
 static void semantics_ternaryexpr(expr_t* expr)
@@ -155,16 +176,19 @@ static void semantics_assignexpr(expr_t* expr)
         semantics_cast(expr->type, expr->operands[1]);
 }
 
+static void semantics_logicalnot(expr_t* expr)
+{
+    semantics_truthify(expr->operand);
+    expr->type.type = TYPE_U1;
+}
+
 static void semantics_unaryexpr(expr_t* expr)
 {
-    type_t inttype;
-
-    inttype.type = TYPE_I32;
-
     semantics_expr(expr->operand);
-    if(expr->operand->type.type < TYPE_I32)
-        semantics_cast(inttype, expr->operand);
-    expr->type = expr->operand->type;
+    if(expr->operand->type.type > TYPE_I32)
+        expr->type.type = expr->operand->type.type;
+    else
+        expr->type.type = TYPE_I32;
 }
 
 // unary no-op, e.g. unary +
@@ -290,6 +314,9 @@ static void semantics_expr(expr_t* expr)
     case EXPROP_POSTINC:
     case EXPROP_POSTDEC:
         semantics_unaryexpr(expr);
+        break;
+    case EXPROP_LOGICNOT:
+        semantics_logicalnot(expr);
         break;
     case EXPROP_POS:
         semantics_noop(expr);

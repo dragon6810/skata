@@ -19,7 +19,9 @@ MAP_DECL(char*, ir_regspan_t, str, ir_regspan)
 
 typedef enum
 {
-    IR_PRIM_PTR,
+    IR_PRIM_PTR=0,
+    IR_PRIM_U1,
+
     IR_PRIM_I8,
     IR_PRIM_U8,
     IR_PRIM_I16,
@@ -81,6 +83,7 @@ typedef enum
     IR_OP_STORE, // dst, src
     IR_OP_LOAD, // dst, src
     IR_OP_CMPEQ, // dst, a, b
+    IR_OP_CMPNEQ, // dst, a, b
     IR_OP_BR, // value, truelabel, falselabel
     IR_OP_JMP, // label
     IR_OP_PHI, // (VARIADIC); dst, label1, reg1, label2, reg2, ... labeln, regn

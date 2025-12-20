@@ -20,6 +20,8 @@ ir_primitive_e type_toprim(type_e type)
 {
     switch(type)
     {
+    case TYPE_U1:
+        return IR_PRIM_U1;
     case TYPE_I8:
         return IR_PRIM_I8;
     case TYPE_U8:

@@ -35,6 +35,7 @@ void ir_definedregs(set_str_t* set, ir_inst_t* inst)
     case IR_OP_SUB:
     case IR_OP_MUL:
     case IR_OP_CMPEQ:
+    case IR_OP_CMPNEQ:
         set_str_add(set, inst->ternary[0].reg.name);
         break;
     case IR_OP_PHI:
@@ -65,6 +66,7 @@ void ir_accessedregs(set_str_t* set, ir_inst_t* inst)
     case IR_OP_SUB:
     case IR_OP_MUL:
     case IR_OP_CMPEQ:
+    case IR_OP_CMPNEQ:
         if(inst->ternary[1].type == IR_OPERAND_REG) set_str_add(set, inst->ternary[1].reg.name);
         if(inst->ternary[2].type == IR_OPERAND_REG) set_str_add(set, inst->ternary[2].reg.name);
         break;
@@ -114,6 +116,7 @@ void ir_instoperands(list_pir_operand_t* list, ir_inst_t* inst)
     case IR_OP_SUB:
     case IR_OP_MUL:
     case IR_OP_CMPEQ:
+    case IR_OP_CMPNEQ:
     case IR_OP_BR:
         noperands = 3;
         break;
@@ -137,6 +140,9 @@ static void ir_print_prim(ir_primitive_e prim)
     printf("\e[0;96m");
     switch(prim)
     {
+    case IR_PRIM_U1:
+        printf("u1");
+        break;
     case IR_PRIM_I8:
         printf("i8");
         break;
@@ -298,6 +304,15 @@ void ir_dump_inst(ir_funcdef_t* funcdef, ir_inst_t* inst)
         printf(" \e[0;95m:=\e[0m ");
         ir_print_operand(funcdef, &inst->ternary[1]);
         printf(" \e[0;95m==\e[0m ");
+        ir_print_operand(funcdef, &inst->ternary[2]);
+        printf("\n");
+        break;
+    case IR_OP_CMPNEQ:
+        printf("  ");
+        ir_print_operand(funcdef, &inst->ternary[0]);
+        printf(" \e[0;95m:=\e[0m ");
+        ir_print_operand(funcdef, &inst->ternary[1]);
+        printf(" \e[0;95m!=\e[0m ");
         ir_print_operand(funcdef, &inst->ternary[2]);
         printf("\n");
         break;

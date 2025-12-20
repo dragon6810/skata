@@ -156,6 +156,7 @@ static int parse_prefixopbp(exprop_e op)
     case EXPROP_POS:
     case EXPROP_PREINC:
     case EXPROP_PREDEC:
+    case EXPROP_LOGICNOT:
         return 10;
     case EXPROP_CAST:
         return 9;
@@ -245,6 +246,8 @@ static expr_t* parse_expr_r(int minbp)
             op = EXPROP_PREINC;
         else if(!strcmp(parse_peekstr(0), "--"))
             op = EXPROP_PREDEC;
+        else if(!strcmp(parse_peekstr(0), "!"))
+            op = EXPROP_LOGICNOT;
         else if(!strcmp(parse_peekstr(0), "("))
         {
             parse_eat();

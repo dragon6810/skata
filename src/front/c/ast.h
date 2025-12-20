@@ -39,15 +39,17 @@ typedef enum
     EXPROP_SUB, // -
     EXPROP_MULT, // *
     EXPROP_DIV, // /
+    EXPROP_NEQ, // !=
 
     // unary operators
     EXPROP_NEG, // -
     EXPROP_POS, // +
     EXPROP_PREINC, // ++
     EXPROP_PREDEC, // --
+    EXPROP_CAST, // (<type>)
+    EXPROP_LOGICNOT, // !
     EXPROP_POSTINC, // ++
     EXPROP_POSTDEC, // --
-    EXPROP_CAST, // (<type>)
 
     // variadic operators
     EXPROP_CALL, // ( ... )

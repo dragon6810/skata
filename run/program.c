@@ -1,12 +1,15 @@
-unsigned short add(short a, int b)
-{
-	return a + b;
-}
-
 int main()
 {
 	long long x;
+	short y;
 
-	x = add(0, 1);
+	y = 1;
+	x = 1;
+	while(y)
+	{
+		y = y + 1;
+		x = x + 1;
+	}
+
 	return x;
 }
