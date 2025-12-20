@@ -73,6 +73,11 @@ void back_init(void)
     arm_addreg(0, "r28");
     
     regalloc_init();
+
+    map_u64_u64_alloc(&typereductions);
+
+    map_u64_u64_set(&typereductions, IR_PRIM_U1, IR_PRIM_U8);
+    map_u64_u64_set(&typereductions, IR_PRIM_PTR, IR_PRIM_U64);
 }
 
 static const char* armgen_loadinst(ir_primitive_e prim)

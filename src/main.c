@@ -49,6 +49,7 @@ char* loadsrctext(void)
 
 bool compileback(void)
 {
+    back_typereduction();
     if(emitbackir)
     {
         ir_dump();

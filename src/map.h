@@ -275,6 +275,7 @@ void map_##keyname##_##valname##_freeel(map_##keyname##_##valname##_el_t* el) \
 MAP_DECL(char*, char*, str, str)
 MAP_DECL(char*, uint64_t, str, u64)
 MAP_DECL(uint64_t, char*, u64, str)
+MAP_DECL(uint64_t, uint64_t, u64, u64)
 
 uint64_t hash_u64(uint64_t* val);
 uint64_t hash_str(char** val);
