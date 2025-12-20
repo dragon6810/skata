@@ -12,7 +12,6 @@
 
 typedef struct hardreg_s
 {
-    uint32_t index;
     // HARDREG_XX
     uint32_t flags;
     char *name;

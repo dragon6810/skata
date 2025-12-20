@@ -1,9 +1,12 @@
-short add(short a, int b)
+unsigned short add(short a, int b)
 {
 	return a + b;
 }
 
 int main()
 {
-	return add(0, 1);
+	long long x;
+
+	x = add(0, 1);
+	return x;
 }

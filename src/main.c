@@ -49,7 +49,6 @@ char* loadsrctext(void)
 
 bool compileback(void)
 {
-    back_castreduction();
     if(emitbackir)
     {
         ir_dump();

@@ -14,148 +14,64 @@ const int stackpad = 16;
 
 set_pir_reg_t savedregs;
 
-static void arm_genregnames(hardreg_t* reg)
+static void arm_addreg(uint32_t flags, const char* name)
 {
-    map_u64_str_alloc(&reg->names);
+    hardreg_t reg;
 
-    reg->name[0] = 'x';
-    map_u64_str_set(&reg->names, IR_PRIM_PTR, reg->name);
-    map_u64_str_set(&reg->names, IR_PRIM_I64, reg->name);
-    map_u64_str_set(&reg->names, IR_PRIM_U64, reg->name);
+    reg.flags = flags;
+    reg.name = strdup(name);
 
-    reg->name[0] = 'w';
-    map_u64_str_set(&reg->names, IR_PRIM_I8, reg->name);
-    map_u64_str_set(&reg->names, IR_PRIM_U8, reg->name);
-    map_u64_str_set(&reg->names, IR_PRIM_I16, reg->name);
-    map_u64_str_set(&reg->names, IR_PRIM_U16, reg->name);
-    map_u64_str_set(&reg->names, IR_PRIM_I32, reg->name);
-    map_u64_str_set(&reg->names, IR_PRIM_U32, reg->name);
+    map_u64_str_alloc(&reg.names);
+    reg.name[0] = 'x';
+    map_u64_str_set(&reg.names, IR_PRIM_PTR, reg.name);
+    map_u64_str_set(&reg.names, IR_PRIM_I64, reg.name);
+    map_u64_str_set(&reg.names, IR_PRIM_U64, reg.name);
+    reg.name[0] = 'w';
+    map_u64_str_set(&reg.names, IR_PRIM_I8, reg.name);
+    map_u64_str_set(&reg.names, IR_PRIM_U8, reg.name);
+    map_u64_str_set(&reg.names, IR_PRIM_I16, reg.name);
+    map_u64_str_set(&reg.names, IR_PRIM_U16, reg.name);
+    map_u64_str_set(&reg.names, IR_PRIM_I32, reg.name);
+    map_u64_str_set(&reg.names, IR_PRIM_U32, reg.name);
+    reg.name[0] = 'r';
 
-    reg->name[0] = 'r';
+    list_hardreg_ppush(&regpool, &reg);
 }
 
 void back_init(void)
 {
-    hardreg_t reg;
-
     list_hardreg_init(&regpool, 0);
 
-    reg.index = regpool.len;
-    reg.flags = HARDREG_CALLER | HARDREG_PARAM | HARDREG_RETURN;
-    reg.name = strdup("r0");
-    arm_genregnames(&reg);
-    list_hardreg_ppush(&regpool, &reg);
-    reg.index = regpool.len;
-    reg.flags = HARDREG_CALLER | HARDREG_PARAM | HARDREG_RETURN;
-    reg.name = strdup("r1");
-    arm_genregnames(&reg);
-    list_hardreg_ppush(&regpool, &reg);
-    reg.index = regpool.len;
-    reg.flags = HARDREG_CALLER | HARDREG_PARAM;
-    reg.name = strdup("r2");
-    arm_genregnames(&reg);
-    list_hardreg_ppush(&regpool, &reg);
-    reg.flags = HARDREG_CALLER | HARDREG_PARAM;
-    reg.name = strdup("r3");
-    arm_genregnames(&reg);
-    list_hardreg_ppush(&regpool, &reg);
-    reg.flags = HARDREG_CALLER | HARDREG_PARAM;
-    reg.name = strdup("r4");
-    arm_genregnames(&reg);
-    list_hardreg_ppush(&regpool, &reg);
-    reg.flags = HARDREG_CALLER | HARDREG_PARAM;
-    reg.name = strdup("r5");
-    arm_genregnames(&reg);
-    list_hardreg_ppush(&regpool, &reg);
-    reg.flags = HARDREG_CALLER | HARDREG_PARAM;
-    reg.name = strdup("r6");
-    arm_genregnames(&reg);
-    list_hardreg_ppush(&regpool, &reg);
-    reg.flags = HARDREG_CALLER | HARDREG_PARAM;
-    reg.name = strdup("r7");
-    arm_genregnames(&reg);
-    list_hardreg_ppush(&regpool, &reg);
-    reg.flags = HARDREG_CALLER | HARDREG_INDIRECTADR;
-    reg.name = strdup("r8");
-    arm_genregnames(&reg);
-    list_hardreg_ppush(&regpool, &reg);
-    reg.flags = HARDREG_CALLER;
-    reg.name = strdup("r9");
-    arm_genregnames(&reg);
-    list_hardreg_ppush(&regpool, &reg);
-    reg.flags = HARDREG_CALLER;
-    reg.name = strdup("r10");
-    arm_genregnames(&reg);
-    list_hardreg_ppush(&regpool, &reg);
-    reg.flags = HARDREG_CALLER;
-    reg.name = strdup("r11");
-    arm_genregnames(&reg);
-    list_hardreg_ppush(&regpool, &reg);
-    reg.flags = HARDREG_CALLER;
-    reg.name = strdup("r12");
-    arm_genregnames(&reg);
-    list_hardreg_ppush(&regpool, &reg);
-    reg.flags = HARDREG_CALLER;
-    reg.name = strdup("r13");
-    arm_genregnames(&reg);
-    list_hardreg_ppush(&regpool, &reg);
-    reg.flags = HARDREG_CALLER;
-    reg.name = strdup("r14");
-    arm_genregnames(&reg);
-    list_hardreg_ppush(&regpool, &reg);
-    reg.flags = HARDREG_CALLER;
-    reg.name = strdup("r15");
-    arm_genregnames(&reg);
-    list_hardreg_ppush(&regpool, &reg);
-    reg.flags = HARDREG_CALLER | HARDREG_SCRATCH;
-    reg.name = strdup("r16");
-    arm_genregnames(&reg);
-    list_hardreg_ppush(&regpool, &reg);
-    reg.flags = HARDREG_CALLER | HARDREG_SCRATCH;
-    reg.name = strdup("r17");
-    arm_genregnames(&reg);
-    list_hardreg_ppush(&regpool, &reg);
-    reg.flags = 0;
-    reg.name = strdup("r19");
-    arm_genregnames(&reg);
-    list_hardreg_ppush(&regpool, &reg);
-    reg.flags = 0;
-    reg.name = strdup("r20");
-    arm_genregnames(&reg);
-    list_hardreg_ppush(&regpool, &reg);
-    reg.flags = 0;
-    reg.name = strdup("r21");
-    arm_genregnames(&reg);
-    list_hardreg_ppush(&regpool, &reg);
-    reg.flags = 0;
-    reg.name = strdup("r22");
-    arm_genregnames(&reg);
-    list_hardreg_ppush(&regpool, &reg);
-    reg.flags = 0;
-    reg.name = strdup("r23");
-    arm_genregnames(&reg);
-    list_hardreg_ppush(&regpool, &reg);
-    reg.flags = 0;
-    reg.name = strdup("r24");
-    arm_genregnames(&reg);
-    list_hardreg_ppush(&regpool, &reg);
-    reg.flags = 0;
-    reg.name = strdup("r25");
-    arm_genregnames(&reg);
-    list_hardreg_ppush(&regpool, &reg);
-    reg.flags = 0;
-    reg.name = strdup("r26");
-    arm_genregnames(&reg);
-    list_hardreg_ppush(&regpool, &reg);
-    reg.flags = 0;
-    reg.name = strdup("r27");
-    arm_genregnames(&reg);
-    list_hardreg_ppush(&regpool, &reg);
-    reg.flags = 0;
-    reg.name = strdup("r28");
-    arm_genregnames(&reg);
-    list_hardreg_ppush(&regpool, &reg);
-
+    arm_addreg(HARDREG_CALLER | HARDREG_PARAM | HARDREG_RETURN, "r0");
+    arm_addreg(HARDREG_CALLER | HARDREG_PARAM | HARDREG_RETURN, "r1");
+    arm_addreg(HARDREG_CALLER | HARDREG_PARAM, "r2");
+    arm_addreg(HARDREG_CALLER | HARDREG_PARAM, "r3");
+    arm_addreg(HARDREG_CALLER | HARDREG_PARAM, "r4");
+    arm_addreg(HARDREG_CALLER | HARDREG_PARAM, "r5");
+    arm_addreg(HARDREG_CALLER | HARDREG_PARAM, "r6");
+    arm_addreg(HARDREG_CALLER | HARDREG_PARAM, "r7");
+    arm_addreg(HARDREG_CALLER | HARDREG_INDIRECTADR, "r8");
+    arm_addreg(HARDREG_CALLER, "r9");
+    arm_addreg(HARDREG_CALLER, "r10");
+    arm_addreg(HARDREG_CALLER, "r11");
+    arm_addreg(HARDREG_CALLER, "r12");
+    arm_addreg(HARDREG_CALLER, "r13");
+    arm_addreg(HARDREG_CALLER, "r14");
+    arm_addreg(HARDREG_CALLER, "r15");
+    arm_addreg(HARDREG_CALLER, "r16");
+    arm_addreg(HARDREG_CALLER, "r17");
+    arm_addreg(0, "r18");
+    arm_addreg(0, "r19");
+    arm_addreg(0, "r20");
+    arm_addreg(0, "r21");
+    arm_addreg(0, "r22");
+    arm_addreg(0, "r23");
+    arm_addreg(0, "r24");
+    arm_addreg(0, "r25");
+    arm_addreg(0, "r26");
+    arm_addreg(0, "r27");
+    arm_addreg(0, "r28");
+    
     regalloc_init();
 }
 
@@ -173,11 +89,10 @@ static const char* armgen_loadinst(ir_primitive_e prim)
         return "LDRH";
     case IR_PRIM_I32:
     case IR_PRIM_U32:
-        return "LDR";
     case IR_PRIM_I64:
     case IR_PRIM_PTR:
     case IR_PRIM_U64:
-        return "LDRD";
+        return "LDR";
     default:
         return NULL;
     }
@@ -245,6 +160,18 @@ static void armgen_emitcast(ir_funcdef_t* funcdef, ir_inst_t* inst)
 
     switch(dstprim)
     {
+    case IR_PRIM_U16:
+        switch(srcprim)
+        {
+        case IR_PRIM_I32:
+            printf("  AND %s, %s, #0xFFFF\n",
+                *map_u64_str_get(&dst->hardreg->names, IR_PRIM_I32), 
+                *map_u64_str_get(&src->hardreg->names, IR_PRIM_I32));
+            break;
+        default:
+            assert(0);
+        }
+        break;
     case IR_PRIM_I32:
         switch(srcprim)
         {
@@ -253,9 +180,30 @@ static void armgen_emitcast(ir_funcdef_t* funcdef, ir_inst_t* inst)
                 *map_u64_str_get(&dst->hardreg->names, IR_PRIM_I32), 
                 *map_u64_str_get(&src->hardreg->names, IR_PRIM_I32));
             break;
+        case IR_PRIM_I64:
+            if(dst->hardreg != src->hardreg)
+                printf("  MOV %s, %s\n", 
+                    *map_u64_str_get(&dst->hardreg->names, IR_PRIM_I32), 
+                    *map_u64_str_get(&src->hardreg->names, IR_PRIM_I32));
+            break;
         default:
             assert(0);
             break;
+        }
+        break;
+    case IR_PRIM_I64:
+        switch(srcprim)
+        {
+        case IR_PRIM_U16:
+            printf("  SXTH %s, %s\n", 
+                *map_u64_str_get(&dst->hardreg->names, IR_PRIM_I32), 
+                *map_u64_str_get(&src->hardreg->names, IR_PRIM_I32));
+            printf("  SXTW %s, %s\n", 
+                *map_u64_str_get(&dst->hardreg->names, IR_PRIM_I64), 
+                *map_u64_str_get(&src->hardreg->names, IR_PRIM_I32));
+            break;
+        default:
+            assert(0);
         }
         break;
     default:
@@ -690,7 +638,7 @@ static void armgen_populatesaveset(ir_funcdef_t* funcdef)
     }
 }
 
-static void armgen_funcheader(ir_funcdef_t* funcdef)
+static void armgen_prolouge(ir_funcdef_t* funcdef)
 {
     int i;
     ir_param_t *param;
@@ -711,12 +659,12 @@ static void armgen_funcheader(ir_funcdef_t* funcdef)
         framesize += ir_primbytesize(savedregs.bins[i].val->type);
     }
 
-    framesize = funcdef->varframe + framesize + 16;
+    framesize = 16 + funcdef->varframe + framesize;
     framesize = (framesize + stackpad - 1) & ~(stackpad - 1); 
 
     printf("  SUB sp, sp, #%d\n", framesize);
 
-    for(i=0, savedoffs=16; i<savedregs.nbin; i++)
+    for(i=0, savedoffs=16+funcdef->varframe; i<savedregs.nbin; i++)
     {
         if(savedregs.bins[i].state != SET_EL_FULL)
             continue;
@@ -732,7 +680,6 @@ static void armgen_funcheader(ir_funcdef_t* funcdef)
 
     printf("  MOV fp, sp\n");
     
-    framesize = funcdef->varframe + 16;
     for(i=nregparam=stackparamoffs=0, param=funcdef->params.data; i<funcdef->params.len; i++, param++)
     {
         assert(param->loc.type == IR_LOCATION_REG);
@@ -766,7 +713,7 @@ static void armgen_funcdef(ir_funcdef_t* funcdef)
 
     printf("_%s:\n", funcdef->name);
 
-    armgen_funcheader(funcdef);
+    armgen_prolouge(funcdef);
 
     for(i=0; i<funcdef->blocks.len; i++)
         armgen_block(funcdef, &funcdef->blocks.data[i]);

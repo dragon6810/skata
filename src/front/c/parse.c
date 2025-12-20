@@ -228,22 +228,75 @@ const char* parse_eat(void)
 void parse_type(type_t* type)
 {
     const char *tokstr;
+    bool unsign;
+    token_t *typestart;
 
-    tokstr = parse_peekstr(0);
-    if(!strcmp(tokstr, "void"))
-        type->type = TYPE_VOID;
-    else if(!strcmp(tokstr, "char"))
-        type->type = TYPE_I8;
-    else if(!strcmp(tokstr, "short"))
-        type->type = TYPE_I16;
-    else if(!strcmp(tokstr, "int"))
-        type->type = TYPE_I32;
-    else if(!strcmp(tokstr, "long"))
-        type->type = TYPE_I64;
-    else
-        error(true, parse_getexpectedline(), parse_getexpectedcol(), "expected type\n");
+    unsign = false;
 
-    curtok++;
+    typestart = curtok;
+    int longcount = 0;
+
+    type->type = TYPE_I32;
+    while(1)
+    {
+        tokstr = parse_peekstr(0);
+        if(!strcmp(tokstr, "void"))
+            type->type = TYPE_VOID;
+        else if(!strcmp(tokstr, "char"))
+            type->type = TYPE_I8;
+        else if(!strcmp(tokstr, "short"))
+            type->type = TYPE_I16;
+        else if(!strcmp(tokstr, "int"))
+            type->type = TYPE_I32;
+        else if(!strcmp(tokstr, "long"))
+        {
+            switch(type->type)
+            {
+            case TYPE_COUNT:
+            case TYPE_I32:
+            case TYPE_I64:
+                type->type = TYPE_I64;
+                break;
+            default:
+                error(true, curtok->line, curtok->column, "invalid combination of type specifiers\n");
+            }
+            
+            longcount++;
+            if(longcount > 2)
+                error(true, curtok->line, curtok->column, "invalid combination of type specifiers\n");
+        }
+        else if(!strcmp(tokstr, "unsigned"))
+        {
+            if(unsign)
+                error(true, typestart->line, typestart->column, "duplicate specifier in declaration.\n");
+            unsign = true;
+        }
+        else
+            break;
+
+        parse_eat();
+    }
+
+    if(unsign)
+    {
+        switch(type->type)
+        {
+        case TYPE_I8:
+            type->type = TYPE_U8;
+            break;
+        case TYPE_I16:
+            type->type = TYPE_U16;
+            break;
+        case TYPE_I32:
+            type->type = TYPE_U32;
+            break;
+        case TYPE_I64:
+            type->type = TYPE_U64;
+            break;
+        default:
+            error(true, curtok->line, curtok->column, "invalid combination of type specifiers\n");
+        }
+    }
 }
 
 bool parse_istype()
@@ -260,6 +313,8 @@ bool parse_istype()
     else if(!strcmp(tokstr, "int"))
         return true;
     else if(!strcmp(tokstr, "long"))
+        return true;
+    else if(!strcmp(tokstr, "unsigned"))
         return true;
 
     return false;

@@ -348,7 +348,7 @@ static char* ir_gen_funccall(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
     if(outreg)
         res = outreg;
     else
-        res = ir_gen_alloctemp(funcdef, type_toprim(expr->variadic.data[0]->type.type));
+        res = ir_gen_alloctemp(funcdef, type_toprim(expr->type.type));
     
     inst.variadic.data[0].type = IR_OPERAND_REG;
     inst.variadic.data[0].reg.name = strdup(res);
