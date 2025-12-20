@@ -141,7 +141,6 @@ typedef struct ir_operand_s
         struct
         {
             char *name;
-            ir_primitive_e type;
         } reg;
         ir_constant_t literal;
         ir_var_t *var;

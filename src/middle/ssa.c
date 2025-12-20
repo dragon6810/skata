@@ -27,7 +27,6 @@ static void ir_rename(ir_funcdef_t* func, ir_var_t* var, ir_block_t* blk)
             reg = ir_gen_alloctemp(func, var->type.prim);
             list_string_push(&namestack, reg);
             inst->variadic.data[0].reg.name = strdup(reg);
-            inst->variadic.data[0].reg.type = var->type.prim;
             continue;
         }
 
@@ -39,7 +38,6 @@ static void ir_rename(ir_funcdef_t* func, ir_var_t* var, ir_block_t* blk)
             inst->op = IR_OP_MOVE;
             inst->binary[1].type = IR_OPERAND_REG;
             inst->binary[1].reg.name = strdup(namestack.data[namestack.len-1]);
-            inst->binary[1].reg.type = var->type.prim;
             continue;
         }
 
@@ -54,7 +52,6 @@ static void ir_rename(ir_funcdef_t* func, ir_var_t* var, ir_block_t* blk)
             inst->op = IR_OP_MOVE;
             inst->binary[0].type = IR_OPERAND_REG;
             inst->binary[0].reg.name = strdup(reg);
-            inst->binary[0].reg.type = var->type.prim;
             assert(var->type.prim);
             continue;
         }
@@ -78,7 +75,6 @@ static void ir_rename(ir_funcdef_t* func, ir_var_t* var, ir_block_t* blk)
 
             operand.type = IR_OPERAND_REG;
             operand.reg.name = strdup(namestack.data[namestack.len-1]);
-            operand.reg.type = var->type.prim;
             list_ir_operand_ppush(&inst->variadic, &operand);
         }
     }
@@ -150,7 +146,6 @@ static void ir_ssafunc(ir_funcdef_t* func)
                 list_ir_operand_init(&inst.variadic, 1);
                 inst.variadic.data[0].type = IR_OPERAND_REG;
                 inst.variadic.data[0].reg.name = NULL;
-                inst.variadic.data[0].reg.type = 0;
                 inst.var = strdup(func->vars.bins[v].val.name);
                 
                 idx = df->varphis.nfull;

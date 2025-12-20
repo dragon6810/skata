@@ -7,42 +7,13 @@ static bool madechange;
 // preserves dst type
 static void ir_operandreplace(ir_operand_t* dst, ir_operand_t* src)
 {
+    ir_operand_t newop;
+
     if(dst == src)
         return;
-        
-    ir_operand_t newop;
-    ir_primitive_e type;
-
-    switch(dst->type)
-    {
-    case IR_OPERAND_REG:
-        type = dst->reg.type;
-        break;
-    case IR_OPERAND_LIT:
-        type = dst->literal.type;
-        break;
-    default:
-        type = -1;
-        break;
-    }
 
     ir_cpyoperand(&newop, src);
     ir_operandfree(dst);
-
-    if(type != -1)
-    {
-        switch(newop.type)
-        {
-        case IR_OPERAND_REG:
-            newop.reg.type = type;
-            break;
-        case IR_OPERAND_LIT:
-            newop.literal.type = type;
-            break;
-        default:
-            break;
-        }
-    }
 
     memcpy(dst, &newop, sizeof(ir_operand_t));
 }
@@ -136,7 +107,7 @@ static void ir_eliminatelitcasts(ir_funcdef_t* funcdef)
                 continue;
 
             inst->op = IR_OP_MOVE;
-            ir_convertlit(&inst->binary[1].literal, inst->binary[0].reg.type);
+            ir_convertlit(&inst->binary[1].literal, ir_regtype(funcdef, inst->binary[0].reg.name));
 
             madechange = true;
         }

@@ -1,5 +1,15 @@
 #include "ir.h"
 
+ir_primitive_e ir_regtype(ir_funcdef_t* funcdef, char* regname)
+{
+    ir_reg_t *reg;
+
+    reg = map_str_ir_reg_get(&funcdef->regs, regname);
+    assert(reg);
+
+    return reg->type;
+}
+
 int ir_primbytesize(ir_primitive_e prim)
 {
     switch(prim)

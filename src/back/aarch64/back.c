@@ -39,7 +39,9 @@ static void back_castreduction_block(ir_funcdef_t* funcdef, ir_block_t* blk)
             continue;
         if(inst->binary[0].type != IR_OPERAND_REG || inst->binary[1].type != IR_OPERAND_REG)
             continue;
-        if(!back_castreduction_iscastimplicit(inst->binary[0].reg.type, inst->binary[1].reg.type))
+        if(!back_castreduction_iscastimplicit(
+                ir_regtype(funcdef, inst->binary[0].reg.name), 
+                ir_regtype(funcdef, inst->binary[0].reg.name)))
             continue;
 
         inst->op = IR_OP_MOVE;

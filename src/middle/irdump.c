@@ -211,7 +211,7 @@ void ir_print_operand(ir_funcdef_t* funcdef, ir_operand_t* operand)
     switch(operand->type)
     {
     case IR_OPERAND_REG:
-        ir_print_prim(operand->reg.type);
+        ir_print_prim(ir_regtype(funcdef, operand->reg.name));
         printf(" \e[0;31m%%%s\e[0m", operand->reg.name);
         break;
     case IR_OPERAND_LIT:
@@ -409,7 +409,8 @@ void ir_dump_funcdef(ir_funcdef_t* funcdef)
 {
     int i;
 
-    printf("\e[0;96mfunc \e[1;93m@%s\e[0m", funcdef->name);
+    ir_print_type(funcdef->rettype);
+    printf(" \e[1;93m@%s\e[0m", funcdef->name);
     ir_dump_arglist(funcdef);
     printf(":\n");
     for(i=0; i<funcdef->blocks.len; i++)
