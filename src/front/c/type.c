@@ -46,6 +46,29 @@ ir_primitive_e type_toprim(type_e type)
     }
 }
 
+int type_bytesize(type_t type)
+{
+    switch(type.type)
+    {
+    case TYPE_U1:
+    case TYPE_I8:
+    case TYPE_U8:
+        return 1;
+    case TYPE_I16:
+    case TYPE_U16:
+        return 2;
+    case TYPE_I32:
+    case TYPE_U32:
+        return 4;
+    case TYPE_I64:
+    case TYPE_U64:
+    case TYPE_FUNC:
+        return 8;
+    default:
+        assert(0);
+    }
+}
+
 void type_free(type_t* type)
 {
     switch(type->type)

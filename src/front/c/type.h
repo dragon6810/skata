@@ -46,6 +46,7 @@ typedef struct type_s
 } type_t;
 
 ir_primitive_e type_toprim(type_e type);
+int type_bytesize(type_t type);
 
 void type_free(type_t* type);
 

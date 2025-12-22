@@ -115,11 +115,9 @@ static const char* armgen_storeinst(ir_primitive_e prim)
         return "STRH";
     case IR_PRIM_I32:
     case IR_PRIM_U32:
-        return "STR";
     case IR_PRIM_I64:
-    case IR_PRIM_PTR:
     case IR_PRIM_U64:
-        return "STRD";
+        return "STR";
     default:
         return NULL;
     }
@@ -149,84 +147,89 @@ static void armgen_operand(ir_funcdef_t* funcdef, ir_operand_t* operand)
     }
 }
 
-static void armgen_emitcast(ir_funcdef_t* funcdef, ir_inst_t* inst)
+static void armgen_emitext(ir_funcdef_t* funcdef, ir_inst_t* inst, bool issigned)
 {
     ir_reg_t *dst, *src;
-    ir_primitive_e dstprim, srcprim;
+
+    const char *instname;
 
     assert(inst->binary[0].type == IR_OPERAND_REG);
     assert(inst->binary[1].type == IR_OPERAND_REG);
 
-    dstprim = ir_regtype(funcdef, inst->binary[0].reg.name);
-    srcprim = ir_regtype(funcdef, inst->binary[1].reg.name);
-
     dst = map_str_ir_reg_get(&funcdef->regs, inst->binary[0].reg.name);
-    src = map_str_ir_reg_get(&funcdef->regs, inst->binary[1].reg.name);
-
-    switch(dstprim)
+    src = map_str_ir_reg_get(&funcdef->regs, inst->binary[1].reg.name);\
+    
+    switch(src->type)
     {
-    case IR_PRIM_I16:
-        switch(srcprim)
-        {
-        case IR_PRIM_I32:
-            printf("  AND %s, %s, #0xFFFF\n",
-                *map_u64_str_get(&dst->hardreg->names, IR_PRIM_I32), 
-                *map_u64_str_get(&src->hardreg->names, IR_PRIM_I32));
-            break;
-        default:
-            assert(0);
-        }
+    case IR_PRIM_I8:
+    case IR_PRIM_U8:
+        if(issigned)
+            instname = "SXTB";
+        else
+            instname = "UXTB";
         break;
+    case IR_PRIM_I16:
     case IR_PRIM_U16:
-        switch(srcprim)
-        {
-        case IR_PRIM_I32:
-            printf("  AND %s, %s, #0xFFFF\n",
-                *map_u64_str_get(&dst->hardreg->names, IR_PRIM_I32), 
-                *map_u64_str_get(&src->hardreg->names, IR_PRIM_I32));
-            break;
-        default:
-            assert(0);
-        }
+        if(issigned)
+            instname = "SXTH";
+        else
+            instname = "UXTH";
         break;
     case IR_PRIM_I32:
-        switch(srcprim)
-        {
-        case IR_PRIM_I16:
-            printf("  SXTH %s, %s\n", 
-                *map_u64_str_get(&dst->hardreg->names, IR_PRIM_I32), 
-                *map_u64_str_get(&src->hardreg->names, IR_PRIM_I32));
-            break;
-        case IR_PRIM_I64:
-            if(dst->hardreg != src->hardreg)
-                printf("  MOV %s, %s\n", 
-                    *map_u64_str_get(&dst->hardreg->names, IR_PRIM_I32), 
-                    *map_u64_str_get(&src->hardreg->names, IR_PRIM_I32));
-            break;
-        default:
-            assert(0);
-            break;
-        }
-        break;
-    case IR_PRIM_I64:
-        switch(srcprim)
-        {
-        case IR_PRIM_U16:
-            printf("  SXTH %s, %s\n", 
-                *map_u64_str_get(&dst->hardreg->names, IR_PRIM_I32), 
-                *map_u64_str_get(&src->hardreg->names, IR_PRIM_I32));
-            printf("  SXTW %s, %s\n", 
-                *map_u64_str_get(&dst->hardreg->names, IR_PRIM_I64), 
-                *map_u64_str_get(&src->hardreg->names, IR_PRIM_I32));
-            break;
-        default:
-            assert(0);
-        }
+    case IR_PRIM_U32:
+        if(issigned)
+            instname = "SXTW";
+        else
+            instname = "UXTW";
         break;
     default:
         assert(0);
-        break;
     }
+
+    printf("  %s %s, %s\n", 
+        instname,
+        *map_u64_str_get(&dst->hardreg->names, dst->type),
+        *map_u64_str_get(&src->hardreg->names, src->type));
+}
+
+static void armgen_emittrunc(ir_funcdef_t* funcdef, ir_inst_t* inst)
+{
+    ir_reg_t *dst, *src;
+
+    const char *instname;
+
+    assert(inst->binary[0].type == IR_OPERAND_REG);
+    assert(inst->binary[1].type == IR_OPERAND_REG);
+
+    dst = map_str_ir_reg_get(&funcdef->regs, inst->binary[0].reg.name);
+    src = map_str_ir_reg_get(&funcdef->regs, inst->binary[1].reg.name);\
+    
+    switch(dst->type)
+    {
+    case IR_PRIM_I32:
+    case IR_PRIM_U32:
+        instname = "MOV";
+        break;
+    case IR_PRIM_I16:
+    case IR_PRIM_U16:
+        printf("  AND %s, %s, #0xFFFF\n", 
+        *map_u64_str_get(&dst->hardreg->names, dst->type),
+        *map_u64_str_get(&src->hardreg->names, src->type));
+        return;
+    case IR_PRIM_I8:
+    case IR_PRIM_U8:
+        printf("  AND %s, %s, #0xFF\n", 
+        *map_u64_str_get(&dst->hardreg->names, dst->type),
+        *map_u64_str_get(&src->hardreg->names, dst->type));
+        return;
+    default:
+        assert(0);
+    }
+
+    printf("  %s %s, %s\n", 
+        instname,
+        *map_u64_str_get(&dst->hardreg->names, dst->type),
+        *map_u64_str_get(&src->hardreg->names, dst->type));
 }
 
 static void armgen_emitparamcopy(ir_funcdef_t* funcdef, 
@@ -536,7 +539,7 @@ static void armgen_inst(ir_funcdef_t* funcdef, ir_block_t* blk, ir_inst_t* inst)
         printf("  B _%s$exit\n", funcdef->name);
         break;
     case IR_OP_STORE:
-        printf("  STR ");
+        printf("  %s ", armgen_storeinst(ir_regtype(funcdef, inst->binary[1].reg.name)));
         armgen_operand(funcdef, &inst->binary[1]);
         printf(", ");
         armgen_operand(funcdef, &inst->binary[0]);
@@ -558,6 +561,20 @@ static void armgen_inst(ir_funcdef_t* funcdef, ir_block_t* blk, ir_inst_t* inst)
         printf("  CSET ");
         armgen_operand(funcdef, &inst->ternary[0]);
         printf(", eq\n");
+        break;
+    case IR_OP_CMPNEQ:
+        /*
+            CMP %a, %b
+            CSET %dst, neq
+        */
+        printf("  CMP ");
+        armgen_operand(funcdef, &inst->ternary[1]);
+        printf(", ");
+        armgen_operand(funcdef, &inst->ternary[2]);
+        printf("\n");
+        printf("  CSET ");
+        armgen_operand(funcdef, &inst->ternary[0]);
+        printf(", ne\n");
         break;
     case IR_OP_BR:
         /*
@@ -581,12 +598,18 @@ static void armgen_inst(ir_funcdef_t* funcdef, ir_block_t* blk, ir_inst_t* inst)
     case IR_OP_CALL:
         armgen_emitcall(funcdef, blk, inst);
         break;
-    case IR_OP_CAST:
-        armgen_emitcast(funcdef, inst);
+    case IR_OP_ZEXT:
+        armgen_emitext(funcdef, inst, false);
+        break;
+    case IR_OP_SEXT:
+        armgen_emitext(funcdef, inst, true);
+        break;
+    case IR_OP_TRUNC:
+        armgen_emittrunc(funcdef, inst);
         break;
     default:
         printf("unimplemented ir inst %d for arm.\n", (int) inst->op);
-        abort();
+        assert(0);
         break;
     }
 }
@@ -626,9 +649,9 @@ static void armgen_epilouge(ir_funcdef_t* funcdef)
 
     framesize = (savedoffs + stackpad - 1) & ~(stackpad - 1);
 
-    printf("  ADD sp, fp, #%d\n", framesize);
-    
-    printf("  LDP fp, lr, [fp]\n");
+    printf("  LDP fp, lr, [sp]\n");
+    printf("  ADD sp, sp, #%d\n", framesize);
+
     printf("  RET\n");
 
     set_pir_reg_free(&savedregs);

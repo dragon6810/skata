@@ -3,7 +3,7 @@ int main()
 	long long x;
 	short y;
 
-	y = 1;
+	y = 2;
 	x = 1;
 	while(y)
 	{

@@ -358,6 +358,39 @@ static char* ir_gen_funccall(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
     return res;
 }
 
+static char* ir_gen_cast(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
+{
+    ir_primitive_e dsttype, srctype;
+    char *res;
+    ir_inst_e opcode;
+    ir_inst_t inst;
+
+    dsttype = type_toprim(expr->casttype.type);
+    srctype = type_toprim(expr->operand->type.type);
+    
+    res = outreg ? outreg : ir_gen_alloctemp(funcdef, dsttype);
+
+    opcode = IR_OP_MOVE;
+    if(ir_primbytesize(dsttype) > ir_primbytesize(srctype))
+    {
+        if(ir_primflags(dsttype) & IR_FPRIM_SIGNED && ir_primflags(srctype) & IR_FPRIM_SIGNED)
+            opcode = IR_OP_SEXT;
+        else
+            opcode = IR_OP_ZEXT;
+    }
+    else if(ir_primbytesize(dsttype) < ir_primbytesize(srctype))
+        opcode = IR_OP_TRUNC;
+
+    inst.op = opcode;
+    inst.binary[0].type = IR_OPERAND_REG;
+    inst.binary[0].reg.name = strdup(res);
+    inst.binary[1].type = IR_OPERAND_REG;
+    inst.binary[1].reg.name = ir_gen_expr(funcdef, expr->operand, NULL);
+
+    list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
+    return res;
+}
+
 // if outreg is NULL, it will alloc a new register
 // YOU are responsible for the returned string, unless you gave outreg
 char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
@@ -447,14 +480,7 @@ char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
         list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
         return res;
     case EXPROP_CAST:
-        inst.op = IR_OP_CAST;
-        inst.binary[0].type = IR_OPERAND_REG;
-        inst.binary[0].reg.name = strdup(res);
-        inst.binary[1].type = IR_OPERAND_REG;
-        inst.binary[1].reg.name = strdup(ir_gen_expr(funcdef, expr->operand, NULL));
-
-        list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
-        return res;
+        return ir_gen_cast(funcdef, expr, outreg);
     default:
         assert(0 && "unsupported op by IR");
         break;

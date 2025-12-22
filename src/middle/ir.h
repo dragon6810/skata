@@ -6,6 +6,9 @@
 #include "map.h"
 #include "set.h"
 
+#define IR_FPRIM_INTEGRAL 0x01
+#define IR_FPRIM_SIGNED 0x02
+
 typedef struct ir_regspan_s
 {
     char *reg;
@@ -88,7 +91,9 @@ typedef enum
     IR_OP_JMP, // label
     IR_OP_PHI, // (VARIADIC); dst, label1, reg1, label2, reg2, ... labeln, regn
     IR_OP_CALL, // (VARIADIC); dst, func, arg1, arg2, ... argn
-    IR_OP_CAST, // dst, src
+    IR_OP_ZEXT, // dst, src
+    IR_OP_SEXT, // dst, src
+    IR_OP_TRUNC, // dst, src
     IR_OP_COUNT,
 } ir_inst_e;
 
@@ -257,6 +262,7 @@ extern ir_t ir;
 
 void ir_operandfree(ir_operand_t* operand);
 
+uint32_t ir_primflags(ir_primitive_e prim);
 // sets name to NULL
 void ir_initblock(ir_block_t* block);
 ir_primitive_e ir_regtype(ir_funcdef_t* funcdef, char* regname);

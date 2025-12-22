@@ -84,11 +84,111 @@ static void ir_eliminatemoves(ir_funcdef_t* funcdef)
     }
 }
 
-static void ir_convertlit(ir_constant_t* lit, ir_primitive_e type)
+static void ir_eliminatelitzext(ir_funcdef_t* funcdef, ir_inst_t* inst)
 {
-    // TODO: conversions for some types
+    if(inst->binary[1].type != IR_OPERAND_LIT)
+        return;
 
-    lit->type = type;
+    switch(inst->binary[1].literal.type)
+    {
+    case IR_PRIM_U1:
+    case IR_PRIM_I8:
+    case IR_PRIM_U8:
+        inst->binary[1].literal.u64 = inst->binary[1].literal.u8;
+        break;
+    case IR_PRIM_I16:
+    case IR_PRIM_U16:
+        inst->binary[1].literal.u64 = inst->binary[1].literal.u16;
+        break;
+    case IR_PRIM_I32:
+    case IR_PRIM_U32:
+        inst->binary[1].literal.u64 = inst->binary[1].literal.u32;
+        break;
+    default:
+        assert(0);
+    }
+
+    inst->op = IR_OP_MOVE;
+    inst->binary[1].literal.type = ir_regtype(funcdef, inst->binary[0].reg.name);
+    madechange = true;
+}
+
+static void ir_eliminatelitsext(ir_funcdef_t* funcdef, ir_inst_t* inst)
+{
+    ir_primitive_e dsttype;
+
+    if(inst->binary[1].type != IR_OPERAND_LIT)
+        return;
+
+    dsttype = ir_regtype(funcdef, inst->binary[0].reg.name);
+    switch(inst->binary[1].literal.type)
+    {
+    case IR_PRIM_U1:
+    case IR_PRIM_I8:
+    case IR_PRIM_U8:
+        switch(dsttype)
+        {
+        case IR_PRIM_I16:
+        case IR_PRIM_U16:
+            inst->binary[1].literal.i16 = inst->binary[1].literal.i8;
+            break;
+        case IR_PRIM_I32:
+        case IR_PRIM_U32:
+            inst->binary[1].literal.i32 = inst->binary[1].literal.i8;
+            break;
+        case IR_PRIM_I64:
+        case IR_PRIM_U64:
+            inst->binary[1].literal.i64 = inst->binary[1].literal.i8;
+            break;
+        default:
+            assert(0);
+        }
+        break;
+    case IR_PRIM_I16:
+    case IR_PRIM_U16:
+        switch(dsttype)
+        {
+        case IR_PRIM_I32:
+        case IR_PRIM_U32:
+            inst->binary[1].literal.i32 = inst->binary[1].literal.i16;
+            break;
+        case IR_PRIM_I64:
+        case IR_PRIM_U64:
+            inst->binary[1].literal.i64 = inst->binary[1].literal.i16;
+            break;
+        default:
+            assert(0);
+        }
+        break;
+    case IR_PRIM_I32:
+    case IR_PRIM_U32:
+        switch(dsttype)
+        {
+        case IR_PRIM_I64:
+        case IR_PRIM_U64:
+            inst->binary[1].literal.i64 = inst->binary[1].literal.i32;
+            break;
+        default:
+            assert(0);
+        }
+        break;
+    default:
+        assert(0);
+    }
+
+    inst->op = IR_OP_MOVE;
+    inst->binary[1].literal.type = ir_regtype(funcdef, inst->binary[0].reg.name);
+    madechange = true;
+}
+
+static void ir_eliminatelittrunc(ir_funcdef_t* funcdef, ir_inst_t* inst)
+{
+    if(inst->binary[1].type != IR_OPERAND_LIT)
+        return;
+
+    inst->op = IR_OP_MOVE;
+    inst->binary[1].literal.type = ir_regtype(funcdef, inst->binary[0].reg.name);
+    madechange = true;
 }
 
 static void ir_eliminatelitcasts(ir_funcdef_t* funcdef)
@@ -101,15 +201,20 @@ static void ir_eliminatelitcasts(ir_funcdef_t* funcdef)
     {
         for(i=0, inst=blk->insts.data; i<blk->insts.len; i++, inst++)
         {
-            if(inst->op != IR_OP_CAST)
-                continue;
-            if(inst->binary[1].type != IR_OPERAND_LIT)
-                continue;
-
-            inst->op = IR_OP_MOVE;
-            ir_convertlit(&inst->binary[1].literal, ir_regtype(funcdef, inst->binary[0].reg.name));
-
-            madechange = true;
+            switch(inst->op)
+            {
+            case IR_OP_ZEXT:
+                ir_eliminatelitzext(funcdef, inst);
+                break;
+            case IR_OP_SEXT:
+                ir_eliminatelitsext(funcdef, inst);
+                break;
+            case IR_OP_TRUNC:
+                ir_eliminatelittrunc(funcdef, inst);
+                break;
+            default:
+                break;
+            }
         }
     }
 }
