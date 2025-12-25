@@ -4,7 +4,7 @@
 
 list_string_t namestack;
 
-static void ir_rename(ir_funcdef_t* func, ir_var_t* var, ir_block_t* blk)
+static void ir_rename(ir_funcdef_t* func, char* varreg, ir_primitive_e type, ir_block_t* blk)
 {
     int i;
     ir_inst_t *inst;
@@ -21,10 +21,10 @@ static void ir_rename(ir_funcdef_t* func, ir_var_t* var, ir_block_t* blk)
     {
         if(inst->op == IR_OP_PHI)
         {
-            if(!inst->var || strcmp(inst->var, var->name))
+            if(!inst->var || strcmp(inst->var, varreg))
                 continue;
 
-            reg = ir_gen_alloctemp(func, var->type.prim);
+            reg = ir_gen_alloctemp(func, type);
             list_string_push(&namestack, reg);
             inst->variadic.data[0].reg.name = strdup(reg);
             continue;
@@ -32,7 +32,7 @@ static void ir_rename(ir_funcdef_t* func, ir_var_t* var, ir_block_t* blk)
 
         if(inst->op == IR_OP_LOAD)
         {
-            if(strcmp(inst->binary[1].var->name, var->name))
+            if(strcmp(inst->binary[1].reg.name, varreg))
                 continue;
 
             inst->op = IR_OP_MOVE;
@@ -43,16 +43,15 @@ static void ir_rename(ir_funcdef_t* func, ir_var_t* var, ir_block_t* blk)
 
         if(inst->op == IR_OP_STORE)
         {
-            if(strcmp(inst->binary[0].var->name, var->name))
+            if(strcmp(inst->binary[0].reg.name, varreg))
                 continue;
 
-            reg = ir_gen_alloctemp(func, var->type.prim);
+            reg = ir_gen_alloctemp(func, type);
             list_string_push(&namestack, reg);
 
             inst->op = IR_OP_MOVE;
             inst->binary[0].type = IR_OPERAND_REG;
             inst->binary[0].reg.name = strdup(reg);
-            assert(var->type.prim);
             continue;
         }
     }
@@ -62,7 +61,7 @@ static void ir_rename(ir_funcdef_t* func, ir_var_t* var, ir_block_t* blk)
         // rename successor phi-nodes
         for(i=0; i<blk->out.len; i++)
         {
-            pidx = map_str_u64_get(&blk->out.data[i]->varphis, var->name);
+            pidx = map_str_u64_get(&blk->out.data[i]->varphis, varreg);
             if(!pidx)
                 continue;
             idx = *pidx;
@@ -81,14 +80,14 @@ static void ir_rename(ir_funcdef_t* func, ir_var_t* var, ir_block_t* blk)
 
     // rename children in dominator tree
     for(i=0; i<blk->domchildren.len; i++)
-        ir_rename(func, var, blk->domchildren.data[i]);
+        ir_rename(func, varreg, type, blk->domchildren.data[i]);
 
     while(namestack.len > stacksize)
         list_string_remove(&namestack, namestack.len - 1);
 }
 
 // worklist must be initialized
-static void ir_populateworklist(list_pir_block_t* worklist, ir_funcdef_t* func, ir_var_t* var)
+static void ir_populateworklist(list_pir_block_t* worklist, ir_funcdef_t* func, char* varreg, ir_primitive_e type)
 {
     int i, b;
     ir_block_t *blk;
@@ -100,11 +99,11 @@ static void ir_populateworklist(list_pir_block_t* worklist, ir_funcdef_t* func, 
         {
             if(inst->op != IR_OP_STORE && inst->op != IR_OP_PHI)
                 continue;
-            if(inst->op == IR_OP_STORE && strcmp(inst->binary[0].var->name, var->name))
+            if(inst->op == IR_OP_STORE && strcmp(inst->binary[0].reg.name, varreg))
                 continue;
             if(inst->op == IR_OP_PHI && !inst->var)
                 continue;
-            if(inst->op == IR_OP_PHI && strcmp(inst->var, var->name))
+            if(inst->op == IR_OP_PHI && strcmp(inst->var, varreg))
                 continue;
 
             list_pir_block_push(worklist, blk);
@@ -117,19 +116,20 @@ static void ir_ssafunc(ir_funcdef_t* func)
 {
     int v, i;
     
-    ir_block_t *blk;
+    ir_block_t *entry, *blk;
     list_pir_block_t worklist;
     ir_block_t *df;
     ir_inst_t inst;
     uint64_t idx;
 
-    for(v=0; v<func->vars.nbin; v++)
+    entry = func->blocks.data;
+    for(v=0; v<entry->insts.len; v++)
     {
-        if(func->vars.bins[v].state != MAP_EL_FULL)
-            continue;
-        
+        assert(entry->insts.data[v].op == IR_OP_ALLOCA);
+        assert(entry->insts.data[v].alloca.type.type == IR_TYPE_PRIM);
+
         list_pir_block_init(&worklist, 0);
-        ir_populateworklist(&worklist, func, &func->vars.bins[v].val);
+        ir_populateworklist(&worklist, func, entry->insts.data[v].unary.reg.name, entry->insts.data[v].alloca.type.prim);
         while(worklist.len)
         {
             blk = worklist.data[worklist.len - 1];
@@ -139,18 +139,18 @@ static void ir_ssafunc(ir_funcdef_t* func)
             {
                 df = blk->domfrontier.data[i];
 
-                if(map_str_u64_get(&df->varphis, func->vars.bins[v].val.name))
+                if(map_str_u64_get(&df->varphis, entry->insts.data[v].unary.reg.name))
                     continue;
 
                 inst.op = IR_OP_PHI;
                 list_ir_operand_init(&inst.variadic, 1);
                 inst.variadic.data[0].type = IR_OPERAND_REG;
                 inst.variadic.data[0].reg.name = NULL;
-                inst.var = strdup(func->vars.bins[v].val.name);
+                inst.var = strdup(entry->insts.data[v].unary.reg.name);
                 
                 idx = df->varphis.nfull;
                 list_ir_inst_insert(&df->insts, idx, inst);
-                map_str_u64_set(&df->varphis, func->vars.bins[v].val.name, idx);
+                map_str_u64_set(&df->varphis, entry->insts.data[v].unary.reg.name, idx);
 
                 list_pir_block_push(&worklist, df);
             }
@@ -159,19 +159,17 @@ static void ir_ssafunc(ir_funcdef_t* func)
         list_pir_block_free(&worklist);
     }
 
-    for(v=0; v<func->vars.nbin; v++)
+    for(v=0; v<entry->insts.len; v++)
     {
-        if(func->vars.bins[v].state != MAP_EL_FULL)
-            continue;
+        assert(entry->insts.data[v].op == IR_OP_ALLOCA);
+        assert(entry->insts.data[v].alloca.type.type == IR_TYPE_PRIM);
 
         list_string_init(&namestack, 0);
-        ir_rename(func, &func->vars.bins[v].val, &func->blocks.data[0]);
+        ir_rename(func, entry->insts.data[v].unary.reg.name, entry->insts.data[v].alloca.type.prim, &func->blocks.data[0]);
         list_string_free(&namestack);
 
-        func->vars.nfull--;
-        free(func->vars.bins[v].key);
-        ir_varfree(&func->vars.bins[v].val);
-        func->vars.bins[v].state = MAP_EL_TOMB;
+        list_ir_inst_remove(&entry->insts, v);
+        v--;
     }
 }
 

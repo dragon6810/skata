@@ -15,46 +15,28 @@ static void insertcpy(ir_block_t* blk, ir_copy_t* cpy)
     && (blk->insts.data[blk->insts.len-1].op == IR_OP_BR || blk->insts.data[blk->insts.len-1].op == IR_OP_JMP))
         idx--;
 
-    if(cpy->dst.type == IR_OPERAND_REG && cpy->src.type != IR_OPERAND_VAR)
-        inst.op = IR_OP_MOVE;
-    else if(cpy->dst.type == IR_OPERAND_REG && cpy->src.type == IR_OPERAND_VAR)
-        inst.op = IR_OP_LOAD;
-    else if(cpy->dst.type == IR_OPERAND_VAR && cpy->src.type == IR_OPERAND_REG)
-        inst.op = IR_OP_STORE;
-    else
-        assert(0);
+    inst.op = IR_OP_MOVE;
 
-    ir_cpyoperand(&inst.binary[0], &cpy->dst);
+    inst.binary[0].type = IR_OPERAND_REG;
+    inst.binary[0].reg.name = strdup(cpy->dstreg);
     ir_cpyoperand(&inst.binary[1], &cpy->src);
 
     list_ir_inst_insert(&blk->insts, idx, inst);
 }
 
-static bool operandsamelocation(ir_funcdef_t* funcdef, const ir_operand_t* a, const ir_operand_t* b)
+static bool regssamelocation(ir_funcdef_t* funcdef, char* a, char* b)
 {
     ir_reg_t *areg, *breg;
 
-    if(a->type != b->type)
-        return false;
-    
-    switch(a->type)
-    {
-    case IR_OPERAND_REG:
-        if(strcmp(a->reg.name, b->reg.name))
-            return false;
-        
-        areg = map_str_ir_reg_get(&funcdef->regs, a->reg.name);
-        breg = map_str_ir_reg_get(&funcdef->regs, a->reg.name);
+    areg = map_str_ir_reg_get(&funcdef->regs, a);
+    breg = map_str_ir_reg_get(&funcdef->regs, b);
+    assert(areg);
+    assert(breg);
 
-        if(!areg->hardreg || areg->hardreg != breg->hardreg)
-            return false;
+    if(!areg->hardreg && !breg->hardreg)
+        return a == b;
 
-        return true;
-    case IR_OPERAND_VAR:
-        return !strcmp(a->var->name, b->var->name);
-    default:
-        return false;
-    }
+    return areg->hardreg == breg->hardreg;
 }
 
 // returns true if dst is not used as any other src
@@ -67,7 +49,10 @@ static bool iscpyacyclic(ir_funcdef_t* funcdef, ir_block_t* blk, uint64_t idx)
         if(idx == i)
             continue;
 
-        if(operandsamelocation(funcdef, &blk->phicpys.data[i].src, &blk->phicpys.data[idx].dst))
+        if(blk->phicpys.data[i].src.type != IR_OPERAND_REG)
+            continue;
+
+        if(regssamelocation(funcdef, blk->phicpys.data[i].src.reg.name, blk->phicpys.data[idx].dstreg))
             return false;
     }
 
@@ -102,10 +87,12 @@ static void findphicpys(ir_funcdef_t* funcdef, ir_inst_t* inst)
     ir_block_t *blk;
 
     assert(inst->op == IR_OP_PHI);
+    assert(inst->variadic.len);
+    assert(inst->variadic.data[0].type == IR_OPERAND_REG);
 
     for(i=2; i<inst->variadic.len; i+=2)
     {
-        ir_cpyoperand(&cpy.dst, &inst->variadic.data[0]);
+        cpy.dstreg = strdup(inst->variadic.data[0].reg.name);
         ir_cpyoperand(&cpy.src, &inst->variadic.data[i]);
 
         ilabel = map_str_u64_get(&funcdef->blktbl, inst->variadic.data[i-1].label);

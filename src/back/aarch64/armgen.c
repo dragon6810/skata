@@ -135,9 +135,6 @@ static void armgen_operand(ir_funcdef_t* funcdef, ir_operand_t* operand)
     case IR_OPERAND_LIT:
         printf("#%d", operand->literal.i32);
         break;
-    case IR_OPERAND_VAR:
-        printf("[sp, #%d]", operand->var->stackloc);
-        break;
     case IR_OPERAND_LABEL:
         printf("_%s$%s", funcdef->name, operand->label);
         break;
@@ -251,11 +248,6 @@ static void armgen_emitparamcopy(ir_funcdef_t* funcdef,
             printf("  MOV %s, %s\n", *map_u64_str_get(&parampool.data[*regparam]->names, prim), 
                 *map_u64_str_get(&map_str_ir_reg_get(&funcdef->regs, operand->reg.name)->hardreg->names, prim));
             break;
-        case IR_OPERAND_VAR:
-            prim = operand->var->type.prim;
-
-            printf("  %s %s, [fp, #%d]\n", armgen_loadinst(prim), *map_u64_str_get(&parampool.data[*regparam]->names, prim), operand->var->stackloc);
-            break;
         case IR_OPERAND_LIT:
             prim = operand->literal.type;
 
@@ -281,12 +273,6 @@ static void armgen_emitparamcopy(ir_funcdef_t* funcdef,
         printf("  %s %s, [sp, #%d]\n",
             armgen_storeinst(reg->type),
             *map_u64_str_get(&reg->hardreg->names, reg->type), (int) *stackoffs);
-        break;
-    case IR_OPERAND_VAR:
-        printf("  %s %s, [fp, #%d]\n", armgen_loadinst(operand->var->type.prim),
-            *map_u64_str_get(&scratch->names, operand->var->type.prim), operand->var->stackloc);
-        printf("  %s %s, [sp, #%d]\n", armgen_storeinst(operand->var->type.prim),
-            *map_u64_str_get(&scratch->names, operand->var->type.prim), (int) *stackoffs);
         break;
     case IR_OPERAND_LIT:
         printf("  MOV %s, #%"PRIi64"\n", scratch->name, operand->literal.u64);
@@ -458,22 +444,6 @@ static void armgen_emitcall(ir_funcdef_t* funcdef, ir_block_t* blk, ir_inst_t* i
     set_pir_reg_free(&saved);
 }
 
-static void armgen_emitload(ir_funcdef_t* funcdef, ir_inst_t* inst)
-{
-    ir_primitive_e prim;
-
-    assert(inst->binary[0].type == IR_OPERAND_REG);
-    assert(inst->binary[1].type == IR_OPERAND_VAR);
-
-    prim = ir_regtype(funcdef, inst->binary[0].reg.name);
-
-    printf("  %s ", armgen_loadinst(prim));
-    armgen_operand(funcdef, &inst->binary[0]);
-    printf(", ");
-    armgen_operand(funcdef, &inst->binary[1]);
-    printf("\n");
-}
-
 static void armgen_emitmul(ir_funcdef_t* funcdef, ir_inst_t* inst)
 {
     if(inst->ternary[2].type == IR_OPERAND_LIT)
@@ -545,9 +515,6 @@ static void armgen_inst(ir_funcdef_t* funcdef, ir_block_t* blk, ir_inst_t* inst)
         armgen_operand(funcdef, &inst->binary[0]);
         printf("\n");
         break;
-    case IR_OP_LOAD:
-        armgen_emitload(funcdef, inst);
-        break;
     case IR_OP_CMPEQ:
         /*
             CMP %a, %b
@@ -618,9 +585,6 @@ static void armgen_block(ir_funcdef_t* funcdef, ir_block_t* block)
 {
     int i;
 
-    if(funcdef->varframe % stackpad)
-        funcdef->varframe += stackpad - (funcdef->varframe % stackpad);
-
     printf("_%s$%s:\n", funcdef->name, block->name);
 
     for(i=0; i<block->insts.len; i++)
@@ -634,7 +598,7 @@ static void armgen_epilouge(ir_funcdef_t* funcdef)
     int framesize;
     int savedoffs;
 
-    for(i=0, savedoffs=16+funcdef->varframe; i<savedregs.nbin; i++)
+    for(i=0, savedoffs=16; i<savedregs.nbin; i++)
     {
         if(savedregs.bins[i].state != SET_EL_FULL)
             continue;
@@ -699,12 +663,12 @@ static void armgen_prolouge(ir_funcdef_t* funcdef)
         framesize += ir_primbytesize(savedregs.bins[i].val->type);
     }
 
-    framesize = 16 + funcdef->varframe + framesize;
+    framesize = 16 + framesize;
     framesize = (framesize + stackpad - 1) & ~(stackpad - 1); 
 
     printf("  SUB sp, sp, #%d\n", framesize);
 
-    for(i=0, savedoffs=16+funcdef->varframe; i<savedregs.nbin; i++)
+    for(i=0, savedoffs=16; i<savedregs.nbin; i++)
     {
         if(savedregs.bins[i].state != SET_EL_FULL)
             continue;
@@ -747,9 +711,6 @@ static void armgen_prolouge(ir_funcdef_t* funcdef)
 static void armgen_funcdef(ir_funcdef_t* funcdef)
 {
     int i;
-
-    if(funcdef->varframe % stackpad)
-        funcdef->varframe += stackpad - (funcdef->varframe % stackpad);
 
     printf("_%s:\n", funcdef->name);
 

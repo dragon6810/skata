@@ -197,7 +197,14 @@ void list_##name##_free(list_##name##_t* list)\
     list->data = NULL;\
 }
 
+typedef struct strpair_s
+{
+    char *a;
+    char *b;
+} strpair_t;
+
 LIST_DECL(char*, string)
+LIST_DECL(strpair_t, strpair)
 LIST_DECL(uint64_t, u64)
 
 #endif

@@ -88,26 +88,7 @@ void regalloc_init(void)
 
 static void regalloc_spillreg(ir_funcdef_t* funcdef, char* regname)
 {
-    int b, i;
-    ir_block_t *blk;
-
-    // ir_inst_t *pinst, inst;
-    ir_var_t var;
-
-    var.name = regname;
-    map_str_ir_var_set(&funcdef->vars, regname, var);
-
-    for(b=0, blk=funcdef->blocks.data; b<funcdef->blocks.len; b++, blk++)
-    {
-        for(i=0; i<blk->insts.len; i++)
-        {
-            // pinst = &blk->insts.data[i];
-
-
-        }
-    }
-
-    reglifetime();
+    assert(0);
 }
 
 static ir_reg_t* regalloc_pickvictim(ir_funcdef_t* funcdef, set_pir_reg_t* set)

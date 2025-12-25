@@ -1,5 +1,13 @@
 #include "ir.h"
 
+static void ir_freecopy(ir_copy_t* copy)
+{
+    ir_operandfree(&copy->src);
+}
+
+LIST_DEF(ir_copy)
+LIST_DEF_FREE_DECONSTRUCT(ir_copy, ir_freecopy)
+
 uint32_t ir_primflags(ir_primitive_e prim)
 {
     switch(prim)
@@ -77,6 +85,9 @@ void ir_accessedregs(set_str_t* set, ir_inst_t* inst)
 
     switch(inst->op)
     {
+    case IR_OP_JMP:
+    case IR_OP_ALLOCA:
+        break;
     case IR_OP_MOVE:
     case IR_OP_STORE:
     case IR_OP_ZEXT:
@@ -108,6 +119,7 @@ void ir_accessedregs(set_str_t* set, ir_inst_t* inst)
             if(inst->variadic.data[i].type == IR_OPERAND_REG) set_str_add(set, inst->variadic.data[i].reg.name);
         break;
     default:
+        assert(0);
         break;
     }
 }
@@ -126,6 +138,7 @@ void ir_instoperands(list_pir_operand_t* list, ir_inst_t* inst)
         noperands = inst->hasval;
         break;
     case IR_OP_JMP:
+    case IR_OP_ALLOCA:
         noperands = 1;
         break;
     case IR_OP_MOVE:

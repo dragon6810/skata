@@ -64,17 +64,7 @@ typedef struct ir_type_s
     };
 } ir_type_t;
 
-typedef struct ir_var_s
-{
-    // '$' prefix implicit
-    char *name;
-
-    ir_type_t type;
-    int stackloc;
-} ir_var_t;
-
 MAP_DECL(char*, ir_reg_t, str, ir_reg)
-MAP_DECL(char*, ir_var_t, str, ir_var)
 
 typedef enum
 {
@@ -94,6 +84,7 @@ typedef enum
     IR_OP_ZEXT, // dst, src
     IR_OP_SEXT, // dst, src
     IR_OP_TRUNC, // dst, src
+    IR_OP_ALLOCA, // dst
     IR_OP_COUNT,
 } ir_inst_e;
 
@@ -126,14 +117,13 @@ typedef struct ir_location_s
     union
     {
         char *reg;
-        char *var;
+        char *var; // name of reg that holds ptr to var
     };
 } ir_location_t;
 
 typedef enum
 {
     IR_OPERAND_REG=0,
-    IR_OPERAND_VAR,
     IR_OPERAND_LIT,
     IR_OPERAND_LABEL,
     IR_OPERAND_FUNC,
@@ -144,22 +134,38 @@ typedef struct ir_operand_s
     ir_operand_e type;
     union
     {
-        // TODO: reg and var become dangling
-        // switch them to be names soon
         struct
         {
             char *name;
         } reg;
         ir_constant_t literal;
-        ir_var_t *var;
         char *label;
         char *func;
     };
 } ir_operand_t;
 
+typedef enum
+{
+    IR_COPY_REG=0,
+    IR_COPY_VAR,
+    IR_COPY_LIT,
+} ir_copy_e;
+
+typedef struct ir_copyoperand_s
+{
+    ir_copy_e type;
+    union
+    {
+        char *reg;
+        char *var;
+        ir_constant_t lit;
+    };
+} ir_copyoperand_t;
+
 typedef struct ir_copy_s
 {
-    ir_operand_t dst, src;
+    char *dstreg;
+    ir_operand_t src;
 } ir_copy_t;
 
 LIST_DECL(ir_operand_t, ir_operand)
@@ -182,6 +188,10 @@ typedef struct ir_inst_s
     {
         char* var; // what variable is this phi-node setting? can be NULL.
         bool hasval; // for return statements
+        struct
+        {
+            ir_type_t type;
+        } alloca;
     };
 } ir_inst_t;
 
@@ -242,9 +252,6 @@ typedef struct ir_funcdef_s
 
     uint64_t ntempreg;
     map_str_ir_reg_t regs;
-    uint64_t varframe; // size of stack frame if it was purely vars
-    uint64_t spillframe; // size of stack frame for spills
-    map_str_ir_var_t vars;
     
     list_pir_block_t postorder;
     map_str_u64_t blktbl;
@@ -267,7 +274,6 @@ uint32_t ir_primflags(ir_primitive_e prim);
 void ir_initblock(ir_block_t* block);
 ir_primitive_e ir_regtype(ir_funcdef_t* funcdef, char* regname);
 char* ir_gen_alloctemp(ir_funcdef_t *funcdef, ir_primitive_e type);
-void ir_varfree(ir_var_t* var);
 void ir_instfree(ir_inst_t* inst);
 uint64_t ir_newblock(ir_funcdef_t* funcdef);
 int ir_primbytesize(ir_primitive_e prim);

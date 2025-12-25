@@ -35,6 +35,9 @@ static void ir_print_prim(ir_primitive_e prim)
     case IR_PRIM_U64:
         printf("u64");
         break;
+    case IR_PRIM_PTR:
+        printf("ptr");
+        break;
     default:
         assert(0);
         break;
@@ -61,7 +64,6 @@ void ir_print_type(ir_type_t type)
 void ir_print_location(ir_funcdef_t* funcdef, ir_location_t* location)
 {
     ir_reg_t *reg;
-    ir_var_t *var;
 
     switch(location->type)
     {
@@ -71,11 +73,12 @@ void ir_print_location(ir_funcdef_t* funcdef, ir_location_t* location)
         printf(" \e[0;31m%%%s\e[0m", location->reg);
         break;
     case IR_LOCATION_VAR:
-        var = map_str_ir_var_get(&funcdef->vars, location->var);
-        ir_print_type(var->type);
+        reg = map_str_ir_reg_get(&funcdef->regs, location->var);
+        ir_print_prim(reg->type);
         printf(" \e[0;31m$%s\e[0m", location->var);
         break;
     default:
+        assert(0);
         break;
     }
 }
@@ -91,9 +94,6 @@ void ir_print_operand(ir_funcdef_t* funcdef, ir_operand_t* operand)
     case IR_OPERAND_LIT:
         ir_print_prim(operand->literal.type);
         printf(" \e[0;93m%d\e[0m", operand->literal.i32);
-        break;
-    case IR_OPERAND_VAR:
-        printf("\e[0;31m$%s\e[0m", operand->var->name);
         break;
     case IR_OPERAND_LABEL:
         printf("\e[0;96mlabel \e[0;31m%s\e[0m", operand->label);
@@ -153,16 +153,16 @@ void ir_dump_inst(ir_funcdef_t* funcdef, ir_inst_t* inst)
         printf("\n");
         break;
     case IR_OP_STORE:
-        printf("  ");
-        ir_print_operand(funcdef, &inst->binary[0]);
-        printf(" \e[0;95m=\e[0m ");
+        printf("  \e[0;95mstore\e[0m ");
         ir_print_operand(funcdef, &inst->binary[1]);
+        printf(" \e[0;95mat\e[0m ");
+        ir_print_operand(funcdef, &inst->binary[0]);
         printf("\n");
         break;
     case IR_OP_LOAD:
         printf("  ");
         ir_print_operand(funcdef, &inst->binary[0]);
-        printf(" \e[0;95m:=\e[0m ");
+        printf(" \e[0;95m:= load\e[0m ");
         ir_print_operand(funcdef, &inst->binary[1]);
         printf("\n");
         break;
@@ -250,25 +250,16 @@ void ir_dump_inst(ir_funcdef_t* funcdef, ir_inst_t* inst)
         ir_print_operand(funcdef, &inst->binary[1]);
         printf("\n");
         break;
+    case IR_OP_ALLOCA:
+        printf("  ");
+        ir_print_operand(funcdef, &inst->unary);
+        printf("\e[0;95m := alloca ");
+        ir_print_type(inst->alloca.type);
+        printf("\n");
+        break;
     default:
         assert(0 && "unkown ir opcode");
         break;
-    }
-}
-
-void ir_dump_vars(ir_funcdef_t* funcdef)
-{
-    int i;
-
-    ir_var_t *var;
-
-    for(i=0; i<funcdef->vars.nbin; i++)
-    {
-        if(funcdef->vars.bins[i].state != MAP_EL_FULL)
-            continue;
-        var = &funcdef->vars.bins[i].val;
-
-        printf("  \e[0;95malloca \e[0;31m$%s\e[0m, \e[0;96msize \e[0;93m%d\e[0m\n", var->name, 4);
     }
 }
 
@@ -277,12 +268,6 @@ void ir_dump_block(ir_funcdef_t* funcdef, ir_block_t* block)
     int i;
 
     printf("\e[0;92m%s\e[0m:\n", block->name);
-
-    if(!strcmp(block->name, "entry") && funcdef->vars.nfull)
-    {
-        ir_dump_vars(funcdef);
-        printf("\n");
-    }
 
     for(i=0; i<block->insts.len; i++)
         ir_dump_inst(funcdef, &block->insts.data[i]);
