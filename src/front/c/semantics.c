@@ -182,6 +182,17 @@ static void semantics_logicalnot(expr_t* expr)
     expr->type.type = TYPE_U1;
 }
 
+static void semantics_refexpr(expr_t* expr)
+{
+    semantics_expr(expr->operand);
+    if(!expr->operand->lval)
+        error(true, expr->line, expr->col, "expression must be an lval\n");
+
+    expr->type.type = TYPE_PTR;
+    expr->type.ptrtype = malloc(sizeof(type_t));
+    type_cpy(expr->type.ptrtype, &expr->operand->type);
+}
+
 static void semantics_unaryexpr(expr_t* expr)
 {
     semantics_expr(expr->operand);
@@ -314,6 +325,9 @@ static void semantics_expr(expr_t* expr)
     case EXPROP_POSTINC:
     case EXPROP_POSTDEC:
         semantics_unaryexpr(expr);
+        break;
+    case EXPROP_REF:
+        semantics_refexpr(expr);
         break;
     case EXPROP_LOGICNOT:
         semantics_logicalnot(expr);

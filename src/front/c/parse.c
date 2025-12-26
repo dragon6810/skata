@@ -197,7 +197,7 @@ bool parse_eatstr(const char* str)
     tokstr = parse_peekstr(0);
     if(strcmp(tokstr, str))
     {
-        error(false, parse_getexpectedline(), parse_getexpectedcol(), "expected '%s'\n", str);
+        error(true, parse_getexpectedline(), parse_getexpectedcol(), "expected '%s'\n", str);
         return false;
     }
 

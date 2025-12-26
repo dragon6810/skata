@@ -20,6 +20,7 @@ typedef enum
     TYPE_I64,
     TYPE_U64,
 
+    TYPE_PTR,
     TYPE_FUNC,
 
     TYPE_COUNT,
@@ -42,12 +43,14 @@ typedef struct type_s
             type_t *ret;
             list_type_t args;
         } func;
+        type_t *ptrtype; // type it points to
     };
 } type_t;
 
 ir_primitive_e type_toprim(type_e type);
 int type_bytesize(type_t type);
 
+void type_cpy(type_t* dst, type_t* src);
 void type_free(type_t* type);
 
 #endif
