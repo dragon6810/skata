@@ -257,6 +257,14 @@ void ir_dump_inst(ir_funcdef_t* funcdef, ir_inst_t* inst)
         ir_print_type(inst->alloca.type);
         printf("\n");
         break;
+    case IR_OP_FIE:
+        printf("  ");
+        ir_print_operand(funcdef, &inst->binary[0]);
+        printf("\e[0;95m := fie ");
+        ir_print_operand(funcdef, &inst->binary[1]);
+        printf("\n");
+        break;
+        break;
     default:
         assert(0 && "unkown ir opcode");
         break;

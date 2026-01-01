@@ -36,11 +36,16 @@ typedef enum
     IR_PRIM_COUNT,
 } ir_primitive_e;
 
+typedef struct ir_inst_s ir_inst_t;
+
 typedef struct ir_reg_s
 {
     // '%' prefix implicit
     char *name;
     ir_primitive_e type;
+
+    // the instruction in which the register is defined
+    ir_inst_t *def;
 
     // a 'fake' register replaced with a static expression in ASM.
     // for example, result of alloca will turn into [sp + #x]
@@ -177,8 +182,6 @@ LIST_DECL(ir_operand_t, ir_operand)
 LIST_DECL(ir_operand_t*, pir_operand)
 LIST_DECL(ir_copy_t, ir_copy)
 
-typedef struct ir_inst_s ir_inst_t;
-
 struct ir_inst_s
 {
     ir_inst_e op;
@@ -297,6 +300,7 @@ void ir_definedregs(set_str_t* set, ir_inst_t* inst);
 void ir_accessedregs(set_str_t* set, ir_inst_t* inst);
 // list shouldn't be intialized
 void ir_instoperands(list_pir_operand_t* list, ir_inst_t* inst);
+void ir_regdefs(void);
 
 void ir_free(void);
 void ir_dump(void);

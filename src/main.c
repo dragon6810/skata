@@ -49,6 +49,7 @@ char* loadsrctext(void)
 
 bool compileback(void)
 {
+    back_fie();
     back_typereduction();
     if(emitbackir)
     {
@@ -78,6 +79,8 @@ bool compileback(void)
 
 bool compilemiddle(void)
 {
+    ir_regdefs();
+
     flow();
     if(emitflow)
     {

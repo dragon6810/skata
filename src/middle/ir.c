@@ -325,6 +325,7 @@ void ir_instoperands(list_pir_operand_t* list, ir_inst_t* inst)
     case IR_OP_ZEXT:
     case IR_OP_SEXT:
     case IR_OP_TRUNC:
+    case IR_OP_FIE:
         noperands = 2;
         break;
     case IR_OP_ADD:
@@ -380,4 +381,40 @@ int ir_primbytesize(ir_primitive_e prim)
     default:
         assert(0);
     }
+}
+
+static void ir_blockregdefs(ir_funcdef_t* funcdef, ir_block_t* blk)
+{
+    int i;
+
+    ir_inst_t *inst;
+    set_str_t defs;
+
+    for(inst=blk->insts; inst; inst=inst->next)
+    {
+        ir_definedregs(&defs, inst);
+        for(i=0; i<defs.nbin; i++)
+        {
+            if(defs.bins[i].state != SET_EL_FULL)
+                continue;
+            map_str_ir_reg_get(&funcdef->regs, defs.bins[i].val)->def = inst;
+        }
+        set_str_free(&defs);
+    }
+}
+
+static void ir_funcregdefs(ir_funcdef_t* funcdef)
+{
+    int i;
+
+    for(i=0; i<funcdef->blocks.len; i++)
+        ir_blockregdefs(funcdef, &funcdef->blocks.data[i]);
+}
+
+void ir_regdefs(void)
+{
+    int i;
+
+    for(i=0; i<ir.defs.len; i++)
+        ir_funcregdefs(&ir.defs.data[i]);
 }
