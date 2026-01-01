@@ -83,6 +83,20 @@ static void semantics_cast(type_t type, expr_t* expr)
 
 static void semantics_expr(expr_t* expr);
 
+static void semantics_truthybinaryexpr(expr_t* expr)
+{
+    int i;
+
+    for(i=0; i<2; i++)
+    {
+        semantics_expr(expr->operands[i]);
+        if(expr->operands[i]->type.type < TYPE_I32)
+            semantics_cast(semantics_inttype, expr->operands[i]);
+    }
+
+    expr->type.type = TYPE_U1;
+}
+
 static void semantics_binaryexpr(expr_t* expr)
 {
     int i;
@@ -187,7 +201,7 @@ static void semantics_derefexpr(expr_t* expr)
     semantics_expr(expr->operand);
     if(expr->operand->type.type != TYPE_PTR)
         error(true, expr->line, expr->col, "expression must be a pointer\n");
-    
+
     type_cpy(&expr->type, expr->operand->type.ptrtype);
 
     expr->lval = true;
@@ -329,6 +343,10 @@ static void semantics_expr(expr_t* expr)
     case EXPROP_MULT:
     case EXPROP_DIV:
         semantics_binaryexpr(expr);
+        break;
+    case EXPROP_EQ:
+    case EXPROP_NEQ:
+        semantics_truthybinaryexpr(expr);
         break;
     case EXPROP_NEG:
     case EXPROP_PREINC:

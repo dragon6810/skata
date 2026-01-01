@@ -225,6 +225,23 @@ const char* parse_eat(void)
     }
 }
 
+void parse_modifytypewithptr(type_t* type)
+{
+    type_t *subtype;
+
+    while(1)
+    {
+        if(strcmp(parse_peekstr(0), "*"))
+            return;
+        parse_eat();
+        
+        subtype = malloc(sizeof(type_t));
+        memcpy(subtype, type, sizeof(type_t));
+        type->type = TYPE_PTR;
+        type->ptrtype = subtype;
+    }
+}
+
 void parse_type(type_t* type)
 {
     const char *tokstr;
@@ -322,8 +339,13 @@ bool parse_istype()
 
 static void parse_decl(decl_t* decl)
 {
+    type_t type;
+
+    parse_type(&type);
+
     decl->form = DECL_VAR;
-    parse_type(&decl->type);
+    type_cpy(&decl->type, &type);
+    parse_modifytypewithptr(&decl->type);
     decl->ident = strdup(parse_eatform(TOKEN_IDENT));
     decl->expr = NULL;
 
@@ -332,6 +354,8 @@ static void parse_decl(decl_t* decl)
         curtok--;
         decl->expr = parse_expr();
     }
+
+    type_free(&type);
 
     parse_eatstr(";");
 }

@@ -14,6 +14,7 @@ const int stackpad = 16;
 
 set_pir_reg_t savedregs;
 map_str_u64_t stackptrs;
+int varframesize;
 
 static void arm_addreg(uint32_t flags, const char* name)
 {
@@ -382,7 +383,6 @@ static void armgen_emitcall(ir_funcdef_t* funcdef, ir_block_t* blk, int iinst, i
     int stacktotal, stackcur, paramsize;
     set_pir_reg_t saved;
     ir_reg_t *reg;
-    ir_primitive_e prim;
 
     set_pir_reg_alloc(&saved);
     armgen_populateliveset(&saved, funcdef, blk, iinst);
@@ -411,8 +411,8 @@ static void armgen_emitcall(ir_funcdef_t* funcdef, ir_block_t* blk, int iinst, i
             continue;
         
         printf("  %s %s, [sp, #%d]\n", 
-            armgen_storeinst(saved.bins[i].val->type),
-            *map_u64_str_get(&saved.bins[i].val->hardreg->names, saved.bins[i].val->type), 
+            armgen_storeinst(IR_PRIM_U64),
+            *map_u64_str_get(&saved.bins[i].val->hardreg->names, IR_PRIM_U64), 
             stackcur);
         stackcur += 4;
     }
@@ -434,8 +434,10 @@ static void armgen_emitcall(ir_funcdef_t* funcdef, ir_block_t* blk, int iinst, i
         if(saved.bins[i].state != SET_EL_FULL)
             continue;
         
-        prim = saved.bins[i].val->type;
-        printf("  %s %s, [sp, #%d]\n", armgen_loadinst(prim), *map_u64_str_get(&saved.bins[i].val->hardreg->names, prim), stackcur);
+        printf("  %s %s, [sp, #%d]\n",
+            armgen_loadinst(IR_PRIM_U64),
+            *map_u64_str_get(&saved.bins[i].val->hardreg->names, IR_PRIM_U64),
+            stackcur);
         stackcur += 4;
     }
 
@@ -698,14 +700,13 @@ static void armgen_epilouge(ir_funcdef_t* funcdef)
             continue;
 
         printf("  %s %s, [fp, #%d]\n", 
-            armgen_loadinst(savedregs.bins[i].val->type),
-            *map_u64_str_get(&savedregs.bins[i].val->hardreg->names, savedregs.bins[i].val->type),
+            armgen_loadinst(IR_PRIM_U64),
+            *map_u64_str_get(&savedregs.bins[i].val->hardreg->names, IR_PRIM_U64),
             savedoffs);
 
-        savedoffs += ir_primbytesize(savedregs.bins[i].val->type);
+        savedoffs += ir_primbytesize(IR_PRIM_U64);
     }
-
-    framesize = (savedoffs + stackpad - 1) & ~(stackpad - 1);
+    framesize = (savedoffs + varframesize + stackpad - 1) & ~(stackpad - 1);
 
     printf("  LDP fp, lr, [sp]\n");
     printf("  ADD sp, sp, #%d\n", framesize);
@@ -757,10 +758,11 @@ static void armgen_prolouge(ir_funcdef_t* funcdef)
     {
         if(savedregs.bins[i].state != SET_EL_FULL)
             continue;
-        framesize += ir_primbytesize(savedregs.bins[i].val->type);
+        framesize += ir_primbytesize(IR_PRIM_U64);
     }
 
-    framesize = 16 + argmen_buildvarframe(funcdef, 16 + framesize) + framesize;
+    varframesize = argmen_buildvarframe(funcdef, 16 + framesize);
+    framesize = 16 + framesize + varframesize;
     framesize = (framesize + stackpad - 1) & ~(stackpad - 1); 
 
     printf("  SUB sp, sp, #%d\n", framesize);
@@ -771,10 +773,10 @@ static void armgen_prolouge(ir_funcdef_t* funcdef)
             continue;
 
         printf("  %s %s, [sp, #%d]\n", 
-            armgen_storeinst(savedregs.bins[i].val->type),
-            *map_u64_str_get(&savedregs.bins[i].val->hardreg->names, savedregs.bins[i].val->type), 
+            armgen_storeinst(IR_PRIM_U64),
+            *map_u64_str_get(&savedregs.bins[i].val->hardreg->names, IR_PRIM_U64), 
             savedoffs);
-        savedoffs += ir_primbytesize(savedregs.bins[i].val->type);
+        savedoffs += ir_primbytesize(IR_PRIM_U64);
     }
 
     printf("  STP fp, lr, [sp]\n");

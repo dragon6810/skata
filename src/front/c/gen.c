@@ -328,6 +328,9 @@ char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
     case EXPROP_MULT:
         opcode = IR_OP_MUL;
         break;
+    case EXPROP_EQ:
+        opcode = IR_OP_CMPEQ;
+        break;
     case EXPROP_NEQ:
         opcode = IR_OP_CMPNEQ;
         break;

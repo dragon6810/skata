@@ -2,6 +2,7 @@ int main()
 {
 	long long x;
 	short y;
+	long long *p;
 
 	y = 2;
 	x = 1;
@@ -11,5 +12,8 @@ int main()
 		x = x + 1;
 	}
 
-	return *&x = 3;
+	p = &x;
+	*p = *p + 1;
+
+	return x == *p;
 }

@@ -367,6 +367,7 @@ int ir_primbytesize(ir_primitive_e prim)
 {
     switch(prim)
     {
+    case IR_PRIM_U1:
     case IR_PRIM_I8:
     case IR_PRIM_U8:
         return 1;

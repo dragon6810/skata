@@ -39,6 +39,7 @@ typedef enum
     EXPROP_SUB, // -
     EXPROP_MULT, // *
     EXPROP_DIV, // /
+    EXPROP_EQ, // == 
     EXPROP_NEQ, // !=
 
     // unary operators
@@ -170,6 +171,7 @@ LIST_DECL(globaldecl_t, globaldecl)
 
 extern list_globaldecl_t ast;
 
+void parse_modifytypewithptr(type_t* type);
 void parse_type(type_t* type);
 bool parse_istype();
 token_e parse_peekform(int offs);

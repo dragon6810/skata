@@ -67,6 +67,10 @@ static void parse_printexpr_r(const expr_t* expr)
         nterms = 2;
         op = "/";
         break;
+    case EXPROP_EQ:
+        nterms = 2;
+        op = "==";
+        break;
     case EXPROP_NEQ:
         nterms = 2;
         op = "!=";
@@ -277,6 +281,7 @@ static expr_t* parse_expr_r(int minbp)
                 expr->col = parse_getcol();
                 expr->op = EXPROP_CAST;
                 parse_type(&expr->casttype);
+                parse_modifytypewithptr(&expr->casttype);
                 if(!parse_eatstr(")"))
                     exit(0);
                 expr->operand = parse_expr_r(parse_prefixopbp(EXPROP_CAST));
@@ -316,6 +321,10 @@ static expr_t* parse_expr_r(int minbp)
             op = EXPROP_MULT;
         else if(!strcmp(tokstr, "/"))
             op = EXPROP_DIV;
+        else if(!strcmp(tokstr, "=="))
+            op = EXPROP_EQ;
+        else if(!strcmp(tokstr, "!="))
+            op = EXPROP_NEQ;
         else if(!strcmp(tokstr, "++"))
             op = EXPROP_POSTINC;
         else if(!strcmp(tokstr, "--"))
