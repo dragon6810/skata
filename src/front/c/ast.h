@@ -47,6 +47,7 @@ typedef enum
     EXPROP_PREINC, // ++
     EXPROP_PREDEC, // --
     EXPROP_REF, // &
+    EXPROP_DEREF, // *
     EXPROP_CAST, // (<type>)
     EXPROP_LOGICNOT, // !
     EXPROP_POSTINC, // ++

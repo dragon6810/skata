@@ -40,11 +40,13 @@ ir_primitive_e type_toprim(type_e type)
         return IR_PRIM_I64;
     case TYPE_U64:
         return IR_PRIM_U64;
+    case TYPE_PTR:
+        return IR_PRIM_PTR;
     case TYPE_FUNC:
         return IR_PRIM_PTR;
     default:
         printf("attempting to convert non-primitive type %d to an IR primitive!\n", (int) type);
-        abort();
+        assert(0);
     }
 }
 
@@ -64,6 +66,7 @@ int type_bytesize(type_t type)
         return 4;
     case TYPE_I64:
     case TYPE_U64:
+    case TYPE_PTR:
     case TYPE_FUNC:
         return 8;
     default:

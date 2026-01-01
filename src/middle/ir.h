@@ -42,9 +42,13 @@ typedef struct ir_reg_s
     char *name;
     ir_primitive_e type;
 
+    // a 'fake' register replaced with a static expression in ASM.
+    // for example, result of alloca will turn into [sp + #x]
+    // regalloc ignores virtual registers, but their lifetimes are still calculated
+    bool virtual;
+
     set_str_t interfere; // interference graph edges
     struct hardreg_s *hardreg;
-    int spill_offset; // stack offset from frame pointer if spilled
 } ir_reg_t;
 
 SET_DECL(ir_reg_t*, pir_reg)
@@ -85,6 +89,7 @@ typedef enum
     IR_OP_SEXT, // dst, src
     IR_OP_TRUNC, // dst, src
     IR_OP_ALLOCA, // dst
+    IR_OP_FIE, // frame index elimination (get ptr of stack var): dst, src
     IR_OP_COUNT,
 } ir_inst_e;
 
@@ -172,7 +177,9 @@ LIST_DECL(ir_operand_t, ir_operand)
 LIST_DECL(ir_operand_t*, pir_operand)
 LIST_DECL(ir_copy_t, ir_copy)
 
-typedef struct ir_inst_s
+typedef struct ir_inst_s ir_inst_t;
+
+struct ir_inst_s
 {
     ir_inst_e op;
     union
@@ -193,9 +200,13 @@ typedef struct ir_inst_s
             ir_type_t type;
         } alloca;
     };
-} ir_inst_t;
 
-LIST_DECL(ir_inst_t, ir_inst)
+    ir_inst_t *next;   
+};
+
+LIST_DECL(ir_inst_t*, pir_inst)
+SET_DECL(ir_inst_t*, pir_inst)
+MAP_DECL(char*, ir_inst_t*, str, pir_inst)
 
 typedef struct ir_block_s ir_block_t;
 
@@ -205,10 +216,10 @@ SET_DECL(ir_block_t*, pir_block)
 struct ir_block_s
 {
     char* name;
-    list_ir_inst_t insts;
+    ir_inst_t *insts;
 
-    // index of phi-node instructions for variables
-    map_str_u64_t varphis;
+    ir_inst_t *branch; // if there is a branch or jump inst, this will point to it
+    map_str_pir_inst_t varphis; // phi-node instructions for variables
 
     // control flow edges
     list_pir_block_t in, out;
@@ -274,6 +285,7 @@ uint32_t ir_primflags(ir_primitive_e prim);
 void ir_initblock(ir_block_t* block);
 ir_primitive_e ir_regtype(ir_funcdef_t* funcdef, char* regname);
 char* ir_gen_alloctemp(ir_funcdef_t *funcdef, ir_primitive_e type);
+// frees the ptr itself
 void ir_instfree(ir_inst_t* inst);
 uint64_t ir_newblock(ir_funcdef_t* funcdef);
 int ir_primbytesize(ir_primitive_e prim);

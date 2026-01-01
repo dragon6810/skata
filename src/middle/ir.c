@@ -1,5 +1,7 @@
 #include "ir.h"
 
+#include <stdio.h>
+
 void ir_regcpy(ir_reg_t* dst, ir_reg_t* src)
 {
     memcpy(dst, src, sizeof(ir_reg_t));
@@ -61,6 +63,12 @@ void ir_instfree(ir_inst_t* inst)
 
     int noperand;
 
+    if(inst->next)
+    {
+        ir_instfree(inst->next);
+        free(inst->next);
+    }
+
     if(inst->op == IR_OP_PHI && inst->var)
         free(inst->var);
 
@@ -93,13 +101,15 @@ void ir_instfree(ir_inst_t* inst)
 
     for(i=0; i<noperand; i++)
         ir_operandfree(&inst->ternary[i]);
+    
+    free(inst);
 }
 
 void ir_freeblock(ir_block_t* block)
 {
     free(block->name);
-    list_ir_inst_free(&block->insts);
-    map_str_u64_free(&block->varphis);
+    ir_instfree(block->insts);
+    map_str_pir_inst_free(&block->varphis);
     list_pir_block_free(&block->in);
     list_pir_block_free(&block->out);
     set_pir_block_free(&block->dom);
@@ -142,14 +152,21 @@ static uint64_t ir_hashpblock(ir_block_t** blk)
     return (uint64_t) *blk;
 }
 
+static uint64_t ir_hashpinst(ir_inst_t** inst)
+{
+    return (uint64_t) *inst;
+}
+
 static void ir_freecopy(ir_copy_t* copy)
 {
     ir_operandfree(&copy->src);
 }
 
 MAP_DEF(char*, ir_reg_t, str, ir_reg, hash_str, map_strcmp, map_strcpy, ir_regcpy, map_freestr, ir_regfree)
-LIST_DEF(ir_inst)
-LIST_DEF_FREE_DECONSTRUCT(ir_inst, ir_instfree)
+LIST_DEF(pir_inst)
+SET_DEF(ir_inst_t*, pir_inst, ir_hashpinst, NULL, NULL, NULL)
+LIST_DEF_FREE(pir_inst)
+MAP_DEF(char*, ir_inst_t*, str, pir_inst, hash_str, map_strcmp, map_strcpy, NULL, map_freestr, NULL)
 LIST_DEF(ir_block)
 LIST_DEF_FREE_DECONSTRUCT(ir_block, ir_freeblock)
 SET_DEF(ir_block_t*, pir_block, ir_hashpblock, NULL, NULL, NULL)
@@ -213,6 +230,7 @@ void ir_definedregs(set_str_t* set, ir_inst_t* inst)
     case IR_OP_ZEXT:
     case IR_OP_SEXT:
     case IR_OP_TRUNC:
+    case IR_OP_ALLOCA:
         set_str_add(set, inst->binary[0].reg.name);
         break;
     case IR_OP_ADD:
@@ -244,8 +262,12 @@ void ir_accessedregs(set_str_t* set, ir_inst_t* inst)
     case IR_OP_JMP:
     case IR_OP_ALLOCA:
         break;
-    case IR_OP_MOVE:
     case IR_OP_STORE:
+    case IR_OP_LOAD:
+        if(inst->binary[0].type == IR_OPERAND_REG) set_str_add(set, inst->binary[0].reg.name);
+        if(inst->binary[1].type == IR_OPERAND_REG) set_str_add(set, inst->binary[1].reg.name);
+        break;
+    case IR_OP_MOVE:
     case IR_OP_ZEXT:
     case IR_OP_SEXT:
     case IR_OP_TRUNC:
@@ -275,6 +297,7 @@ void ir_accessedregs(set_str_t* set, ir_inst_t* inst)
             if(inst->variadic.data[i].type == IR_OPERAND_REG) set_str_add(set, inst->variadic.data[i].reg.name);
         break;
     default:
+        printf("unknown opcode %d\n", (int) inst->op);
         assert(0);
         break;
     }
@@ -351,6 +374,7 @@ int ir_primbytesize(ir_primitive_e prim)
     case IR_PRIM_I32:
     case IR_PRIM_U32:
         return 4;
+    case IR_PRIM_PTR:
     case IR_PRIM_I64:
     case IR_PRIM_U64:
         return 8;

@@ -4,20 +4,45 @@
 
 list_string_t namestack;
 
+static void ir_deleterenamed(ir_funcdef_t* func, ir_block_t* blk, set_pir_inst_t* renamed)
+{
+    ir_inst_t *inst, *last, *next;
+
+    for(last=NULL, inst=blk->insts; inst; last=inst, inst=next)
+    {
+        next = inst->next;
+
+        if(!set_pir_inst_contains(renamed, inst))
+            continue;
+
+        assert(inst->op == IR_OP_ALLOCA);
+        assert(inst->unary.type == IR_OPERAND_REG);
+
+        map_str_ir_reg_remove(&func->regs, inst->unary.reg.name);
+
+        if(last)
+            last->next = inst->next;
+        else
+            blk->insts = inst->next;
+        
+        inst->next = NULL;
+        ir_instfree(inst);
+    }
+}
+
 static void ir_rename(ir_funcdef_t* func, char* varreg, ir_primitive_e type, ir_block_t* blk)
 {
     int i;
-    ir_inst_t *inst;
 
     char *reg;
-    uint64_t *pidx, idx;
+    ir_inst_t **pinst, *inst;
     ir_operand_t operand;
     uint64_t stacksize;
 
     stacksize = namestack.len;
 
     // rename instructions
-    for(i=0, inst=blk->insts.data; i<blk->insts.len; i++, inst++)
+    for(inst=blk->insts; inst; inst=inst->next)
     {
         if(inst->op == IR_OP_PHI)
         {
@@ -61,12 +86,10 @@ static void ir_rename(ir_funcdef_t* func, char* varreg, ir_primitive_e type, ir_
         // rename successor phi-nodes
         for(i=0; i<blk->out.len; i++)
         {
-            pidx = map_str_u64_get(&blk->out.data[i]->varphis, varreg);
-            if(!pidx)
+            pinst = map_str_pir_inst_get(&blk->out.data[i]->varphis, varreg);
+            if(!pinst)
                 continue;
-            idx = *pidx;
-
-            inst = &blk->out.data[i]->insts.data[idx];
+            inst = *pinst;
 
             operand.type = IR_OPERAND_LABEL;
             operand.label = strdup(blk->name);
@@ -89,13 +112,13 @@ static void ir_rename(ir_funcdef_t* func, char* varreg, ir_primitive_e type, ir_
 // worklist must be initialized
 static void ir_populateworklist(list_pir_block_t* worklist, ir_funcdef_t* func, char* varreg, ir_primitive_e type)
 {
-    int i, b;
+    int b;
     ir_block_t *blk;
     ir_inst_t *inst;
 
     for(b=0, blk=func->blocks.data; b<func->blocks.len; b++, blk++)
     {
-        for(i=0, inst=blk->insts.data; i<blk->insts.len; i++, inst++)
+        for(inst=blk->insts; inst; inst=inst->next)
         {
             if(inst->op != IR_OP_STORE && inst->op != IR_OP_PHI)
                 continue;
@@ -112,24 +135,86 @@ static void ir_populateworklist(list_pir_block_t* worklist, ir_funcdef_t* func, 
     }
 }
 
+static bool ir_varssaable(ir_funcdef_t* func, const char* var)
+{
+    int b, o;
+    ir_block_t *blk;
+    ir_inst_t *inst;
+
+    list_pir_operand_t operands;
+
+    for(b=0, blk=func->blocks.data; b<func->blocks.len; b++, blk++)
+    {
+        for(inst=blk->insts; inst; inst=inst->next)
+        {
+            if(inst->op == IR_OP_ALLOCA)
+                continue;
+            
+            ir_instoperands(&operands, inst);
+            if(inst->op == IR_OP_STORE)
+                list_pir_operand_remove(&operands, 0);
+            if(inst->op == IR_OP_LOAD)
+                list_pir_operand_remove(&operands, 1);
+
+            for(o=0; o<operands.len; o++)
+            {
+                if(operands.data[o]->type != IR_OPERAND_REG)
+                    continue;
+                if(strcmp(operands.data[o]->reg.name, var))
+                    continue;
+                
+                list_pir_operand_free(&operands);
+                return false;
+            }
+
+            list_pir_operand_free(&operands);
+        }
+    }
+
+    return true;
+}
+
+// insts shouldnt be intialized
+// sorted from first to last
+static void ir_populatealloclist(list_pir_inst_t* insts, ir_funcdef_t* func, ir_block_t* blk)
+{
+    ir_inst_t *inst;
+
+    list_pir_inst_init(insts, 0);
+
+    for(inst=blk->insts; inst; inst=inst->next)
+    {
+        if(inst->op != IR_OP_ALLOCA)
+            continue;
+        if(!ir_varssaable(func, inst->unary.reg.name))
+            continue;
+
+        list_pir_inst_push(insts, inst);
+    }
+}
+
 static void ir_ssafunc(ir_funcdef_t* func)
 {
     int v, i;
     
     ir_block_t *entry, *blk;
+    list_pir_inst_t insts;
     list_pir_block_t worklist;
     ir_block_t *df;
-    ir_inst_t inst;
-    uint64_t idx;
+    ir_inst_t *inst, *pinst;
+    set_pir_inst_t renamed;
+
+    set_pir_inst_alloc(&renamed);
 
     entry = func->blocks.data;
-    for(v=0; v<entry->insts.len; v++)
+    ir_populatealloclist(&insts, func, entry);
+
+    for(v=0; v<insts.len; v++)
     {
-        assert(entry->insts.data[v].op == IR_OP_ALLOCA);
-        assert(entry->insts.data[v].alloca.type.type == IR_TYPE_PRIM);
+        pinst = insts.data[v];
 
         list_pir_block_init(&worklist, 0);
-        ir_populateworklist(&worklist, func, entry->insts.data[v].unary.reg.name, entry->insts.data[v].alloca.type.prim);
+        ir_populateworklist(&worklist, func, pinst->unary.reg.name, pinst->alloca.type.prim);
         while(worklist.len)
         {
             blk = worklist.data[worklist.len - 1];
@@ -139,18 +224,19 @@ static void ir_ssafunc(ir_funcdef_t* func)
             {
                 df = blk->domfrontier.data[i];
 
-                if(map_str_u64_get(&df->varphis, entry->insts.data[v].unary.reg.name))
+                if(map_str_pir_inst_get(&df->varphis, pinst->unary.reg.name))
                     continue;
 
-                inst.op = IR_OP_PHI;
-                list_ir_operand_init(&inst.variadic, 1);
-                inst.variadic.data[0].type = IR_OPERAND_REG;
-                inst.variadic.data[0].reg.name = NULL;
-                inst.var = strdup(entry->insts.data[v].unary.reg.name);
+                inst = malloc(sizeof(ir_inst_t));
+                inst->op = IR_OP_PHI;
+                list_ir_operand_init(&inst->variadic, 1);
+                inst->variadic.data[0].type = IR_OPERAND_REG;
+                inst->variadic.data[0].reg.name = NULL;
+                inst->var = strdup(pinst->unary.reg.name);
                 
-                idx = df->varphis.nfull;
-                list_ir_inst_insert(&df->insts, idx, inst);
-                map_str_u64_set(&df->varphis, entry->insts.data[v].unary.reg.name, idx);
+                inst->next = df->insts;
+                df->insts = inst;
+                map_str_pir_inst_set(&df->varphis, pinst->unary.reg.name, inst);
 
                 list_pir_block_push(&worklist, df);
             }
@@ -159,18 +245,19 @@ static void ir_ssafunc(ir_funcdef_t* func)
         list_pir_block_free(&worklist);
     }
 
-    for(v=0; v<entry->insts.len; v++)
+    for(v=0; v<insts.len; v++)
     {
-        assert(entry->insts.data[v].op == IR_OP_ALLOCA);
-        assert(entry->insts.data[v].alloca.type.type == IR_TYPE_PRIM);
-
+        pinst = insts.data[v];
         list_string_init(&namestack, 0);
-        ir_rename(func, entry->insts.data[v].unary.reg.name, entry->insts.data[v].alloca.type.prim, &func->blocks.data[0]);
+        ir_rename(func, pinst->unary.reg.name, pinst->alloca.type.prim, entry);
         list_string_free(&namestack);
-
-        list_ir_inst_remove(&entry->insts, v);
-        v--;
+        set_pir_inst_add(&renamed, pinst);
     }
+
+    ir_deleterenamed(func, entry, &renamed);
+
+    set_pir_inst_free(&renamed);
+    list_pir_inst_free(&insts);
 }
 
 void ssa(void)

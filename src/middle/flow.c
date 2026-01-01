@@ -174,10 +174,9 @@ static void ir_flowedge(ir_block_t* a, ir_block_t* b)
 
 static void ir_flowblk(ir_funcdef_t* funcdef, ir_block_t* blk)
 {
-    int i;
     ir_inst_t *inst;
 
-    for(i=0, inst=blk->insts.data; i<blk->insts.len; i++, inst++)
+    for(inst=blk->insts; inst; inst=inst->next)
     {
         switch(inst->op)
         {

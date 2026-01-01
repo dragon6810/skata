@@ -7,21 +7,23 @@
 // copies ownership of operands
 static void insertcpy(ir_block_t* blk, ir_copy_t* cpy)
 {
-    uint64_t idx;
-    ir_inst_t inst;
+    ir_inst_t *last, *inst;
 
-    idx = blk->insts.len;
-    if(blk->insts.len 
-    && (blk->insts.data[blk->insts.len-1].op == IR_OP_BR || blk->insts.data[blk->insts.len-1].op == IR_OP_JMP))
-        idx--;
+    ir_inst_t *cpyinst;
 
-    inst.op = IR_OP_MOVE;
+    for(last=NULL, inst=blk->insts; inst&&inst!=blk->branch; last=inst, inst=inst->next);
 
-    inst.binary[0].type = IR_OPERAND_REG;
-    inst.binary[0].reg.name = strdup(cpy->dstreg);
-    ir_cpyoperand(&inst.binary[1], &cpy->src);
+    cpyinst = malloc(sizeof(ir_inst_t));
+    cpyinst->op = IR_OP_MOVE;
+    cpyinst->binary[0].type = IR_OPERAND_REG;
+    cpyinst->binary[0].reg.name = strdup(cpy->dstreg);
+    ir_cpyoperand(&cpyinst->binary[1], &cpy->src);
 
-    list_ir_inst_insert(&blk->insts, idx, inst);
+    cpyinst->next = inst;
+    if(last)
+        last->next = cpyinst;
+    else
+        blk->insts = cpyinst;
 }
 
 static bool regssamelocation(ir_funcdef_t* funcdef, char* a, char* b)
@@ -105,34 +107,38 @@ static void findphicpys(ir_funcdef_t* funcdef, ir_inst_t* inst)
 
 static void findblkcpys(ir_funcdef_t* funcdef, ir_block_t* blk)
 {
-    int i;
+    ir_inst_t *inst, *next, *last;
 
-    for(i=0; i<blk->insts.len; i++)
+    for(last=NULL, inst=blk->insts; inst; last=inst, inst=next)
     {
-        if(blk->insts.data[i].op != IR_OP_PHI)
+        next = inst->next;
+
+        if(inst->op != IR_OP_PHI)
             continue;
             
-        findphicpys(funcdef, &blk->insts.data[i]);
-        list_ir_inst_remove(&blk->insts, i);
-        i--;
+        findphicpys(funcdef, inst);
+        if(last)
+            last->next = inst->next;
+        else
+            blk->insts = inst->next;
+        inst->next = NULL;
+        ir_instfree(inst);
     }
 }
 
 static void replacephiedge(ir_block_t* blk, const char* oldlabel, const char* newlabel)
 {
-    int i, j;
+    int i;
 
     ir_inst_t *inst;
     ir_operand_t *operand;
 
-    for(i=0, inst=blk->insts.data; i<blk->insts.len; i++, inst++)
+    for(inst=blk->insts; inst; inst=inst->next)
     {
-        // all phi instructions are at beginning of block,
-        // so we can break rather than continue
         if(inst->op != IR_OP_PHI)
-            break;
+            continue;
 
-        for(j=1, operand=inst->variadic.data+1; j<inst->variadic.len; j+=2, operand+=2)
+        for(i=1, operand=inst->variadic.data+1; i<inst->variadic.len; i+=2, operand+=2)
         {
             if(strcmp(operand->label, oldlabel))
                 continue;
@@ -148,7 +154,7 @@ static void elimcriticaledges(ir_funcdef_t* funcdef)
     ir_block_t *blk;
 
     ir_block_t *edge, *newblk;
-    ir_inst_t inst, *pinst;
+    ir_inst_t *inst, *pinst;
     uint64_t idx, phiblk;
     bool foundedge;
 
@@ -159,6 +165,8 @@ static void elimcriticaledges(ir_funcdef_t* funcdef)
         {
             if(blk->out.len <= 1)
                 continue;
+
+            assert(blk->branch);
             
             for(e=0; e<blk->out.len; e++)
             {
@@ -177,7 +185,7 @@ static void elimcriticaledges(ir_funcdef_t* funcdef)
 
                 replacephiedge(edge, blk->name, newblk->name);
 
-                pinst = &blk->insts.data[blk->insts.len-1];
+                pinst = blk->branch;
                 for(i=1; i<3; i++)
                 {
                     if(strcmp(pinst->ternary[i].label, edge->name))
@@ -186,10 +194,12 @@ static void elimcriticaledges(ir_funcdef_t* funcdef)
                     pinst->ternary[i].label = strdup(newblk->name);
                 }
 
-                inst.op = IR_OP_JMP;
-                inst.unary.type = IR_OPERAND_LABEL;
-                inst.unary.label = strdup(edge->name);
-                list_ir_inst_ppush(&newblk->insts, &inst);
+                inst = malloc(sizeof(ir_inst_t));
+                inst->op = IR_OP_JMP;
+                inst->unary.type = IR_OPERAND_LABEL;
+                inst->unary.label = strdup(edge->name);
+                inst->next = NULL;
+                newblk->insts = inst;
 
                 flow();
 

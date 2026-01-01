@@ -16,13 +16,13 @@ static ir_primitive_e back_tryreduce(ir_primitive_e type)
 
 static void back_reduceblk(ir_funcdef_t* funcdef, ir_block_t* blk)
 {
-    int i, o;
+    int o;
     ir_inst_t *inst;
     ir_operand_t *operand;
 
     list_pir_operand_t operands;
 
-    for(i=0, inst=blk->insts.data; i<blk->insts.len; i++, inst++)
+    for(inst=blk->insts; inst; inst=inst->next)
     {
         ir_instoperands(&operands, inst);
 
@@ -55,4 +55,39 @@ void back_typereduction(void)
 
     for(i=0; i<ir.defs.len; i++)
         back_reducefunc(&ir.defs.data[i]);
+}
+
+static bool back_instneedsfie(ir_inst_t* inst)
+{
+    list_pir_operand_t operands;
+
+    ir_instoperands(&operands, inst);
+    
+    list_pir_operand_free(&operands);
+
+    return false;
+}
+
+static void back_fieblk(ir_funcdef_t* funcdef, ir_block_t* blk)
+{
+    ir_inst_t *inst;
+
+    for(inst=blk->insts; inst; inst=inst->next)
+        back_instneedsfie(inst);
+}
+
+static void back_fiefunc(ir_funcdef_t* funcdef)
+{
+    int i;
+
+    for(i=0; i<funcdef->blocks.len; i++)
+        back_fieblk(funcdef, &funcdef->blocks.data[i]);
+}
+
+void back_fie(void)
+{
+    int i;
+
+    for(i=0; i<ir.defs.len; i++)
+        back_fiefunc(&ir.defs.data[i]);
 }

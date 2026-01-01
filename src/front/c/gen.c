@@ -7,11 +7,35 @@
 
 ir_t ir;
 
+ir_inst_t *insttail;
+
+static void gen_appendinst(ir_funcdef_t* funcdef, ir_inst_t* inst)
+{
+    if(insttail)
+    {
+        insttail->next = inst;
+        insttail = inst;
+        return;
+    }
+
+    insttail = funcdef->blocks.data[funcdef->blocks.len-1].insts = inst;
+}
+
+static ir_inst_t* gen_allocinst(void)
+{
+    ir_inst_t *inst;
+
+    inst = malloc(sizeof(ir_inst_t));
+    inst->next = NULL;
+
+    return inst;
+}
+
 void ir_initblock(ir_block_t* block)
 {
     block->name = NULL;
-    list_ir_inst_init(&block->insts, 0);
-    map_str_u64_alloc(&block->varphis);
+    block->insts = block->branch = NULL;
+    map_str_pir_inst_alloc(&block->varphis);
     list_pir_block_init(&block->in, 0);
     list_pir_block_init(&block->out, 0);
     set_pir_block_alloc(&block->dom);
@@ -72,76 +96,72 @@ static char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg);
 
 // if outreg is NULL, it will alloc a new register
 // YOU are responsible for the returned string, unless you gave outreg
+// TODO: make select instruction and do that instead of branching
 static char* ir_gen_ternary(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
 {
-    int condblk, ifblk, elseblk;
+    ir_inst_t *inst, *brinst, *skipinst;
+    int ifblk, elseblk;
     char *res;
-    ir_inst_t inst, *pinst;
-    ir_block_t *pblk;
     char *areg, *breg;
 
-    condblk = funcdef->blocks.len - 1;
-
     // cmp
-    inst.op = IR_OP_CMPEQ;
-    inst.ternary[0].type = IR_OPERAND_REG;
-    inst.ternary[0].reg.name = ir_gen_alloctemp(funcdef, type_toprim(expr->operands[0]->type.type));
-    inst.ternary[1].type = IR_OPERAND_REG;
-    inst.ternary[1].reg.name = ir_gen_expr(funcdef, expr->operands[0], NULL);
-    inst.ternary[2].type = IR_OPERAND_LIT;
-    inst.ternary[2].literal.type = type_toprim(expr->operands[0]->type.type);
-    inst.ternary[2].literal.u64 = 0;
-    list_ir_inst_ppush(&funcdef->blocks.data[condblk].insts, &inst);
+    inst = gen_allocinst();
+    inst->op = IR_OP_CMPEQ;
+    inst->ternary[0].type = IR_OPERAND_REG;
+    inst->ternary[0].reg.name = ir_gen_alloctemp(funcdef, type_toprim(expr->operands[0]->type.type));
+    inst->ternary[1].type = IR_OPERAND_REG;
+    inst->ternary[1].reg.name = ir_gen_expr(funcdef, expr->operands[0], NULL);
+    inst->ternary[2].type = IR_OPERAND_LIT;
+    inst->ternary[2].literal.type = type_toprim(expr->operands[0]->type.type);
+    inst->ternary[2].literal.u64 = 0;
+    gen_appendinst(funcdef, inst);
 
     // branch
-    inst.op = IR_OP_BR;
-    inst.ternary[0].reg.name = strdup(inst.ternary[0].reg.name);
-    inst.ternary[2].type = IR_OPERAND_LABEL;
-    list_ir_inst_ppush(&funcdef->blocks.data[condblk].insts, &inst);
+    brinst = inst = gen_allocinst();
+    inst->op = IR_OP_BR;
+    inst->ternary[0].reg.name = strdup(inst->ternary[0].reg.name);
+    inst->ternary[1].type = IR_OPERAND_LABEL;
+    inst->ternary[2].type = IR_OPERAND_LABEL;
+    gen_appendinst(funcdef, inst);
     
     // if block
     ir_newblock(funcdef);
-    funcdef->blocks.data[condblk].insts.data[funcdef->blocks.data[condblk].insts.len-1].ternary[2].label 
-        = strdup(funcdef->blocks.data[funcdef->blocks.len-1].name);
     areg = ir_gen_expr(funcdef, expr->operands[1], NULL);
     ifblk = funcdef->blocks.len - 1;
+    brinst->ternary[1].label = strdup(funcdef->blocks.data[ifblk].name);
+    skipinst = inst = gen_allocinst();
+    gen_appendinst(funcdef, inst);
 
     // else block
     ir_newblock(funcdef);
     breg = ir_gen_expr(funcdef, expr->operands[2], NULL);
     elseblk = funcdef->blocks.len - 1;
-
-    // patch branch instruction to branch to else block
-    pblk = &funcdef->blocks.data[condblk];
-    pinst = &pblk->insts.data[pblk->insts.len-1];
-    pinst->binary[1].type = IR_OPERAND_LABEL;
-    pinst->binary[1].label = strdup(funcdef->blocks.data[elseblk].name);
+    brinst->ternary[2].label = strdup(funcdef->blocks.data[elseblk].name);
 
     ir_newblock(funcdef);
 
     // skip over else block during if block
-    inst.op = IR_OP_JMP;
-    inst.unary.type = IR_OPERAND_LABEL;
-    inst.unary.label = strdup(funcdef->blocks.data[funcdef->blocks.len-1].name);
-    list_ir_inst_ppush(&funcdef->blocks.data[ifblk].insts, &inst);
-
+    skipinst->op = IR_OP_JMP;
+    skipinst->unary.type = IR_OPERAND_LABEL;
+    skipinst->unary.label = strdup(funcdef->blocks.data[funcdef->blocks.len-1].name);
 
     // phi statement
     res = outreg ? outreg : ir_gen_alloctemp(funcdef, type_toprim(expr->operands[1]->type.type));
-    inst.op = IR_OP_PHI;
-    inst.var = NULL;
-    list_ir_operand_init(&inst.variadic, 5);
-    inst.variadic.data[0].type = IR_OPERAND_REG;
-    inst.variadic.data[0].reg.name = strdup(res);
-    inst.variadic.data[1].type = IR_OPERAND_LABEL;
-    inst.variadic.data[1].label = strdup(funcdef->blocks.data[ifblk].name);
-    inst.variadic.data[2].type = IR_OPERAND_REG;
-    inst.variadic.data[2].reg.name = areg;
-    inst.variadic.data[3].type = IR_OPERAND_LABEL;
-    inst.variadic.data[3].label = strdup(funcdef->blocks.data[elseblk].name);
-    inst.variadic.data[4].type = IR_OPERAND_REG;
-    inst.variadic.data[4].reg.name = breg;
-    list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
+    inst = gen_allocinst();
+    inst->op = IR_OP_PHI;
+    inst->var = NULL;
+    list_ir_operand_init(&inst->variadic, 5);
+    inst->variadic.data[0].type = IR_OPERAND_REG;
+    inst->variadic.data[0].reg.name = strdup(res);
+    inst->variadic.data[1].type = IR_OPERAND_LABEL;
+    inst->variadic.data[1].label = strdup(funcdef->blocks.data[ifblk].name);
+    inst->variadic.data[2].type = IR_OPERAND_REG;
+    inst->variadic.data[2].reg.name = areg;
+    inst->variadic.data[3].type = IR_OPERAND_LABEL;
+    inst->variadic.data[3].label = strdup(funcdef->blocks.data[elseblk].name);
+    inst->variadic.data[4].type = IR_OPERAND_REG;
+    inst->variadic.data[4].reg.name = breg;
+    gen_appendinst(funcdef, inst);
 
     return res;
 }
@@ -151,20 +171,21 @@ static char* ir_gen_funccall(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
     int i;
 
     char *res;
-    ir_inst_t inst;
+    ir_inst_t *inst;
     ir_operand_t operand;
 
-    inst.op = IR_OP_CALL;
-    list_ir_operand_init(&inst.variadic, 2);
+    inst = gen_allocinst();
+    inst->op = IR_OP_CALL;
+    list_ir_operand_init(&inst->variadic, 2);
 
-    inst.variadic.data[1].type = IR_OPERAND_FUNC;
-    inst.variadic.data[1].func = strdup(expr->operand->msg);
+    inst->variadic.data[1].type = IR_OPERAND_FUNC;
+    inst->variadic.data[1].func = strdup(expr->operand->msg);
 
     for(i=0; i<expr->variadic.len; i++)
     {
         operand.type = IR_OPERAND_REG;
         operand.reg.name = ir_gen_expr(funcdef, expr->variadic.data[i], NULL);
-        list_ir_operand_push(&inst.variadic, operand);
+        list_ir_operand_push(&inst->variadic, operand);
     }
 
     if(outreg)
@@ -172,10 +193,10 @@ static char* ir_gen_funccall(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
     else
         res = ir_gen_alloctemp(funcdef, type_toprim(expr->type.type));
     
-    inst.variadic.data[0].type = IR_OPERAND_REG;
-    inst.variadic.data[0].reg.name = strdup(res);
+    inst->variadic.data[0].type = IR_OPERAND_REG;
+    inst->variadic.data[0].reg.name = strdup(res);
 
-    list_ir_inst_push(&funcdef->blocks.data[funcdef->blocks.len-1].insts, inst);
+    gen_appendinst(funcdef, inst);
 
     return res;
 }
@@ -185,7 +206,7 @@ static char* ir_gen_cast(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
     ir_primitive_e dsttype, srctype;
     char *res;
     ir_inst_e opcode;
-    ir_inst_t inst;
+    ir_inst_t *inst;
 
     dsttype = type_toprim(expr->casttype.type);
     srctype = type_toprim(expr->operand->type.type);
@@ -203,13 +224,15 @@ static char* ir_gen_cast(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
     else if(ir_primbytesize(dsttype) < ir_primbytesize(srctype))
         opcode = IR_OP_TRUNC;
 
-    inst.op = opcode;
-    inst.binary[0].type = IR_OPERAND_REG;
-    inst.binary[0].reg.name = strdup(res);
-    inst.binary[1].type = IR_OPERAND_REG;
-    inst.binary[1].reg.name = ir_gen_expr(funcdef, expr->operand, NULL);
+    inst = gen_allocinst();
+    inst->op = opcode;
+    inst->binary[0].type = IR_OPERAND_REG;
+    inst->binary[0].reg.name = strdup(res);
+    inst->binary[1].type = IR_OPERAND_REG;
+    inst->binary[1].reg.name = ir_gen_expr(funcdef, expr->operand, NULL);
 
-    list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
+    gen_appendinst(funcdef, inst);
+
     return res;
 }
 
@@ -228,12 +251,39 @@ char* ir_gen_varname(const char* cname)
     return NULL;
 }
 
+char* ir_gen_lvaladr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
+{
+    ir_inst_t *inst;
+
+    assert(expr->lval);
+    assert(expr->op == EXPROP_VAR || expr->op == EXPROP_DEREF);
+
+    if(expr->op == EXPROP_VAR)
+    {
+        if(!outreg)
+            return strdup(ir_gen_varname(expr->msg));
+
+        inst = gen_allocinst();
+        inst->op = IR_OP_MOVE;
+        inst->binary[0].type = IR_OPERAND_REG;
+        inst->binary[0].reg.name = strdup(outreg);
+        inst->binary[1].type = IR_OPERAND_REG;
+        inst->binary[1].reg.name = strdup(ir_gen_varname(expr->msg));
+        gen_appendinst(funcdef, inst);
+
+        return outreg;
+    }
+
+    return ir_gen_expr(funcdef, expr->operand, outreg);
+}
+
 // if outreg is NULL, it will alloc a new register
 // YOU are responsible for the returned string, unless you gave outreg
 char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
 {
     char *res;
-    ir_inst_t inst;
+    ir_inst_t *inst;
+    ir_inst_e opcode;
 
     if(outreg)
         res = outreg;
@@ -243,65 +293,62 @@ char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
     switch(expr->op)
     {
     case EXPROP_LIT:
-        inst.op = IR_OP_MOVE;
-        inst.binary[0].type = IR_OPERAND_REG;
-        inst.binary[0].reg.name = strdup(res);
-
-        inst.binary[1].type = IR_OPERAND_LIT;
-        inst.binary[1].literal.type = IR_PRIM_I32;
-        inst.binary[1].literal.i32 = expr->i64;
-        list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
+        inst = gen_allocinst();
+        inst->op = IR_OP_MOVE;
+        inst->binary[0].type = IR_OPERAND_REG;
+        inst->binary[0].reg.name = strdup(res);
+        inst->binary[1].type = IR_OPERAND_LIT;
+        inst->binary[1].literal.type = IR_PRIM_I32;
+        inst->binary[1].literal.i32 = expr->i64;
+        gen_appendinst(funcdef, inst);
         return res;
     case EXPROP_VAR:
-        inst.op = IR_OP_LOAD;
-        inst.binary[0].type = IR_OPERAND_REG;
-        inst.binary[0].reg.name = strdup(res);
-        inst.binary[1].type = IR_OPERAND_REG;
-        inst.binary[1].reg.name = strdup(ir_gen_varname(expr->msg));
-        list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
+        inst = gen_allocinst();
+        inst->op = IR_OP_LOAD;
+        inst->binary[0].type = IR_OPERAND_REG;
+        inst->binary[0].reg.name = strdup(res);
+        inst->binary[1].type = IR_OPERAND_REG;
+        inst->binary[1].reg.name = strdup(ir_gen_varname(expr->msg));
+        gen_appendinst(funcdef, inst);
         return res;
     case EXPROP_COND:
         return ir_gen_ternary(funcdef, expr, res);
     case EXPROP_ADD:
-        inst.op = IR_OP_ADD;
+        opcode = IR_OP_ADD;
         break;
     case EXPROP_SUB:
-        inst.op = IR_OP_SUB;
+        opcode = IR_OP_SUB;
         break;
     case EXPROP_MULT:
-        inst.op = IR_OP_MUL;
+        opcode = IR_OP_MUL;
         break;
     case EXPROP_NEQ:
-        inst.op = IR_OP_CMPNEQ;
+        opcode = IR_OP_CMPNEQ;
         break;
     case EXPROP_ASSIGN:
-        assert(expr->operands[0]->op == EXPROP_VAR);
-
-        inst.op = IR_OP_STORE;
-        inst.binary[0].type = IR_OPERAND_REG;
-        inst.binary[0].reg.name = strdup(ir_gen_varname(expr->operands[0]->msg));
-
-        inst.binary[1].type = IR_OPERAND_REG;
-        inst.binary[1].reg.name = strdup(ir_gen_expr(funcdef, expr->operands[1], res));
-
-        list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
+        inst = gen_allocinst();
+        inst->op = IR_OP_STORE;
+        inst->binary[0].type = IR_OPERAND_REG;
+        inst->binary[0].reg.name = ir_gen_lvaladr(funcdef, expr->operands[0], NULL);
+        inst->binary[1].type = IR_OPERAND_REG;
+        inst->binary[1].reg.name = strdup(ir_gen_expr(funcdef, expr->operands[1], res));
+        gen_appendinst(funcdef, inst);
         return res;
+    case EXPROP_REF:
+        return ir_gen_lvaladr(funcdef, expr->operand, outreg);
     case EXPROP_CALL:
         return ir_gen_funccall(funcdef, expr, outreg);
     case EXPROP_LOGICNOT:
-        inst.op = IR_OP_CMPEQ;
-
-        inst.ternary[0].type = IR_OPERAND_REG;
-        inst.ternary[0].reg.name = strdup(res);
-
-        inst.ternary[1].type = IR_OPERAND_REG;
-        inst.ternary[1].reg.name = strdup(ir_gen_expr(funcdef, expr->operand, NULL));
-
-        inst.ternary[2].type = IR_OPERAND_LIT;
-        inst.ternary[2].literal.type = ir_regtype(funcdef, inst.ternary[1].reg.name);
-        inst.ternary[2].literal.u64 = 0;
-
-        list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
+        inst = gen_allocinst();
+        inst->op = IR_OP_CMPEQ;
+        inst->ternary[0].type = IR_OPERAND_REG;
+        inst->ternary[0].reg.name = strdup(res);
+        inst->ternary[1].type = IR_OPERAND_REG;
+        inst->ternary[1].reg.name = strdup(ir_gen_expr(funcdef, expr->operand, NULL));
+        inst->ternary[2].type = IR_OPERAND_LIT;
+        inst->ternary[2].literal.type = ir_regtype(funcdef, inst->ternary[1].reg.name);
+        inst->ternary[2].literal.u64 = 0;
+        gen_appendinst(funcdef, inst);
         return res;
     case EXPROP_CAST:
         return ir_gen_cast(funcdef, expr, outreg);
@@ -310,103 +357,92 @@ char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
         break;
     }
 
-    inst.ternary[1].type = IR_OPERAND_REG;
-    inst.ternary[1].reg.name = strdup(ir_gen_expr(funcdef, expr->operands[0], NULL));
-
-    inst.ternary[2].type = IR_OPERAND_REG;
-    inst.ternary[2].reg.name = strdup(ir_gen_expr(funcdef, expr->operands[1], NULL));
-    
-    inst.ternary[0].type = IR_OPERAND_REG;
-    inst.ternary[0].reg.name = strdup(res);
-    list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
-
+    inst = gen_allocinst();
+    inst->op = opcode;
+    inst->ternary[0].type = IR_OPERAND_REG;
+    inst->ternary[0].reg.name = strdup(res);
+    inst->ternary[1].type = IR_OPERAND_REG;
+    inst->ternary[1].reg.name = strdup(ir_gen_expr(funcdef, expr->operands[0], NULL));
+    inst->ternary[2].type = IR_OPERAND_REG;
+    inst->ternary[2].reg.name = strdup(ir_gen_expr(funcdef, expr->operands[1], NULL));
+    gen_appendinst(funcdef, inst);
     return res;
 }
 
 static void ir_gen_return(ir_funcdef_t *funcdef, expr_t *expr)
 {
-    ir_inst_t inst;
+    ir_inst_t *inst;
 
-    inst.op = IR_OP_RET;
-    inst.unary.type = IR_OPERAND_REG;
-    inst.unary.reg.name = ir_gen_expr(funcdef, expr, NULL);
-    inst.hasval = true;
+    inst = gen_allocinst();
+    inst->op = IR_OP_RET;
+    inst->hasval = false;
+    if(expr)
+    {
+        inst->unary.type = IR_OPERAND_REG;
+        inst->unary.reg.name = ir_gen_expr(funcdef, expr, NULL);
+        inst->hasval = true;
+    }
 
-    list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
+    gen_appendinst(funcdef, inst);
 }
 
 static void ir_gen_statement(ir_funcdef_t *funcdef, stmnt_t *stmnt);
 
 static void ir_gen_if(ir_funcdef_t* funcdef, ifstmnt_t* ifstmnt)
 {
-    int condblk;
-    ir_block_t *pblk;
-    ir_inst_t inst, *pinst;
-
-    condblk = funcdef->blocks.len - 1;
+    ir_inst_t *inst, *brinst;
 
     // branch
-    inst.op = IR_OP_BR;
-    inst.ternary[0].type = IR_OPERAND_REG;
-    inst.ternary[0].reg.name = ir_gen_expr(funcdef, ifstmnt->expr, NULL);
-    inst.ternary[1].type = IR_OPERAND_LABEL;
-    list_ir_inst_ppush(&funcdef->blocks.data[condblk].insts, &inst);
+    brinst = inst = gen_allocinst();
+    inst->op = IR_OP_BR;
+    inst->ternary[0].type = IR_OPERAND_REG;
+    inst->ternary[0].reg.name = ir_gen_expr(funcdef, ifstmnt->expr, NULL);
+    inst->ternary[1].type = IR_OPERAND_LABEL;
+    gen_appendinst(funcdef, inst);
     
     // then
     ir_newblock(funcdef);
-
-    pblk = &funcdef->blocks.data[condblk];
-    pblk->insts.data[pblk->insts.len-1].ternary[1].label = strdup(funcdef->blocks.data[funcdef->blocks.len-1].name);
-
+    brinst->ternary[1].label = strdup(funcdef->blocks.data[funcdef->blocks.len-1].name);
     ir_gen_statement(funcdef, ifstmnt->ifblk);
 
     // TODO: else
 
     // rest of function
     ir_newblock(funcdef);
-    pblk = &funcdef->blocks.data[condblk];
-    pinst = &pblk->insts.data[pblk->insts.len-1];
-    pinst->ternary[2].type = IR_OPERAND_LABEL;
-    pinst->ternary[2].label = strdup(funcdef->blocks.data[funcdef->blocks.len-1].name);
+    brinst->ternary[2].type = IR_OPERAND_LABEL;
+    brinst->ternary[2].label = strdup(funcdef->blocks.data[funcdef->blocks.len-1].name);
 }
 
 static void ir_gen_while(ir_funcdef_t* funcdef, whilestmnt_t* whilestmnt)
 {
-    int condblock, iinst;
-    ir_block_t *pblk;
-    ir_inst_t inst, *pinst;
+    int conditionblock;
+    ir_inst_t *inst, *brinst;
 
-    condblock = funcdef->blocks.len;
+    conditionblock = funcdef->blocks.len;
     ir_newblock(funcdef);
-
     // if true, jump to loop body
-    inst.op = IR_OP_BR;
-    inst.ternary[0].type = IR_OPERAND_REG;
-    inst.ternary[0].reg.name = ir_gen_expr(funcdef, whilestmnt->expr, NULL);
-    inst.ternary[1].type = IR_OPERAND_LABEL;
-    iinst = funcdef->blocks.data[condblock].insts.len;
-    list_ir_inst_ppush(&funcdef->blocks.data[condblock].insts, &inst);
+    brinst = inst = gen_allocinst();
+    inst->op = IR_OP_BR;
+    inst->ternary[0].type = IR_OPERAND_REG;
+    inst->ternary[0].reg.name = ir_gen_expr(funcdef, whilestmnt->expr, NULL);
+    inst->ternary[1].type = IR_OPERAND_LABEL;
+    gen_appendinst(funcdef, inst);
     
     // body
     ir_newblock(funcdef);
-
-    pblk = &funcdef->blocks.data[condblock];
-    pblk->insts.data[pblk->insts.len-1].ternary[1].label = strdup(funcdef->blocks.data[funcdef->blocks.len-1].name);
-
+    inst->ternary[1].label = strdup(funcdef->blocks.data[funcdef->blocks.len-1].name);
     ir_gen_statement(funcdef, whilestmnt->body);
-
     // jump back to beginning
-    inst.op = IR_OP_JMP;
-    inst.unary.type = IR_OPERAND_LABEL;
-    inst.unary.label = strdup(funcdef->blocks.data[condblock].name);
-    list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
+    inst = gen_allocinst();
+    inst->op = IR_OP_JMP;
+    inst->unary.type = IR_OPERAND_LABEL;
+    inst->unary.label = strdup(funcdef->blocks.data[conditionblock].name);
+    gen_appendinst(funcdef, inst);
 
     // rest of function
     ir_newblock(funcdef);
-    pblk = &funcdef->blocks.data[condblock];
-    pinst = &pblk->insts.data[iinst];
-    pinst->ternary[2].type = IR_OPERAND_LABEL;
-    pinst->ternary[2].label = strdup(funcdef->blocks.data[funcdef->blocks.len-1].name);
+    brinst->ternary[2].type = IR_OPERAND_LABEL;
+    brinst->ternary[2].label = strdup(funcdef->blocks.data[funcdef->blocks.len-1].name);
 }
 
 static void ir_gen_statement(ir_funcdef_t *funcdef, stmnt_t *stmnt)
@@ -438,18 +474,19 @@ static void ir_gen_statement(ir_funcdef_t *funcdef, stmnt_t *stmnt)
 static void ir_gen_decl(ir_funcdef_t* funcdef, decl_t* decl)
 {
     char *name;
-    ir_inst_t inst;
+    ir_inst_t *inst;
     strpair_t pair;
 
     name = ir_gen_alloctemp(funcdef, IR_PRIM_PTR);
+    map_str_ir_reg_get(&funcdef->regs, name)->virtual = true;
 
-    inst.op = IR_OP_ALLOCA;
-    inst.unary.type = IR_OPERAND_REG;
-    inst.unary.reg.name = strdup(name);
-    inst.alloca.type.type = IR_TYPE_PRIM;
-    inst.alloca.type.prim = type_toprim(decl->type.type);
-
-    list_ir_inst_ppush(&funcdef->blocks.data[0].insts, &inst);
+    inst = gen_allocinst();
+    inst->op = IR_OP_ALLOCA;
+    inst->unary.type = IR_OPERAND_REG;
+    inst->unary.reg.name = strdup(name);
+    inst->alloca.type.type = IR_TYPE_PRIM;
+    inst->alloca.type.prim = type_toprim(decl->type.type);
+    gen_appendinst(funcdef, inst);
 
     pair.a = strdup(decl->ident);
     pair.b = name;
@@ -460,7 +497,7 @@ static void ir_gen_arglist(ir_funcdef_t* funcdef, list_decl_t* arglist)
 {
     int i;
 
-    ir_inst_t inst;
+    ir_inst_t *inst;
     char *reg;
     ir_param_t param;
 
@@ -475,13 +512,13 @@ static void ir_gen_arglist(ir_funcdef_t* funcdef, list_decl_t* arglist)
 
         ir_gen_decl(funcdef, &arglist->data[i]);
 
-        inst.op = IR_OP_STORE;
-        inst.binary[0].type = IR_OPERAND_REG;
-        inst.binary[0].reg.name = strdup(varnames.data[varnames.len-1].b);
-        inst.binary[1].type = IR_OPERAND_REG;
-        inst.binary[1].reg.name = strdup(reg);
-
-        list_ir_inst_ppush(&funcdef->blocks.data[funcdef->blocks.len-1].insts, &inst);
+        inst = gen_allocinst();
+        inst->op = IR_OP_STORE;
+        inst->binary[0].type = IR_OPERAND_REG;
+        inst->binary[0].reg.name = strdup(varnames.data[varnames.len-1].b);
+        inst->binary[1].type = IR_OPERAND_REG;
+        inst->binary[1].reg.name = strdup(reg);
+        gen_appendinst(funcdef, inst);
     }
 }
 
@@ -497,6 +534,8 @@ static void ir_gen_globaldecl(globaldecl_t *globdecl)
         return;
 
     oldvarstack = varnames.len;
+
+    insttail = NULL;
 
     funcdef.name = strdup(globdecl->decl.ident);
     funcdef.rettype.type = IR_TYPE_PRIM;

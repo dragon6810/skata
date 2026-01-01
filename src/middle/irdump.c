@@ -265,12 +265,12 @@ void ir_dump_inst(ir_funcdef_t* funcdef, ir_inst_t* inst)
 
 void ir_dump_block(ir_funcdef_t* funcdef, ir_block_t* block)
 {
-    int i;
+    ir_inst_t *inst;
 
     printf("\e[0;92m%s\e[0m:\n", block->name);
 
-    for(i=0; i<block->insts.len; i++)
-        ir_dump_inst(funcdef, &block->insts.data[i]);
+    for(inst=block->insts; inst; inst=inst->next)
+        ir_dump_inst(funcdef, inst);
 }
 
 void ir_dump_arglist(ir_funcdef_t* funcdef)

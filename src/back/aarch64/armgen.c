@@ -13,6 +13,7 @@ const char* armheader =
 const int stackpad = 16;
 
 set_pir_reg_t savedregs;
+map_str_u64_t stackptrs;
 
 static void arm_addreg(uint32_t flags, const char* name)
 {
@@ -373,7 +374,7 @@ static void armgen_populateliveset(set_pir_reg_t* set, ir_funcdef_t* funcdef, ir
     }
 }
 
-static void armgen_emitcall(ir_funcdef_t* funcdef, ir_block_t* blk, ir_inst_t* inst)
+static void armgen_emitcall(ir_funcdef_t* funcdef, ir_block_t* blk, int iinst, ir_inst_t* inst)
 {
     int i;
 
@@ -384,7 +385,7 @@ static void armgen_emitcall(ir_funcdef_t* funcdef, ir_block_t* blk, ir_inst_t* i
     ir_primitive_e prim;
 
     set_pir_reg_alloc(&saved);
-    armgen_populateliveset(&saved, funcdef, blk, inst - blk->insts.data);
+    armgen_populateliveset(&saved, funcdef, blk, iinst);
 
     stacktotal = saved.nfull * 4;
     for(i=2, nregparam=paramsize=0; i<inst->variadic.len; i++)
@@ -444,6 +445,63 @@ static void armgen_emitcall(ir_funcdef_t* funcdef, ir_block_t* blk, ir_inst_t* i
     set_pir_reg_free(&saved);
 }
 
+static void armgen_emitload(ir_funcdef_t* funcdef, ir_inst_t* inst)
+{
+    uint64_t *frameloc;
+    ir_primitive_e prim;
+
+    assert(inst->op == IR_OP_LOAD);
+
+    prim = ir_regtype(funcdef, inst->binary[0].reg.name);
+
+    printf("  %s ", armgen_loadinst(prim));
+
+    armgen_operand(funcdef, &inst->binary[0]);
+    printf(", ");
+    
+    frameloc = NULL;
+    if(inst->binary[1].type == IR_OPERAND_REG)
+        frameloc = map_str_u64_get(&stackptrs, inst->binary[1].reg.name);
+    
+    if(frameloc)
+        printf("[sp, #%"PRIu64"]", *frameloc);
+    else
+        armgen_operand(funcdef, &inst->binary[1]);
+
+    printf("\n");
+}
+
+static void armgen_emitstore(ir_funcdef_t* funcdef, ir_inst_t* inst)
+{
+    uint64_t *frameloc;
+    ir_primitive_e prim;
+
+    assert(inst->op == IR_OP_STORE);
+
+    if(inst->binary[1].type == IR_OPERAND_REG)
+        prim = ir_regtype(funcdef, inst->binary[1].reg.name);
+    else if(inst->binary[1].type == IR_OPERAND_LIT)
+        prim = inst->binary[1].literal.type;
+    else
+        prim = IR_PRIM_U64; // ptr type
+
+    printf("  %s ", armgen_storeinst(prim));
+
+    armgen_operand(funcdef, &inst->binary[1]);
+    printf(", ");
+    
+    frameloc = NULL;
+    if(inst->binary[0].type == IR_OPERAND_REG)
+        frameloc = map_str_u64_get(&stackptrs, inst->binary[0].reg.name);
+    
+    if(frameloc)
+        printf("[sp, #%"PRIu64"]", *frameloc);
+    else
+        armgen_operand(funcdef, &inst->binary[0]);
+
+    printf("\n");
+}
+
 static void armgen_emitmul(ir_funcdef_t* funcdef, ir_inst_t* inst)
 {
     if(inst->ternary[2].type == IR_OPERAND_LIT)
@@ -470,7 +528,7 @@ static void armgen_emitmul(ir_funcdef_t* funcdef, ir_inst_t* inst)
     printf("\n");
 }
 
-static void armgen_inst(ir_funcdef_t* funcdef, ir_block_t* blk, ir_inst_t* inst)
+static void armgen_inst(ir_funcdef_t* funcdef, ir_block_t* blk, int iinst, ir_inst_t* inst)
 {
     switch(inst->op)
     {
@@ -509,11 +567,10 @@ static void armgen_inst(ir_funcdef_t* funcdef, ir_block_t* blk, ir_inst_t* inst)
         printf("  B _%s$exit\n", funcdef->name);
         break;
     case IR_OP_STORE:
-        printf("  %s ", armgen_storeinst(ir_regtype(funcdef, inst->binary[1].reg.name)));
-        armgen_operand(funcdef, &inst->binary[1]);
-        printf(", ");
-        armgen_operand(funcdef, &inst->binary[0]);
-        printf("\n");
+        armgen_emitstore(funcdef, inst);
+        break;
+    case IR_OP_LOAD:
+        armgen_emitload(funcdef, inst);
         break;
     case IR_OP_CMPEQ:
         /*
@@ -563,7 +620,7 @@ static void armgen_inst(ir_funcdef_t* funcdef, ir_block_t* blk, ir_inst_t* inst)
         printf("\n");
         break;
     case IR_OP_CALL:
-        armgen_emitcall(funcdef, blk, inst);
+        armgen_emitcall(funcdef, blk, iinst, inst);
         break;
     case IR_OP_ZEXT:
         armgen_emitext(funcdef, inst, false);
@@ -573,6 +630,8 @@ static void armgen_inst(ir_funcdef_t* funcdef, ir_block_t* blk, ir_inst_t* inst)
         break;
     case IR_OP_TRUNC:
         armgen_emittrunc(funcdef, inst);
+        break;
+    case IR_OP_ALLOCA:
         break;
     default:
         printf("unimplemented ir inst %d for arm.\n", (int) inst->op);
@@ -584,11 +643,35 @@ static void armgen_inst(ir_funcdef_t* funcdef, ir_block_t* blk, ir_inst_t* inst)
 static void armgen_block(ir_funcdef_t* funcdef, ir_block_t* block)
 {
     int i;
+    ir_inst_t *inst;
 
     printf("_%s$%s:\n", funcdef->name, block->name);
 
-    for(i=0; i<block->insts.len; i++)
-        armgen_inst(funcdef, block, &block->insts.data[i]);
+    for(i=0, inst=block->insts; inst; i++, inst=inst->next)
+        armgen_inst(funcdef, block, i, inst);
+}
+
+static uint64_t argmen_buildvarframe(ir_funcdef_t* funcdef, int offs)
+{
+    ir_inst_t *inst;
+
+    ir_block_t *entry;
+    uint64_t stacksize;
+
+    stacksize = offs;
+    entry = funcdef->blocks.data;
+    for(inst=entry->insts; inst; inst=inst->next)
+    {
+        if(inst->op != IR_OP_ALLOCA)
+            continue;
+        
+        assert(inst->alloca.type.type == IR_TYPE_PRIM);
+
+        map_str_u64_set(&stackptrs, inst->unary.reg.name, stacksize);
+        stacksize += ir_primbytesize(inst->alloca.type.prim);
+    }
+
+    return stacksize;
 }
 
 static void armgen_epilouge(ir_funcdef_t* funcdef)
@@ -619,6 +702,7 @@ static void armgen_epilouge(ir_funcdef_t* funcdef)
     printf("  RET\n");
 
     set_pir_reg_free(&savedregs);
+    map_str_u64_alloc(&stackptrs);
 }
 
 static void armgen_populatesaveset(ir_funcdef_t* funcdef)
@@ -653,7 +737,9 @@ static void armgen_prolouge(ir_funcdef_t* funcdef)
     int savedoffs;
     ir_reg_t *reg;
 
+    map_str_u64_alloc(&stackptrs);
     set_pir_reg_alloc(&savedregs);
+
     armgen_populatesaveset(funcdef);
 
     for(i=framesize=0; i<savedregs.nbin; i++)
@@ -663,7 +749,7 @@ static void armgen_prolouge(ir_funcdef_t* funcdef)
         framesize += ir_primbytesize(savedregs.bins[i].val->type);
     }
 
-    framesize = 16 + framesize;
+    framesize = 16 + argmen_buildvarframe(funcdef, 16) + framesize;
     framesize = (framesize + stackpad - 1) & ~(stackpad - 1); 
 
     printf("  SUB sp, sp, #%d\n", framesize);
@@ -712,6 +798,8 @@ static void armgen_funcdef(ir_funcdef_t* funcdef)
 {
     int i;
 
+    map_str_u64_alloc(&stackptrs);
+
     printf("_%s:\n", funcdef->name);
 
     armgen_prolouge(funcdef);
@@ -722,6 +810,8 @@ static void armgen_funcdef(ir_funcdef_t* funcdef)
     armgen_epilouge(funcdef);
 
     printf("\n");
+
+    map_str_u64_free(&stackptrs);
 }
 
 void back_gen(void)

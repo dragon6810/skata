@@ -66,7 +66,7 @@ static void blockspans(ir_block_t* block)
         map_str_ir_regspan_set(&curspans, span.reg, span);
     }
 
-    for(i=0, inst=block->insts.data; i<block->insts.len; i++, inst++)
+    for(i=0, inst=block->insts; inst; i++, inst=inst->next)
     {
         ir_definedregs(&defs, inst);
         ir_accessedregs(&used, inst);
@@ -182,16 +182,17 @@ static void funcinouts(ir_funcdef_t* funcdef)
 static void blockusedefs(ir_funcdef_t* funcdef, ir_block_t* blk)
 {
     int i, j;
+    ir_inst_t *inst;
 
     set_str_t defs, uses;
 
     set_str_clear(&blk->regdefs);
     set_str_clear(&blk->reguses);
 
-    for(i=0; i<blk->insts.len; i++)
+    for(i=0, inst=blk->insts; inst; i++, inst=inst->next)
     {
-        ir_definedregs(&defs, &blk->insts.data[i]);
-        ir_accessedregs(&uses, &blk->insts.data[i]);
+        ir_definedregs(&defs, inst);
+        ir_accessedregs(&uses, inst);
 
         for(j=0; j<uses.nbin; j++)
             if(uses.bins[j].state == SET_EL_FULL && !set_str_contains(&blk->regdefs, uses.bins[j].val))

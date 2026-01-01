@@ -30,7 +30,7 @@ static bool ir_operandhasreg(ir_funcdef_t* funcdef, ir_operand_t* operand, const
 // replace all usages of reg with operand
 static void ir_aliasreg(ir_funcdef_t* funcdef, const char* reg, ir_operand_t* operand)
 {
-    int b, i, o;
+    int b, o;
     ir_block_t *blk;
     ir_inst_t *inst;
 
@@ -42,7 +42,7 @@ static void ir_aliasreg(ir_funcdef_t* funcdef, const char* reg, ir_operand_t* op
     regname = strdup(reg);
     for(b=0, blk=funcdef->blocks.data; b<funcdef->blocks.len; b++, blk++)
     {
-        for(i=0, inst=blk->insts.data; i<blk->insts.len; i++, inst++)
+        for(inst=blk->insts; inst; inst=inst->next)
         {
             ir_instoperands(&operands, inst);
 
@@ -58,15 +58,15 @@ static void ir_aliasreg(ir_funcdef_t* funcdef, const char* reg, ir_operand_t* op
 
 static void ir_eliminatemoves(ir_funcdef_t* funcdef)
 {
-    int b, i;
+    int b;
     ir_block_t *blk;
-    ir_inst_t *inst;
+    ir_inst_t *inst, *lastinst;
 
     for(b=0, blk=funcdef->blocks.data; b<funcdef->blocks.len; b++, blk++)
     {
         do
         {
-            for(i=0, inst=blk->insts.data; i<blk->insts.len; i++, inst++)
+            for(lastinst=NULL, inst=blk->insts; inst; lastinst=inst, inst=inst->next)
             {
                 if(inst->op != IR_OP_MOVE)
                     continue;
@@ -74,13 +74,18 @@ static void ir_eliminatemoves(ir_funcdef_t* funcdef)
                 assert(inst->binary[0].type == IR_OPERAND_REG);
                 
                 ir_aliasreg(funcdef, inst->binary[0].reg.name, &inst->binary[1]);
-                list_ir_inst_remove(&blk->insts, i);
+                if(lastinst)
+                    lastinst->next = inst->next;
+                else
+                    blk->insts = inst->next;
+                inst->next = NULL;
+                ir_instfree(inst);
 
                 madechange = true;
 
                 break;
             }
-        } while(i < blk->insts.len);
+        } while(inst);
     }
 }
 
@@ -193,13 +198,13 @@ static void ir_eliminatelittrunc(ir_funcdef_t* funcdef, ir_inst_t* inst)
 
 static void ir_eliminatelitcasts(ir_funcdef_t* funcdef)
 {
-    int b, i;
+    int b;
     ir_block_t *blk;
     ir_inst_t *inst;
 
     for(b=0, blk=funcdef->blocks.data; b<funcdef->blocks.len; b++, blk++)
     {
-        for(i=0, inst=blk->insts.data; i<blk->insts.len; i++, inst++)
+        for(inst=blk->insts; inst; inst=inst->next)
         {
             switch(inst->op)
             {
@@ -221,7 +226,7 @@ static void ir_eliminatelitcasts(ir_funcdef_t* funcdef)
 
 static void ir_lowersinglephi(ir_funcdef_t* funcdef)
 {
-    int b, i;
+    int b;
     ir_block_t *blk;
     ir_inst_t *inst;
 
@@ -229,7 +234,7 @@ static void ir_lowersinglephi(ir_funcdef_t* funcdef)
 
     for(b=0, blk=funcdef->blocks.data; b<funcdef->blocks.len; b++, blk++)
     {
-        for(i=0, inst=blk->insts.data; i<blk->insts.len; i++, inst++)
+        for(inst=blk->insts; inst; inst=inst->next)
         {
             if(inst->op != IR_OP_PHI)
                 continue;
@@ -239,7 +244,9 @@ static void ir_lowersinglephi(ir_funcdef_t* funcdef)
             move.op = IR_OP_MOVE;
             ir_cpyoperand(&move.binary[0], &inst->variadic.data[0]);
             ir_cpyoperand(&move.binary[1], &inst->variadic.data[2]);
+            move.next = inst->next;
 
+            inst->next = NULL;
             ir_instfree(inst);
             *inst = move;
 
