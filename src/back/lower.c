@@ -178,7 +178,7 @@ static void elimcriticaledges(ir_funcdef_t* funcdef)
 
                 // critical edge!
 
-                idx = ir_newblock(funcdef);
+                idx = gen_newblock(funcdef);
                 blk = &funcdef->blocks.data[b];
                 edge = &funcdef->blocks.data[phiblk];
                 newblk = &funcdef->blocks.data[idx];

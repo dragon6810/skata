@@ -63,11 +63,10 @@ void ir_instfree(ir_inst_t* inst)
 
     int noperand;
 
-    if(inst->next)
-    {
-        ir_instfree(inst->next);
-        free(inst->next);
-    }
+    if(!inst)
+        return;
+
+    ir_instfree(inst->next);
 
     if(inst->op == IR_OP_PHI && inst->var)
         free(inst->var);

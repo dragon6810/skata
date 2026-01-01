@@ -287,7 +287,7 @@ ir_primitive_e ir_regtype(ir_funcdef_t* funcdef, char* regname);
 char* ir_gen_alloctemp(ir_funcdef_t *funcdef, ir_primitive_e type);
 // frees the ptr itself
 void ir_instfree(ir_inst_t* inst);
-uint64_t ir_newblock(ir_funcdef_t* funcdef);
+uint64_t gen_newblock(ir_funcdef_t* funcdef);
 int ir_primbytesize(ir_primitive_e prim);
 void ir_cpyoperand(ir_operand_t* dst, ir_operand_t* src);
 bool ir_registerwritten(ir_inst_t* inst, char* reg);

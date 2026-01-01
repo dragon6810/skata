@@ -8,12 +8,15 @@ static void ir_deleterenamed(ir_funcdef_t* func, ir_block_t* blk, set_pir_inst_t
 {
     ir_inst_t *inst, *last, *next;
 
-    for(last=NULL, inst=blk->insts; inst; last=inst, inst=next)
+    for(last=NULL, inst=blk->insts; inst; inst=next)
     {
         next = inst->next;
 
         if(!set_pir_inst_contains(renamed, inst))
+        {
+            last = inst;
             continue;
+        }
 
         assert(inst->op == IR_OP_ALLOCA);
         assert(inst->unary.type == IR_OPERAND_REG);
