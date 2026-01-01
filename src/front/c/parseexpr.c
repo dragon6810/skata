@@ -91,6 +91,10 @@ static void parse_printexpr_r(const expr_t* expr)
         nterms = 1;
         op = "&";
         break;
+    case EXPROP_DEREF:
+        nterms = 1;
+        op = "*";
+        break;
     case EXPROP_POSTINC:
         nterms = 1;
         op = "++";
@@ -165,6 +169,7 @@ static int parse_prefixopbp(exprop_e op)
     case EXPROP_PREINC:
     case EXPROP_PREDEC:
     case EXPROP_REF:
+    case EXPROP_DEREF:
     case EXPROP_LOGICNOT:
         return 10;
     case EXPROP_CAST:
@@ -257,6 +262,8 @@ static expr_t* parse_expr_r(int minbp)
             op = EXPROP_PREDEC;
         else if(!strcmp(parse_peekstr(0), "&"))
             op = EXPROP_REF;
+        else if(!strcmp(parse_peekstr(0), "*"))
+            op = EXPROP_DEREF;
         else if(!strcmp(parse_peekstr(0), "!"))
             op = EXPROP_LOGICNOT;
         else if(!strcmp(parse_peekstr(0), "("))

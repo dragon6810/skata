@@ -36,7 +36,7 @@ static bool regssamelocation(ir_funcdef_t* funcdef, char* a, char* b)
     assert(breg);
 
     if(!areg->hardreg && !breg->hardreg)
-        return a == b;
+        return areg == breg;
 
     return areg->hardreg == breg->hardreg;
 }
@@ -109,12 +109,15 @@ static void findblkcpys(ir_funcdef_t* funcdef, ir_block_t* blk)
 {
     ir_inst_t *inst, *next, *last;
 
-    for(last=NULL, inst=blk->insts; inst; last=inst, inst=next)
+    for(last=NULL, inst=blk->insts; inst; inst=next)
     {
         next = inst->next;
 
         if(inst->op != IR_OP_PHI)
+        {
+            last = inst;
             continue;
+        }
             
         findphicpys(funcdef, inst);
         if(last)

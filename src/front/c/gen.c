@@ -13,7 +13,7 @@ static void gen_appendinst(ir_funcdef_t* funcdef, ir_inst_t* inst)
 {
     if(inst->op == IR_OP_BR || inst->op == IR_OP_JMP)
         funcdef->blocks.data[funcdef->blocks.len-1].branch = inst;
-        
+
     if(insttail)
     {
         insttail->next = inst;
@@ -342,6 +342,15 @@ char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
         return res;
     case EXPROP_REF:
         return ir_gen_lvaladr(funcdef, expr->operand, outreg);
+    case EXPROP_DEREF:
+        inst = gen_allocinst();
+        inst->op = IR_OP_LOAD;
+        inst->binary[0].type = IR_OPERAND_REG;
+        inst->binary[0].reg.name = strdup(res);
+        inst->binary[1].type = IR_OPERAND_REG;
+        inst->binary[1].reg.name = ir_gen_expr(funcdef, expr->operand, NULL);
+        gen_appendinst(funcdef, inst);
+        return res;
     case EXPROP_CALL:
         return ir_gen_funccall(funcdef, expr, outreg);
     case EXPROP_LOGICNOT:

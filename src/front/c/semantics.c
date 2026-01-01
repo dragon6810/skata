@@ -182,6 +182,17 @@ static void semantics_logicalnot(expr_t* expr)
     expr->type.type = TYPE_U1;
 }
 
+static void semantics_derefexpr(expr_t* expr)
+{
+    semantics_expr(expr->operand);
+    if(expr->operand->type.type != TYPE_PTR)
+        error(true, expr->line, expr->col, "expression must be a pointer\n");
+    
+    type_cpy(&expr->type, expr->operand->type.ptrtype);
+
+    expr->lval = true;
+}
+
 static void semantics_refexpr(expr_t* expr)
 {
     semantics_expr(expr->operand);
@@ -328,6 +339,9 @@ static void semantics_expr(expr_t* expr)
         break;
     case EXPROP_REF:
         semantics_refexpr(expr);
+        break;
+    case EXPROP_DEREF:
+        semantics_derefexpr(expr);
         break;
     case EXPROP_LOGICNOT:
         semantics_logicalnot(expr);
