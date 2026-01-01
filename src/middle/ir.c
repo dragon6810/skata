@@ -230,6 +230,7 @@ void ir_definedregs(set_str_t* set, ir_inst_t* inst)
     case IR_OP_SEXT:
     case IR_OP_TRUNC:
     case IR_OP_ALLOCA:
+    case IR_OP_FIE:
         set_str_add(set, inst->binary[0].reg.name);
         break;
     case IR_OP_ADD:
@@ -270,6 +271,7 @@ void ir_accessedregs(set_str_t* set, ir_inst_t* inst)
     case IR_OP_ZEXT:
     case IR_OP_SEXT:
     case IR_OP_TRUNC:
+    case IR_OP_FIE:
         if(inst->binary[1].type == IR_OPERAND_REG) set_str_add(set, inst->binary[1].reg.name);
         break;
     case IR_OP_ADD:

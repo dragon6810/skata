@@ -55,7 +55,7 @@ void back_init(void)
     arm_addreg(HARDREG_CALLER, "r9");
     arm_addreg(HARDREG_CALLER, "r10");
     arm_addreg(HARDREG_CALLER, "r11");
-    arm_addreg(HARDREG_CALLER, "r12");
+    arm_addreg(HARDREG_CALLER | HARDREG_SCRATCH, "r12");
     arm_addreg(HARDREG_CALLER, "r13");
     arm_addreg(HARDREG_CALLER, "r14");
     arm_addreg(HARDREG_CALLER, "r15");
@@ -475,19 +475,25 @@ static void armgen_emitstore(ir_funcdef_t* funcdef, ir_inst_t* inst)
 {
     uint64_t *frameloc;
     ir_primitive_e prim;
+    hardreg_t *src;
 
     assert(inst->op == IR_OP_STORE);
 
     if(inst->binary[1].type == IR_OPERAND_REG)
+    {
         prim = ir_regtype(funcdef, inst->binary[1].reg.name);
+        src = map_str_ir_reg_get(&funcdef->regs, inst->binary[1].reg.name)->hardreg;
+    }
     else if(inst->binary[1].type == IR_OPERAND_LIT)
+    {
         prim = inst->binary[1].literal.type;
+        src = scratchlist.data[0];
+        printf("  LDR %s, =0x%016"PRIx64"\n", *map_u64_str_get(&src->names, prim), inst->binary[1].literal.u64);
+    }
     else
-        prim = IR_PRIM_U64; // ptr type
+        assert(0);
 
-    printf("  %s ", armgen_storeinst(prim));
-
-    armgen_operand(funcdef, &inst->binary[1]);
+    printf("  %s %s", armgen_storeinst(prim), *map_u64_str_get(&src->names, prim));
     printf(", ");
     
     frameloc = NULL;
@@ -633,6 +639,11 @@ static void armgen_inst(ir_funcdef_t* funcdef, ir_block_t* blk, int iinst, ir_in
         break;
     case IR_OP_ALLOCA:
         break;
+    case IR_OP_FIE:
+        printf("  ADD ");
+        armgen_operand(funcdef, &inst->binary[0]);
+        printf(", sp, #%"PRIu64"\n", *map_str_u64_get(&stackptrs, inst->binary[1].reg.name));
+        break;
     default:
         printf("unimplemented ir inst %d for arm.\n", (int) inst->op);
         assert(0);
@@ -671,7 +682,7 @@ static uint64_t argmen_buildvarframe(ir_funcdef_t* funcdef, int offs)
         stacksize += ir_primbytesize(inst->alloca.type.prim);
     }
 
-    return stacksize;
+    return stacksize - offs;
 }
 
 static void armgen_epilouge(ir_funcdef_t* funcdef)
@@ -749,7 +760,7 @@ static void armgen_prolouge(ir_funcdef_t* funcdef)
         framesize += ir_primbytesize(savedregs.bins[i].val->type);
     }
 
-    framesize = 16 + argmen_buildvarframe(funcdef, 16) + framesize;
+    framesize = 16 + argmen_buildvarframe(funcdef, 16 + framesize) + framesize;
     framesize = (framesize + stackpad - 1) & ~(stackpad - 1); 
 
     printf("  SUB sp, sp, #%d\n", framesize);
