@@ -11,6 +11,7 @@ typedef enum
 {
     DECL_VAR=0,
     DECL_FUNC,
+    DECL_STRUCT,
 } decltype_e;
 
 typedef enum
@@ -53,6 +54,7 @@ typedef enum
     EXPROP_LOGICNOT, // !
     EXPROP_POSTINC, // ++
     EXPROP_POSTDEC, // --
+    EXPROP_MEMBER, // . <member>
 
     // variadic operators
     EXPROP_CALL, // ( ... )
@@ -105,6 +107,7 @@ struct expr_s
     {
         list_pexpr_t variadic; // function call
         type_t casttype; // cast
+        char *member; // member ref
     };
 };
 

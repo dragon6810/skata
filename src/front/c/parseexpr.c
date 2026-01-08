@@ -329,6 +329,21 @@ static expr_t* parse_expr_r(int minbp)
             op = EXPROP_POSTINC;
         else if(!strcmp(tokstr, "--"))
             op = EXPROP_POSTDEC;
+        else if(!strcmp(tokstr, "."))
+        {
+            parse_eat();
+            
+            lhs = expr;
+
+            expr = malloc(sizeof(expr_t));
+            expr->line = parse_getline();
+            expr->col = parse_getcol();
+            expr->op = EXPROP_MEMBER;
+            expr->operand = lhs;
+            
+            expr->member = strdup(parse_eatform(TOKEN_IDENT));
+            goto continueloop;
+        }
         else if(!strcmp(tokstr, "("))
         {
             parse_eatstr("(");

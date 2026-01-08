@@ -3,6 +3,7 @@
 #include <stdio.h>
 
 #include "front/error.h"
+#include "struct.h"
 #include "type.h"
 
 list_globaldecl_t ast;
@@ -107,6 +108,16 @@ token_e parse_peekform(int offs)
 
     tok = curtok + offs;
     return tok->form;
+}
+
+static bool parse_peekpunc(int offs, punc_e punc)
+{
+    token_t *tok;
+
+    tok = curtok + offs;
+    if(tok->form != TOKEN_PUNC)
+        return false;
+    return tok->punc == punc;
 }
 
 const char* parse_peekstr(int offs)
@@ -242,16 +253,69 @@ void parse_modifytypewithptr(type_t* type)
     }
 }
 
+void parse_type(type_t* type);
+
+struct_t* parse_structdef(void)
+{
+    struct_t *struc;
+    type_t type;
+    struct_member_t member;
+
+    parse_eatstr("{");
+
+    struc = malloc(sizeof(struct_t));
+    list_struct_member_init(&struc->members, 0);
+    while(!parse_peekpunc(0, PUNC_RBRACE))
+    {
+        if(!parse_istype())
+            error(true, parse_getexpectedline(), parse_getexpectedcol(), "expected declaration\n");
+        parse_type(&type);
+
+        type_cpy(&member.type, &type);
+        parse_modifytypewithptr(&member.type);
+        if(parse_peekform(0) != TOKEN_IDENT)
+            error(true, parse_getexpectedline(), parse_getexpectedcol(), "expected identifier\n");
+        member.ident = strdup(parse_eat());
+        list_struct_member_ppush(&struc->members, &member);
+
+        type_free(&type);
+
+        parse_eatstr(";");
+    }
+
+    parse_eatstr("}");
+
+    return struc;
+}
+
+void parse_struct(type_t* type)
+{
+    parse_eatstr("struct");
+    type->type = TYPE_STRUCT;
+
+    if(parse_peekform(0) != TOKEN_IDENT && !parse_peekpunc(0, PUNC_LBRACE))
+        error(true, parse_getexpectedline(), parse_getexpectedcol(), "expected tag or definition\n");
+
+    type->struc.tag = NULL;
+    if(parse_peekform(0) == TOKEN_IDENT)
+        type->struc.tag = strdup(parse_eat());
+
+    type->struc.def = NULL;
+    if(parse_peekpunc(0, PUNC_LBRACE))
+        type->struc.def = parse_structdef();
+}
+
 void parse_type(type_t* type)
 {
     const char *tokstr;
     bool unsign;
     token_t *typestart;
+    int longcount;
 
     unsign = false;
 
     typestart = curtok;
-    int longcount = 0;
+    longcount = 0;
 
     type->type = TYPE_I32;
     while(1)
@@ -259,6 +323,8 @@ void parse_type(type_t* type)
         tokstr = parse_peekstr(0);
         if(!strcmp(tokstr, "void"))
             type->type = TYPE_VOID;
+        else if(!strcmp(tokstr, "struct"))
+            parse_struct(type);
         else if(!strcmp(tokstr, "char"))
             type->type = TYPE_I8;
         else if(!strcmp(tokstr, "short"))
@@ -323,6 +389,8 @@ bool parse_istype()
     tokstr = parse_peekstr(0);
     if(!strcmp(tokstr, "void"))
         return true;
+    else if(!strcmp(tokstr, "struct"))
+        return true;
     else if(!strcmp(tokstr, "char"))
         return true;
     else if(!strcmp(tokstr, "short"))
@@ -342,6 +410,14 @@ static void parse_decl(decl_t* decl)
     type_t type;
 
     parse_type(&type);
+
+    if(parse_peekpunc(0, PUNC_SEMICOLON))
+    {
+        decl->form = DECL_STRUCT;
+        decl->type = type;
+        parse_eat();
+        return;
+    }
 
     decl->form = DECL_VAR;
     type_cpy(&decl->type, &type);
@@ -472,6 +548,7 @@ static void parse_arglist(decl_t* decl)
             break;
 
         parse_type(&arg.type);
+        parse_modifytypewithptr(&arg.type);
         arg.ident = strdup(parse_eatform(TOKEN_IDENT));
         arg.expr = NULL;
         list_decl_init(&arg.args, 0);

@@ -2,6 +2,12 @@
 
 #include <stdio.h>
 
+#include "struct.h"
+
+map_str_ptype_t tags;
+
+MAP_DEF(char*, type_t*, str, ptype, hash_str, map_strcmp, map_strcpy, NULL, map_freestr, NULL)
+
 const char* type_names[TYPE_COUNT] =
 {
     "void",
@@ -106,6 +112,14 @@ void type_free(type_t* type)
         free(type->ptrtype);
         list_type_free(&type->func.args);
         break;
+    case TYPE_STRUCT:
+        if(type->struc.tag)
+            free(type->struc.tag);
+        if(type->struc.def)
+        {
+            struct_free(type->struc.def);
+            free(type->struc.def);
+        }
     default:
         break;
     }
