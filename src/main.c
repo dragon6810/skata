@@ -192,6 +192,7 @@ int main(int argc, char** argv)
         }
     }
     
+    front_init();
     back_init();
 
     for(; i<argc; i++)

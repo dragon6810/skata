@@ -24,7 +24,7 @@ typedef enum
 
     TYPE_PTR,
     TYPE_FUNC,
-    
+
     TYPE_STRUCT,
 
     TYPE_COUNT,
@@ -54,6 +54,9 @@ typedef struct type_s
         } struc;
         type_t *ptrtype; // type it points to
     };
+
+    int line;
+    int column;
 } type_t;
 
 MAP_DECL(char*, type_t*, str, ptype)

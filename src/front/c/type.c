@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 
+#include "ast.h"
 #include "struct.h"
 
 map_str_ptype_t tags;
@@ -22,6 +23,7 @@ const char* type_names[TYPE_COUNT] =
     "u64",
     "ptr",
     "func",
+    "struct",
 };
 
 ir_primitive_e type_toprim(type_e type)
@@ -93,6 +95,17 @@ void type_cpy(type_t* dst, type_t* src)
         dst->func.ret = malloc(sizeof(type_t));
         type_cpy(dst->func.ret, src->func.ret);
         list_type_dup(&dst->func.args, &src->func.args);
+        break;
+    case TYPE_STRUCT:
+        dst->struc.tag = NULL;
+        if(src->struc.tag)
+            dst->struc.tag = strdup(src->struc.tag);
+        dst->struc.def = NULL;
+        if(src->struc.def)
+        {
+            dst->struc.def = malloc(sizeof(struct_t));
+            struct_cpy(dst->struc.def, src->struc.def);
+        }
         break;
     default:
         break;

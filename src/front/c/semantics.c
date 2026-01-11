@@ -3,6 +3,7 @@
 
 #include "ast.h"
 #include "front/error.h"
+#include "struct.h"
 
 list_pdecl_t scope;
 
@@ -183,7 +184,7 @@ static void semantics_assignexpr(expr_t* expr)
         semantics_expr(expr->operands[i]);
 
     if(!expr->operands[0]->lval)
-        error(true, expr->line, expr->col, "expression is not assignable");
+        error(true, expr->line, expr->col, "expression is not assignable\n");
 
     expr->type = expr->operands[0]->type;
     if(!semantics_typecmp(&expr->type, &expr->operands[1]->type))
@@ -273,6 +274,40 @@ static void semantics_callexpr(expr_t* expr)
     semantics_typecpy(&expr->type, functype->func.ret);
 }
 
+static void semantics_memberexpr(expr_t* expr)
+{
+    int i;
+
+    const char* name;
+    struct_t *def;
+
+    assert(expr->op == EXPROP_MEMBER);
+
+    expr->lval = true;
+
+    semantics_expr(expr->operand);
+    if(expr->operand->type.type != TYPE_STRUCT)
+        error(true, expr->line, expr->col, "expression must have struct type\n");
+
+    name = expr->operand->type.struc.tag;
+    if(!name)
+        name = "<anonymous>";
+
+    def = struct_finddef(&expr->operand->type);
+    if(!def)
+        error(true, expr->line, expr->col, "use of incomplete struct %s\n", name);
+
+    for(i=0; i<def->members.len; i++)
+    {
+        if(strcmp(def->members.data[i].ident, expr->member))
+            continue;
+        type_cpy(&expr->type, &def->members.data[i].type);
+        return;
+    }
+
+    error(true, expr->line, expr->col, "struct %s has no member '%s'\n", name, expr->member);
+}
+
 static void semantics_var(expr_t* expr)
 {
     int i, j;
@@ -280,6 +315,7 @@ static void semantics_var(expr_t* expr)
     type_t type;
 
     assert(expr->op == EXPROP_VAR);
+    assert(scope.len);
 
     // more narrow scopes get precedence,
     // so loop from top to bottom
@@ -373,6 +409,9 @@ static void semantics_expr(expr_t* expr)
     case EXPROP_CALL:
         semantics_callexpr(expr);
         break;
+    case EXPROP_MEMBER:
+        semantics_memberexpr(expr);
+        break;
     default:
         assert(0);
         break;
@@ -445,18 +484,27 @@ static void semantics_funcdef(globaldecl_t* func)
     list_pdecl_resize(&scope, scopesize);
 }
 
+static void semantics_decl(decl_t* decl)
+{
+    struct_processtype(&decl->type, false);
+}
+
 void semantics(void)
 {
     int i;
+
+    struct_enterscope();
 
     list_pdecl_init(&scope, 0);
 
     for(i=0; i<ast.len; i++)
     {
-        if(!ast.data[i].hasfuncdef)
-            continue;
-        semantics_funcdef(&ast.data[i]);
+        semantics_decl(&ast.data[i].decl);
+        if(ast.data[i].hasfuncdef)
+            semantics_funcdef(&ast.data[i]);
     }
 
     list_pdecl_free(&scope);
+
+    struct_exitscope();
 }

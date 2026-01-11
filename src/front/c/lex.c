@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "front/error.h"
+
 static void lex_freetok(token_t* tok)
 {
     switch(tok->form)
@@ -205,8 +207,7 @@ void lex_nexttok(void)
     if(lex_trynumber())
         return;
 
-    printf("bad input.\n");
-    exit(1);
+    error(true, line, column, "unrecognized token\n");
 }
 
 void lex(void)

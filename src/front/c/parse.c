@@ -12,7 +12,8 @@ token_t *curtok;
 
 static void parse_freedecl(decl_t* decl)
 {
-    free(decl->ident);
+    if(decl->form == DECL_VAR || decl->form == DECL_FUNC)
+        free(decl->ident);
     if(decl->form == DECL_FUNC)
         list_decl_free(&decl->args);
     type_free(&decl->type);
@@ -312,6 +313,9 @@ void parse_type(type_t* type)
     token_t *typestart;
     int longcount;
 
+    type->line = parse_getline();
+    type->column = parse_getcol();
+
     unsign = false;
 
     typestart = curtok;
@@ -324,7 +328,10 @@ void parse_type(type_t* type)
         if(!strcmp(tokstr, "void"))
             type->type = TYPE_VOID;
         else if(!strcmp(tokstr, "struct"))
+        {
             parse_struct(type);
+            continue;
+        }
         else if(!strcmp(tokstr, "char"))
             type->type = TYPE_I8;
         else if(!strcmp(tokstr, "short"))
@@ -411,10 +418,11 @@ static void parse_decl(decl_t* decl)
 
     parse_type(&type);
 
-    if(parse_peekpunc(0, PUNC_SEMICOLON))
+    if(type.type == TYPE_STRUCT && parse_peekpunc(0, PUNC_SEMICOLON))
     {
         decl->form = DECL_STRUCT;
         decl->type = type;
+        decl->expr = NULL;
         parse_eat();
         return;
     }
@@ -567,11 +575,18 @@ static void parse_globaldecl(void)
     decl.hasfuncdef = false;
     decl.decl.form = DECL_VAR;
     parse_type(&decl.decl.type);
-    decl.decl.ident = strdup(parse_eatform(TOKEN_IDENT));
+    if(decl.decl.type.type == TYPE_STRUCT && parse_peekpunc(0, PUNC_SEMICOLON))
+        decl.decl.form = DECL_STRUCT;
+    
     decl.decl.expr = NULL;
     list_decl_init(&decl.decl.args, 0);
 
-    if(!strcmp(parse_peekstr(0), "("))
+    if(decl.decl.form == DECL_VAR)
+    {
+        decl.decl.ident = strdup(parse_eatform(TOKEN_IDENT));
+    }
+
+    if(decl.decl.form == DECL_VAR && !strcmp(parse_peekstr(0), "("))
     {   
         decl.decl.form = DECL_FUNC;
 
@@ -722,7 +737,11 @@ static void parse_printdecl(decl_t* decl, int depth, bool last, char* leftstr)
 
     newleft = parse_printprefix(depth, last, leftstr);
 
-    printf("\e[1;32m<declaration> \e[0;96m(type: %s), (name: %s)\e[0m\n", type_names[decl->type.type], decl->ident);
+    if(decl->form == DECL_VAR || decl->form == DECL_FUNC)
+        printf("\e[1;32m<declaration> \e[0;96m(type: %s), (name: %s)\e[0m\n", type_names[decl->type.type], decl->ident);
+    else
+        printf("\e[1;32m<declaration> \e[0;96m(type: %s)\e[0m\n", type_names[decl->type.type]);
+
     if(decl->form == DECL_FUNC)
         parse_printarglist(decl, depth + 1, !decl->expr, newleft);
     if(decl->expr)
@@ -756,7 +775,7 @@ static void parse_printglobaldecl(globaldecl_t* decl, int depth, bool last, char
 
     newleft = parse_printprefix(depth, last, leftstr);
 
-    printf("\e[1;32m<external-decl>\e\n");
+    printf("\e[1;32m<external-decl>\e[0m\n");
     parse_printdecl(&decl->decl, depth + 1, !decl->hasfuncdef, newleft);
     if(decl->hasfuncdef)
         parse_printcompound(&decl->funcdef, depth + 1, true, newleft); 

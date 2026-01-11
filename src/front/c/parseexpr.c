@@ -125,6 +125,11 @@ static void parse_printexpr_r(const expr_t* expr)
         parse_printexpr_r(expr->operand);
         printf(" )");
         return;
+    case EXPROP_MEMBER:
+        printf("( . ");
+        parse_printexpr_r(expr->operand);
+        printf(" %s )", expr->member);
+        return;
     default:
         assert(0);
         return;
@@ -332,7 +337,7 @@ static expr_t* parse_expr_r(int minbp)
         else if(!strcmp(tokstr, "."))
         {
             parse_eat();
-            
+
             lhs = expr;
 
             expr = malloc(sizeof(expr_t));
@@ -342,7 +347,8 @@ static expr_t* parse_expr_r(int minbp)
             expr->operand = lhs;
             
             expr->member = strdup(parse_eatform(TOKEN_IDENT));
-            goto continueloop;
+
+            continue;
         }
         else if(!strcmp(tokstr, "("))
         {

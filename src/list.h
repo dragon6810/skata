@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "set.h"
+
 #define U64_ROUNDUPTOPOW2(len)\
 len--;\
 len |= len >> 1;\
@@ -29,6 +31,7 @@ void list_##name##_ppush(list_##name##_t* list, T* val);\
 void list_##name##_push(list_##name##_t* list, T val);\
 void list_##name##_resize(list_##name##_t* list, uint64_t len);\
 void list_##name##_remove(list_##name##_t* list, uint64_t idx);\
+void list_##name##_pop(list_##name##_t* list);\
 void list_##name##_insert(list_##name##_t* list, uint64_t idx, T val);\
 T* list_##name##_find(list_##name##_t* list, T val);\
 void list_##name##_dup(list_##name##_t* dst, list_##name##_t* src);\
@@ -112,6 +115,10 @@ void list_##name##_remove(list_##name##_t* list, uint64_t idx)\
     }\
 \
     list->len--;\
+}\
+void list_##name##_pop(list_##name##_t* list)\
+{\
+    list_##name##_remove(list, list->len - 1);\
 }\
 void list_##name##_insert(list_##name##_t* list, uint64_t idx, typeof(*list->data) val)\
 {\
@@ -206,5 +213,6 @@ typedef struct strpair_s
 LIST_DECL(char*, string)
 LIST_DECL(strpair_t, strpair)
 LIST_DECL(uint64_t, u64)
+LIST_DECL(set_str_t, set_str)
 
 #endif

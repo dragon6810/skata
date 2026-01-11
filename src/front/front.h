@@ -3,6 +3,8 @@
 
 extern char *srctext;
 
+void front_init(void);
+
 void lex(void);
 void parse(void);
 void semantics(void);
