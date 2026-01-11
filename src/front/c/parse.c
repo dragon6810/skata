@@ -731,6 +731,44 @@ static void parse_printarglist(decl_t* decl, int depth, bool last, char* leftstr
     free(newleft);
 }
 
+static void parse_printstructtype(type_t* type, int depth, bool last, char* leftstr);
+
+static void parse_printstructmember(struct_member_t* member, int depth, bool last, char* leftstr)
+{
+    char* newleft;
+
+    newleft = parse_printprefix(depth, last, leftstr);
+
+    printf("\e[1;32m<struct-member> \e[0;96m(type: %s), (name: %s)\e[0m\n", type_names[member->type.type], member->ident);
+
+    if(member->type.type == TYPE_STRUCT)
+        parse_printstructtype(&member->type, depth + 1, true, newleft);
+
+    free(newleft);
+}
+
+static void parse_printstructtype(type_t* type, int depth, bool last, char* leftstr)
+{
+    int i;
+
+    char* newleft;
+    const char* tag;
+
+    newleft = parse_printprefix(depth, last, leftstr);
+
+    tag = type->struc.tag;
+    if(!tag)
+        tag = "<anonymous>";
+
+    printf("\e[1;32m<struct> \e[0;96m(tag: %s)\e[0m\n", tag);
+
+    if(type->struc.def)
+        for(i=0; i<type->struc.def->members.len; i++)
+            parse_printstructmember(&type->struc.def->members.data[i], depth+1, i==type->struc.def->members.len-1, newleft);
+
+    free(newleft);
+}
+
 static void parse_printdecl(decl_t* decl, int depth, bool last, char* leftstr)
 {
     char* newleft;
@@ -742,6 +780,8 @@ static void parse_printdecl(decl_t* decl, int depth, bool last, char* leftstr)
     else
         printf("\e[1;32m<declaration> \e[0;96m(type: %s)\e[0m\n", type_names[decl->type.type]);
 
+    if(decl->type.type == TYPE_STRUCT)
+        parse_printstructtype(&decl->type, depth + 1, (decl->form != DECL_FUNC) && !decl->expr, newleft);
     if(decl->form == DECL_FUNC)
         parse_printarglist(decl, depth + 1, !decl->expr, newleft);
     if(decl->expr)
