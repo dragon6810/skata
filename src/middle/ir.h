@@ -73,7 +73,23 @@ typedef struct ir_type_s
     };
 } ir_type_t;
 
+LIST_DECL(ir_type_t, ir_type)
+
 MAP_DECL(char*, ir_reg_t, str, ir_reg)
+
+typedef struct ir_aggfid_s
+{
+    list_ir_type_t types; // all the types that occupy this frame index
+} ir_aggfid_t;
+
+MAP_DECL(uint64_t, ir_aggfid_t, u64, ir_aggfid)
+
+typedef struct ir_aggregate_s
+{
+    map_u64_ir_aggfid_t fids;
+} ir_aggregate_t;
+
+MAP_DECL(uint64_t, ir_aggregate_t, u64, ir_aggregate)
 
 typedef enum
 {
@@ -276,14 +292,20 @@ LIST_DECL(ir_funcdef_t, ir_funcdef)
 
 typedef struct ir_s
 {
+    map_u64_ir_aggregate_t aggs;
     list_ir_funcdef_t defs;
 } ir_t;
 
 extern ir_t ir;
 
+void ir_aggfidfree(ir_aggfid_t* fid);
+void ir_aggfidcpy(ir_aggfid_t* dst, ir_aggfid_t* src);
+void ir_aggregatefree(ir_aggregate_t* aggregate);
+void ir_aggregatecpy(ir_aggregate_t* dst, ir_aggregate_t* src);
 void ir_operandfree(ir_operand_t* operand);
 
 uint32_t ir_primflags(ir_primitive_e prim);
+void ir_typefree(const ir_type_t* type);
 // sets name to NULL
 void ir_initblock(ir_block_t* block);
 ir_primitive_e ir_regtype(ir_funcdef_t* funcdef, char* regname);

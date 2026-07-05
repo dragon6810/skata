@@ -17,6 +17,31 @@ void ir_regfree(ir_reg_t* reg)
     set_str_free(&reg->interfere);
 }
 
+void ir_aggfidfree(ir_aggfid_t* fid)
+{
+    list_ir_type_free(&fid->types);
+}
+
+void ir_aggfidcpy(ir_aggfid_t* dst, ir_aggfid_t* src)
+{
+    list_ir_type_dup(&dst->types, &src->types);
+}
+
+void ir_aggregatefree(ir_aggregate_t* aggregate)
+{
+    map_u64_ir_aggfid_free(&aggregate->fids);
+}
+
+void ir_aggregatecpy(ir_aggregate_t* dst, ir_aggregate_t* src)
+{
+    map_u64_ir_aggfid_dup(&dst->fids, &src->fids);
+}
+
+void ir_typefree(const ir_type_t* type)
+{
+    
+}
+
 void ir_cpyoperand(ir_operand_t* dst, ir_operand_t* src)
 {
     memcpy(dst, src, sizeof(ir_operand_t));
@@ -162,6 +187,10 @@ static void ir_freecopy(ir_copy_t* copy)
 }
 
 MAP_DEF(char*, ir_reg_t, str, ir_reg, hash_str, map_strcmp, map_strcpy, ir_regcpy, map_freestr, ir_regfree)
+LIST_DEF(ir_type)
+LIST_DEF_FREE_DECONSTRUCT(ir_type, ir_typefree)
+MAP_DEF(uint64_t, ir_aggfid_t, u64, ir_aggfid, hash_u64, NULL, NULL, ir_aggfidcpy, NULL, ir_aggfidfree)
+MAP_DEF(uint64_t, ir_aggregate_t, u64, ir_aggregate, hash_u64, NULL, NULL, ir_aggregatecpy, NULL, ir_aggregatefree)
 LIST_DEF(pir_inst)
 SET_DEF(ir_inst_t*, pir_inst, ir_hashpinst, NULL, NULL, NULL)
 LIST_DEF_FREE(pir_inst)

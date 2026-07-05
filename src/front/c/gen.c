@@ -540,6 +540,11 @@ static void ir_gen_arglist(ir_funcdef_t* funcdef, list_decl_t* arglist)
     }
 }
 
+static void ir_gen_typeuse(type_t* type)
+{
+    
+}
+
 static void ir_gen_globaldecl(globaldecl_t *globdecl)
 {
     int i;
