@@ -489,11 +489,15 @@ static void ir_gen_statement(ir_funcdef_t *funcdef, stmnt_t *stmnt)
     }
 }
 
+static void ir_gen_typeuse(type_t* type);
+
 static void ir_gen_decl(ir_funcdef_t* funcdef, decl_t* decl)
 {
     char *name;
     ir_inst_t *inst;
     strpair_t pair;
+
+    ir_gen_typeuse(&decl->type);
 
     name = ir_gen_alloctemp(funcdef, IR_PRIM_PTR);
     map_str_ir_reg_get(&funcdef->regs, name)->virtual = true;
@@ -540,24 +544,8 @@ static void ir_gen_arglist(ir_funcdef_t* funcdef, list_decl_t* arglist)
     }
 }
 
-static uint64_t ir_gen_hashmix(uint64_t hash, uint64_t val)
-{
-    int i;
-
-    for(i=0; i<8; i++, val>>=8)
-        hash = (hash ^ (val & 0xFF)) * 0x100000001b3ULL;
-    return hash;
-}
-
-static uint64_t ir_gen_hashaggregate(ir_aggregate_t* agg)
-{
-
-}
-
 static void ir_gen_typeuse(type_t* type)
 {
-    static uint64_t naggregates = 0;
-
     if(type->type != TYPE_STRUCT)
         return;
     if(!type->struc.def)

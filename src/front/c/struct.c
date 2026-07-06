@@ -1,8 +1,12 @@
 #include "struct.h"
 
 #include "front/error.h"
+#include "tag.h"
 
-list_map_str_pstruct_t structtags;
+void struct_free(struct_t* struc)
+{
+    list_struct_member_free(&struc->members);
+}
 
 void struct_freemember(struct_member_t* member)
 {
@@ -10,87 +14,19 @@ void struct_freemember(struct_member_t* member)
     free(member->ident);
 }
 
-void struct_free(struct_t* structure)
-{
-    list_struct_member_free(&structure->members);
-}
-
-void struct_init(void)
-{
-    list_map_str_pstruct_init(&structtags, 0);
-}
-
-void struct_enterscope(void)
-{
-    map_str_pstruct_t scope;
-
-    map_str_pstruct_alloc(&scope);
-    list_map_str_pstruct_ppush(&structtags, &scope);
-}
-
-void struct_exitscope(void)
-{
-    list_map_str_pstruct_pop(&structtags);
-}
-
-static void struct_define(char* tag, struct_t* def)
-{
-    assert(structtags.len);
-
-    map_str_pstruct_set(&structtags.data[structtags.len-1], tag, def);
-}
-
-void struct_processtype(type_t* type, bool indirect)
-{
-    int i;
-
-    if(type->type != TYPE_PTR && type->type != TYPE_STRUCT)
-        return;
-
-    if(type->type == TYPE_PTR)
-        struct_processtype(type->ptrtype, true);
-
-    // tag but no def
-    if(type->struc.tag && !type->struc.def && !struct_findtagdef(type->struc.tag) && !indirect)
-        error(true, type->line, type->column, "use of incomplete struct '%s'\n", type->struc.tag);
-
-    if(type->struc.def)
-        for(i=0; i<type->struc.def->members.len; i++)
-            struct_processtype(&type->struc.def->members.data[i].type, false);
-
-    // defining a tagged struct
-    if(type->struc.tag && type->struc.def)
-    {
-        if(struct_findtagdef(type->struc.tag))
-            error(true, type->line, type->column, "redefinition of '%s'\n", type->struc.tag);
-        struct_define(type->struc.tag, type->struc.def);
-    }
-}
-
 struct_t* struct_finddef(type_t* type)
 {
     assert(type->type == TYPE_STRUCT);
 
+    if(type->struc.tag)
+    {
+        if(type->struc.tag->defined)
+            return &type->struc.tag->struc;
+        return NULL;
+    }
+
     if(type->struc.def)
         return type->struc.def;
-
-    assert(type->struc.tag);
-    return struct_findtagdef(type->struc.tag);
-}
-
-struct_t* struct_findtagdef(char* tag)
-{
-    int i;
-
-    struct_t **def;
-
-    for(i=structtags.len-1; i>=0; i--)
-    {
-        def = map_str_pstruct_get(&structtags.data[i], tag);
-        if(!def)
-            continue;
-        return *def;
-    }
 
     return NULL;
 }
@@ -108,6 +44,38 @@ void struct_cpymember(struct_member_t* dst, struct_member_t* src)
 {
     type_cpy(&dst->type, &src->type);
     dst->ident = strdup(src->ident);
+}
+
+static uint64_t struct_hashmix(uint64_t hash, uint64_t val)
+{
+    int i;
+
+    for(i=0; i<8; i++, val>>=8)
+        hash = (hash ^ (val & 0xFF)) * 0x100000001b3ULL;
+    return hash;
+}
+
+static uint64_t struct_hashtype(uint64_t hash, type_t* type)
+{
+    struct_t *def;
+
+    hash = struct_hashmix(hash, type->type);
+
+    if(type->type != TYPE_STRUCT)
+        return hash;
+
+    def = type->struc.tag ? &type->struc.tag->struc : type->struc.def;
+    struct_hashstruct(def);
+    return struct_hashmix(hash, def->hash);
+}
+
+void struct_hashstruct(struct_t* struc)
+{
+    int i;
+
+    struc->hash = TYPE_STRUCT;
+    for(i=0; i<struc->members.len; i++)
+        struc->hash = struct_hashtype(struc->hash, &struc->members.data[i].type);
 }
 
 LIST_DEF(struct_member)

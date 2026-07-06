@@ -4,6 +4,7 @@
 
 #include "front/error.h"
 #include "struct.h"
+#include "tag.h"
 #include "type.h"
 
 list_globaldecl_t ast;
@@ -256,15 +257,13 @@ void parse_modifytypewithptr(type_t* type)
 
 void parse_type(type_t* type);
 
-struct_t* parse_structdef(void)
+void parse_structdef(struct_t* struc)
 {
-    struct_t *struc;
     type_t type;
     struct_member_t member;
 
     parse_eatstr("{");
 
-    struc = malloc(sizeof(struct_t));
     list_struct_member_init(&struc->members, 0);
     while(!parse_peekpunc(0, PUNC_RBRACE))
     {
@@ -274,6 +273,10 @@ struct_t* parse_structdef(void)
 
         type_cpy(&member.type, &type);
         parse_modifytypewithptr(&member.type);
+
+        if(member.type.type == TYPE_STRUCT && member.type.struc.tag && !member.type.struc.tag->defined)
+            error(true, parse_getline(), parse_getcol(), "use of incomplete struct\n");
+
         if(parse_peekform(0) != TOKEN_IDENT)
             error(true, parse_getexpectedline(), parse_getexpectedcol(), "expected identifier\n");
         member.ident = strdup(parse_eat());
@@ -286,7 +289,7 @@ struct_t* parse_structdef(void)
 
     parse_eatstr("}");
 
-    return struc;
+    struct_hashstruct(struc);
 }
 
 void parse_struct(type_t* type)
@@ -298,12 +301,23 @@ void parse_struct(type_t* type)
         error(true, parse_getexpectedline(), parse_getexpectedcol(), "expected tag or definition\n");
 
     type->struc.tag = NULL;
-    if(parse_peekform(0) == TOKEN_IDENT)
-        type->struc.tag = strdup(parse_eat());
-
     type->struc.def = NULL;
-    if(parse_peekpunc(0, PUNC_LBRACE))
-        type->struc.def = parse_structdef();
+    if(parse_peekform(0) == TOKEN_IDENT)
+    {
+        type->struc.tag = tag_gettag(strdup(parse_eat()), TAG_STRUCT);
+        if(parse_peekpunc(0, PUNC_LBRACE))
+        {
+            if(type->struc.tag->defined)
+                error(true, parse_getline(), parse_getcol(), "struct is already defined\n");
+            parse_structdef(&type->struc.tag->struc);
+            type->struc.tag->defined = true;
+        }
+    }
+    else
+    {
+        type->struc.def = calloc(1, sizeof(struct_t));
+        parse_structdef(type->struc.def);
+    }
 }
 
 void parse_type(type_t* type)
@@ -430,6 +444,10 @@ static void parse_decl(decl_t* decl)
     decl->form = DECL_VAR;
     type_cpy(&decl->type, &type);
     parse_modifytypewithptr(&decl->type);
+
+    if(decl->type.type == TYPE_STRUCT && decl->type.struc.tag && !decl->type.struc.tag->defined)
+        error(true, parse_getline(), parse_getcol(), "use of incomplete struct\n");
+
     decl->ident = strdup(parse_eatform(TOKEN_IDENT));
     decl->expr = NULL;
 
@@ -753,18 +771,23 @@ static void parse_printstructtype(type_t* type, int depth, bool last, char* left
 
     char* newleft;
     const char* tag;
+    struct_t* def;
 
     newleft = parse_printprefix(depth, last, leftstr);
 
-    tag = type->struc.tag;
-    if(!tag)
-        tag = "<anonymous>";
+    tag = "<anonymous>";
+    def = type->struc.def;
+    if(type->struc.tag)
+    {
+        tag = type->struc.tag->tag;
+        def = &type->struc.tag->struc;
+    }
 
     printf("\e[1;32m<struct> \e[0;96m(tag: %s)\e[0m\n", tag);
 
-    if(type->struc.def)
-        for(i=0; i<type->struc.def->members.len; i++)
-            parse_printstructmember(&type->struc.def->members.data[i], depth+1, i==type->struc.def->members.len-1, newleft);
+    if(def)
+        for(i=0; i<def->members.len; i++)
+            parse_printstructmember(&def->members.data[i], depth+1, i==def->members.len-1, newleft);
 
     free(newleft);
 }

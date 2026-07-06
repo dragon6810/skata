@@ -8,7 +8,6 @@
 void front_init(void)
 {
     tag_init();
-    struct_init();
 }
 
 void front_free(void)

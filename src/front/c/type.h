@@ -6,6 +6,7 @@
 
 #define TYPE_FLAG_CONST 0x01
 
+typedef struct tag_s tag_t;
 typedef struct struct_s struct_t;
 
 typedef enum
@@ -49,8 +50,8 @@ typedef struct type_s
         } func;
         struct
         {
-            char *tag; // can be NULL if anonymous
-            struct_t* def; // can be NULL if no layout is defined
+            tag_t *tag; // can be NULL if anonymous
+            struct_t *def; // for anonymous structs, mutually exclusive with tag
             uint64_t agg;
         } struc;
         type_t *ptrtype; // type it points to
@@ -61,8 +62,6 @@ typedef struct type_s
 } type_t;
 
 MAP_DECL(char*, type_t*, str, ptype)
-
-extern map_str_ptype_t tags;
 
 ir_primitive_e type_toprim(type_e type);
 int type_bytesize(type_t type);

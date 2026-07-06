@@ -4,6 +4,7 @@
 #include "ast.h"
 #include "front/error.h"
 #include "struct.h"
+#include "tag.h"
 
 list_pdecl_t scope;
 
@@ -289,12 +290,13 @@ static void semantics_memberexpr(expr_t* expr)
     if(expr->operand->type.type != TYPE_STRUCT)
         error(true, expr->line, expr->col, "expression must have struct type\n");
 
-    name = expr->operand->type.struc.tag;
-    if(!name)
+    if(!expr->operand->type.struc.tag)
         name = "<anonymous>";
+    else
+        name = expr->operand->type.struc.tag->tag;
 
     def = struct_finddef(&expr->operand->type);
-    if(!def)
+    if((expr->operand->type.struc.tag && !expr->operand->type.struc.tag->defined) && !expr->operand->type.struc.def)
         error(true, expr->line, expr->col, "use of incomplete struct %s\n", name);
 
     for(i=0; i<def->members.len; i++)
@@ -486,14 +488,12 @@ static void semantics_funcdef(globaldecl_t* func)
 
 static void semantics_decl(decl_t* decl)
 {
-    struct_processtype(&decl->type, false);
+
 }
 
 void semantics(void)
 {
     int i;
-
-    struct_enterscope();
 
     list_pdecl_init(&scope, 0);
 
@@ -505,6 +505,4 @@ void semantics(void)
     }
 
     list_pdecl_free(&scope);
-
-    struct_exitscope();
 }

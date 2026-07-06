@@ -5,8 +5,6 @@
 #include "ast.h"
 #include "struct.h"
 
-map_str_ptype_t tags;
-
 MAP_DEF(char*, type_t*, str, ptype, hash_str, map_strcmp, map_strcpy, NULL, map_freestr, NULL)
 
 const char* type_names[TYPE_COUNT] =
@@ -97,9 +95,6 @@ void type_cpy(type_t* dst, type_t* src)
         list_type_dup(&dst->func.args, &src->func.args);
         break;
     case TYPE_STRUCT:
-        dst->struc.tag = NULL;
-        if(src->struc.tag)
-            dst->struc.tag = strdup(src->struc.tag);
         dst->struc.def = NULL;
         if(src->struc.def)
         {
@@ -126,8 +121,7 @@ void type_free(type_t* type)
         list_type_free(&type->func.args);
         break;
     case TYPE_STRUCT:
-        if(type->struc.tag)
-            free(type->struc.tag);
+        // tag is borrowed from the tags map, not owned
         if(type->struc.def)
         {
             struct_free(type->struc.def);

@@ -1,5 +1,7 @@
 #include "tag.h"
 
+#include "struct.h"
+
 void tag_cpytag(tag_t* dst, tag_t* src)
 {
     *dst = *src;
@@ -24,7 +26,7 @@ void tag_init(void)
 
 void tag_clear(void)
 {
-    tag_clear();
+    tag_finish();
     tag_init();
 }
 
@@ -33,7 +35,7 @@ void tag_finish(void)
     map_str_tag_free(&tags);
 }
 
-tag_t* tag_gettag(const char* name, tagtype_e type)
+tag_t* tag_gettag(char* name, tagtype_e type)
 {
     tag_t *tag;
 
