@@ -62,6 +62,7 @@ typedef enum
 {
     IR_TYPE_VOID=0,
     IR_TYPE_PRIM,
+    IR_TYPE_AGG,
 } ir_type_e;
 
 typedef struct ir_type_s
@@ -209,7 +210,7 @@ struct ir_inst_s
         list_ir_operand_t variadic;
     };
 
-    // opcode-specific studd
+    // opcode-specific stuff
     union
     {
         char* var; // what variable is this phi-node setting? can be NULL.

@@ -51,6 +51,7 @@ typedef struct type_s
         {
             char *tag; // can be NULL if anonymous
             struct_t* def; // can be NULL if no layout is defined
+            uint64_t agg;
         } struc;
         type_t *ptrtype; // type it points to
     };

@@ -540,8 +540,28 @@ static void ir_gen_arglist(ir_funcdef_t* funcdef, list_decl_t* arglist)
     }
 }
 
+static uint64_t ir_gen_hashmix(uint64_t hash, uint64_t val)
+{
+    int i;
+
+    for(i=0; i<8; i++, val>>=8)
+        hash = (hash ^ (val & 0xFF)) * 0x100000001b3ULL;
+    return hash;
+}
+
+static uint64_t ir_gen_hashaggregate(ir_aggregate_t* agg)
+{
+
+}
+
 static void ir_gen_typeuse(type_t* type)
 {
+    static uint64_t naggregates = 0;
+
+    if(type->type != TYPE_STRUCT)
+        return;
+    if(!type->struc.def)
+        return;
     
 }
 
@@ -600,6 +620,7 @@ void gen(void)
     list_strpair_init(&varnames, 0);
 
     list_ir_funcdef_init(&ir.defs, 0);
+    map_u64_ir_aggregate_alloc(&ir.aggs);
     for(i=0; i<ast.len; i++)
         ir_gen_globaldecl(&ast.data[i]);
 
@@ -608,5 +629,6 @@ void gen(void)
 
 void ir_free(void)
 {
+    map_u64_ir_aggregate_free(&ir.aggs);
     list_ir_funcdef_free(&ir.defs);
 }
