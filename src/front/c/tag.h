@@ -23,7 +23,7 @@ typedef struct tag_s
     };
 } tag_t;
 
-MAP_DECL(char*, tag_t, str, tag);
+MAP_DECL(char*, tag_t*, str, ptag);
 
 void tag_freetag(tag_t* tag);
 

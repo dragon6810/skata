@@ -2,26 +2,25 @@
 
 #include "struct.h"
 
-void tag_cpytag(tag_t* dst, tag_t* src)
-{
-    *dst = *src;
-    dst->tag = strdup(src->tag);
-    struct_cpy(&dst->struc, &src->struc);
-}
-
 void tag_freetag(tag_t* tag)
 {
     free(tag->tag);
     struct_free(&tag->struc);
 }
 
-MAP_DEF(char*, tag_t, str, tag, hash_str, map_strcmp, map_strcpy, NULL, map_freestr, tag_freetag)
+static void tag_freeptag(tag_t** tag)
+{
+    tag_freetag(*tag);
+    free(*tag);
+}
 
-map_str_tag_t tags;
+MAP_DEF(char*, tag_t*, str, ptag, hash_str, map_strcmp, map_strcpy, NULL, map_freestr, tag_freeptag)
+
+map_str_ptag_t tags;
 
 void tag_init(void)
 {
-    map_str_tag_alloc(&tags);
+    map_str_ptag_alloc(&tags);
 }
 
 void tag_clear(void)
@@ -32,24 +31,27 @@ void tag_clear(void)
 
 void tag_finish(void)
 {
-    map_str_tag_free(&tags);
+    map_str_ptag_free(&tags);
 }
 
 tag_t* tag_gettag(char* name, tagtype_e type)
 {
-    tag_t *tag;
+    tag_t **el, *tag;
 
-    tag = map_str_tag_get(&tags, name);
-    if(tag)
+    el = map_str_ptag_get(&tags, name);
+    if(el)
     {
+        tag = *el;
         if(tag->type == type)
             return tag;
         assert(0); // TODO: error message for tag that is trying to be made for a union and a struct
     }
 
-    tag = map_str_tag_set(&tags, name, (tag_t){});
+    tag = calloc(1, sizeof(tag_t));
     tag->tag = strdup(name);
     tag->type = type;
     tag->defined = false;
+    map_str_ptag_set(&tags, name, tag);
+
     return tag;
 }
