@@ -230,7 +230,11 @@ struct ir_inst_s
         {
             ir_type_t type;
         } alloca;
-        list_ir_fid_t fids; // for store/load/adr fid
+        struct // for store/load/adr fid
+        {
+            list_ir_fid_t fids;
+            uint64_t agg;
+        } fid;
     };
 
     ir_inst_t *next;   

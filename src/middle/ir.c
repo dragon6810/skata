@@ -97,7 +97,7 @@ void ir_instfree(ir_inst_t* inst)
         free(inst->var);
 
     if(inst->op == IR_OP_STOREFID || inst->op == IR_OP_LOADFID || inst->op == IR_OP_FIDADR)
-        list_ir_fid_free(&inst->fids);
+        list_ir_fid_free(&inst->fid.fids);
 
     switch(inst->op)
     {

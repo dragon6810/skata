@@ -255,6 +255,7 @@ static void ir_lowersinglephi(ir_funcdef_t* funcdef)
     }
 }
 
+// TODO: combine nested fids, and collapse fidadr then load/store to fidload and fidstore
 void optimize(void)
 {
     int i;

@@ -260,7 +260,8 @@ char* ir_gen_varname(const char* cname)
 
 // i think its fine to have a bunch of asserts here because if the front end works
 // the errors would be found during semantic analysis
-static void ir_gen_findfid(const type_t* aggtype, const char* member, ir_fid_t* outfid)
+// returns the aggregate id
+static uint64_t ir_gen_findfid(const type_t* aggtype, const char* member, ir_fid_t* outfid)
 {
     int fid, typeid;
 
@@ -287,6 +288,8 @@ static void ir_gen_findfid(const type_t* aggtype, const char* member, ir_fid_t* 
 
     outfid->fid = fid;
     outfid->typeid = typeid;
+
+    return def->hash;
 }
 
 char* ir_gen_lvaladr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
@@ -322,8 +325,8 @@ char* ir_gen_lvaladr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
         inst->binary[0].reg.name = strdup(res);
         inst->binary[1].type = IR_OPERAND_REG;
         inst->binary[1].reg.name = ir_gen_lvaladr(funcdef, expr->operands[0], NULL);
-        list_ir_fid_init(&inst->fids, 1);
-        ir_gen_findfid(&expr->operands[0]->type, expr->member, &inst->fids.data[0]);
+        list_ir_fid_init(&inst->fid.fids, 1);
+        inst->fid.agg = ir_gen_findfid(&expr->operands[0]->type, expr->member, &inst->fid.fids.data[0]);
 
         gen_appendinst(funcdef, inst);
 
@@ -335,17 +338,21 @@ char* ir_gen_lvaladr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
 
 char* ir_gen_member(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
 {
+    char *res;
     ir_inst_t *inst;
+    
+    res = outreg ? outreg : ir_gen_alloctemp(funcdef, type_toprim(expr->type.type));
 
     inst = gen_allocinst();
-    inst->op = IR_OP_MOVE;
+    inst->op = IR_OP_LOAD;
     inst->binary[0].type = IR_OPERAND_REG;
-    inst->binary[0].reg.name = strdup(outreg);
-    inst->binary[1].type = IR_OPERAND_LIT;
-    inst->binary[1].literal.type = IR_PRIM_I32;
-    inst->binary[1].literal.i32 = expr->i64;
+    inst->binary[0].reg.name = strdup(res);
+    inst->binary[1].type = IR_OPERAND_REG;
+    inst->binary[1].reg.name = ir_gen_lvaladr(funcdef, expr, NULL);
+
     gen_appendinst(funcdef, inst);
-    return outreg;
+
+    return res;
 }
 
 // if outreg is NULL, it will alloc a new register
@@ -435,6 +442,8 @@ char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
         return res;
     case EXPROP_CAST:
         return ir_gen_cast(funcdef, expr, outreg);
+    case EXPROP_MEMBER:
+        return ir_gen_member(funcdef, expr, outreg);
     default:
         assert(0 && "unsupported op by IR");
         break;
@@ -621,11 +630,50 @@ static void ir_gen_arglist(ir_funcdef_t* funcdef, list_decl_t* arglist)
 
 static void ir_gen_typeuse(type_t* type)
 {
+    int i;
+
+    struct_t *def;
+    type_t *membertype;
+    ir_aggregate_t agg;
+    ir_aggfid_t fid;
+    ir_type_t irtype;
+
     if(type->type != TYPE_STRUCT)
         return;
-    if(!type->struc.def)
+
+    def = struct_finddef(type);
+    assert(def);
+
+    type->struc.agg = def->hash;
+
+    if(map_u64_ir_aggregate_get(&ir.aggs, def->hash))
         return;
-    
+
+    map_u64_ir_aggfid_alloc(&agg.fids);
+    for(i=0; i<def->members.len; i++)
+    {
+        membertype = &def->members.data[i].type;
+        ir_gen_typeuse(membertype);
+
+        if(membertype->type == TYPE_STRUCT)
+        {
+            irtype.type = IR_TYPE_AGG;
+            irtype.agg = membertype->struc.agg;
+        }
+        else
+        {
+            irtype.type = IR_TYPE_PRIM;
+            irtype.prim = type_toprim(membertype->type);
+        }
+
+        list_ir_type_init(&fid.types, 1);
+        fid.types.data[0] = irtype;
+        map_u64_ir_aggfid_set(&agg.fids, i, fid);
+        list_ir_type_free(&fid.types);
+    }
+
+    map_u64_ir_aggregate_set(&ir.aggs, def->hash, agg);
+    ir_aggregatefree(&agg);
 }
 
 static void ir_gen_globaldecl(globaldecl_t *globdecl)

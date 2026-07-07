@@ -55,6 +55,9 @@ void ir_print_type(ir_type_t type)
     case IR_TYPE_PRIM:
         ir_print_prim(type.prim);
         break;
+    case IR_TYPE_AGG:
+        printf("\e[0;96magg<%016llx>\e[0m", (unsigned long long) type.agg);
+        break;
     default:
         assert(0);
         break;
@@ -104,6 +107,16 @@ void ir_print_operand(ir_funcdef_t* funcdef, ir_operand_t* operand)
     default:
         break;
     }
+}
+
+static void ir_print_fids(ir_inst_t* inst)
+{
+    int i;
+
+    printf("\e[0;95m");
+    for(i=0; i<inst->fid.fids.len; i++)
+        printf("[%llu:%llu]", (unsigned long long) inst->fid.fids.data[i].fid, (unsigned long long) inst->fid.fids.data[i].typeid);
+    printf("\e[0m \e[0;96magg<%016llx>\e[0m", (unsigned long long) inst->fid.agg);
 }
 
 void ir_dump_inst(ir_funcdef_t* funcdef, ir_inst_t* inst)
@@ -264,6 +277,29 @@ void ir_dump_inst(ir_funcdef_t* funcdef, ir_inst_t* inst)
         ir_print_operand(funcdef, &inst->binary[1]);
         printf("\n");
         break;
+    case IR_OP_FIDADR:
+        printf("  ");
+        ir_print_operand(funcdef, &inst->binary[0]);
+        printf(" \e[0;95m:= fidadr\e[0m ");
+        ir_print_operand(funcdef, &inst->binary[1]);
+        ir_print_fids(inst);
+        printf("\n");
+        break;
+    case IR_OP_LOADFID:
+        printf("  ");
+        ir_print_operand(funcdef, &inst->binary[0]);
+        printf(" \e[0;95m:= loadfid\e[0m ");
+        ir_print_operand(funcdef, &inst->binary[1]);
+        ir_print_fids(inst);
+        printf("\n");
+        break;
+    case IR_OP_STOREFID:
+        printf("  \e[0;95mstorefid\e[0m ");
+        ir_print_operand(funcdef, &inst->binary[1]);
+        printf(" \e[0;95mat\e[0m ");
+        ir_print_operand(funcdef, &inst->binary[0]);
+        ir_print_fids(inst);
+        printf("\n");
         break;
     default:
         assert(0 && "unkown ir opcode");
@@ -308,9 +344,41 @@ void ir_dump_funcdef(ir_funcdef_t* funcdef)
     printf("\n");
 }
 
+void ir_dump_aggregate(uint64_t id, ir_aggregate_t* agg)
+{
+    int i;
+
+    uint64_t fid;
+    ir_aggfid_t *aggfid;
+
+    printf("\e[0;96magg<%016llx>\e[0m:\n", (unsigned long long) id);
+
+    // fids are contiguous member indices, so count up until one is missing
+    for(fid=0; (aggfid=map_u64_ir_aggfid_get(&agg->fids, fid)); fid++)
+    {
+        printf("  \e[0;95m[%llu]\e[0m ", (unsigned long long) fid);
+        for(i=0; i<aggfid->types.len; i++)
+        {
+            if(i)
+                printf(", ");
+            ir_print_type(aggfid->types.data[i]);
+        }
+        printf("\n");
+    }
+}
+
 void ir_dump(void)
 {
     int i;
+
+    for(i=0; i<ir.aggs.nbin; i++)
+    {
+        if(ir.aggs.bins[i].state != MAP_EL_FULL)
+            continue;
+        ir_dump_aggregate(ir.aggs.bins[i].key, &ir.aggs.bins[i].val);
+    }
+    if(ir.aggs.nfull)
+        printf("\n");
 
     for(i=0; i<ir.defs.len; i++)
         ir_dump_funcdef(&ir.defs.data[i]);

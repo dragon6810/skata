@@ -35,6 +35,7 @@ void struct_cpy(struct_t* dst, struct_t* src)
 {
     int i;
 
+    dst->hash = src->hash;
     list_struct_member_init(&dst->members, src->members.len);
     for(i=0; i<dst->members.len; i++)
         struct_cpymember(&dst->members.data[i], &src->members.data[i]);
