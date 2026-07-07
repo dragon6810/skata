@@ -34,11 +34,12 @@ void tag_finish(void)
     map_str_ptag_free(&tags);
 }
 
-tag_t* tag_gettag(char* name, tagtype_e type)
+tag_t* tag_gettag(const char* name, tagtype_e type)
 {
     tag_t **el, *tag;
 
-    el = map_str_ptag_get(&tags, name);
+    // the map only reads the key on get, and copies it on set
+    el = map_str_ptag_get(&tags, (char*) name);
     if(el)
     {
         tag = *el;
@@ -51,7 +52,7 @@ tag_t* tag_gettag(char* name, tagtype_e type)
     tag->tag = strdup(name);
     tag->type = type;
     tag->defined = false;
-    map_str_ptag_set(&tags, name, tag);
+    map_str_ptag_set(&tags, (char*) name, tag);
 
     return tag;
 }

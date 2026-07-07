@@ -355,6 +355,107 @@ char* ir_gen_member(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
     return res;
 }
 
+static char* ir_gen_fidadr(ir_funcdef_t* funcdef, uint64_t agg, uint64_t fid, char* base)
+{
+    char *res;
+    ir_inst_t *inst;
+
+    res = ir_gen_alloctemp(funcdef, IR_PRIM_PTR);
+
+    inst = gen_allocinst();
+    inst->op = IR_OP_FIDADR;
+    inst->binary[0].type = IR_OPERAND_REG;
+    inst->binary[0].reg.name = strdup(res);
+    inst->binary[1].type = IR_OPERAND_REG;
+    inst->binary[1].reg.name = strdup(base);
+    list_ir_fid_init(&inst->fid.fids, 1);
+    inst->fid.fids.data[0].fid = fid;
+    inst->fid.fids.data[0].typeid = 0;
+    inst->fid.agg = agg;
+    gen_appendinst(funcdef, inst);
+
+    return res;
+}
+
+static void ir_gen_structcpy(ir_funcdef_t* funcdef, type_t* type, char* dstadr, char* srcadr)
+{
+    int i;
+
+    struct_t *def;
+    type_t *membertype;
+    char *mdst, *msrc, *tmp;
+    ir_inst_t *inst;
+
+    def = struct_finddef(type);
+    assert(def);
+
+    for(i=0; i<def->members.len; i++)
+    {
+        membertype = &def->members.data[i].type;
+
+        msrc = ir_gen_fidadr(funcdef, def->hash, i, srcadr);
+        mdst = ir_gen_fidadr(funcdef, def->hash, i, dstadr);
+
+        if(membertype->type == TYPE_STRUCT)
+        {
+            ir_gen_structcpy(funcdef, membertype, mdst, msrc);
+            free(msrc);
+            free(mdst);
+            continue;
+        }
+
+        tmp = ir_gen_alloctemp(funcdef, type_toprim(membertype->type));
+
+        inst = gen_allocinst();
+        inst->op = IR_OP_LOAD;
+        inst->binary[0].type = IR_OPERAND_REG;
+        inst->binary[0].reg.name = strdup(tmp);
+        inst->binary[1].type = IR_OPERAND_REG;
+        inst->binary[1].reg.name = msrc;
+        gen_appendinst(funcdef, inst);
+
+        inst = gen_allocinst();
+        inst->op = IR_OP_STORE;
+        inst->binary[0].type = IR_OPERAND_REG;
+        inst->binary[0].reg.name = mdst;
+        inst->binary[1].type = IR_OPERAND_REG;
+        inst->binary[1].reg.name = tmp;
+        gen_appendinst(funcdef, inst);
+    }
+}
+
+char* ir_gen_structassign(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
+{
+    char *dst, *src;
+    ir_inst_t *inst;
+
+    assert(struct_finddef(&expr->operands[0]->type)->hash == struct_finddef(&expr->operands[1]->type)->hash);
+
+    if(expr->operands[1]->lval)
+        src = ir_gen_lvaladr(funcdef, expr->operands[1], NULL);
+    else
+        src = ir_gen_expr(funcdef, expr->operands[1], NULL);
+    dst = ir_gen_lvaladr(funcdef, expr->operands[0], NULL);
+
+    ir_gen_structcpy(funcdef, &expr->operands[0]->type, dst, src);
+
+    free(src);
+
+    // the value of the assignment is the lhs, so give back the address
+    if(!outreg)
+        return dst;
+
+    inst = gen_allocinst();
+    inst->op = IR_OP_MOVE;
+    inst->binary[0].type = IR_OPERAND_REG;
+    inst->binary[0].reg.name = strdup(outreg);
+    inst->binary[1].type = IR_OPERAND_REG;
+    inst->binary[1].reg.name = dst;
+    gen_appendinst(funcdef, inst);
+
+    return outreg;
+}
+
 // if outreg is NULL, it will alloc a new register
 // YOU are responsible for the returned string, unless you gave outreg
 char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
@@ -366,7 +467,12 @@ char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
     if(outreg)
         res = outreg;
     else
-        res = ir_gen_alloctemp(funcdef, type_toprim(expr->type.type));
+    {
+        if(expr->type.type == TYPE_STRUCT)
+            res = ir_gen_alloctemp(funcdef, IR_PRIM_PTR);
+        else
+            res = ir_gen_alloctemp(funcdef, type_toprim(expr->type.type));
+    }
 
     switch(expr->op)
     {
@@ -407,6 +513,9 @@ char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
         opcode = IR_OP_CMPNEQ;
         break;
     case EXPROP_ASSIGN:
+        if(expr->type.type == TYPE_STRUCT)
+            return ir_gen_structassign(funcdef, expr, res);
+        
         inst = gen_allocinst();
         inst->op = IR_OP_STORE;
         inst->binary[0].type = IR_OPERAND_REG;

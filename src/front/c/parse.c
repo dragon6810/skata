@@ -304,7 +304,7 @@ void parse_struct(type_t* type)
     type->struc.def = NULL;
     if(parse_peekform(0) == TOKEN_IDENT)
     {
-        type->struc.tag = tag_gettag(strdup(parse_eat()), TAG_STRUCT);
+        type->struc.tag = tag_gettag(parse_eat(), TAG_STRUCT);
         if(parse_peekpunc(0, PUNC_LBRACE))
         {
             if(type->struc.tag->defined)

@@ -58,6 +58,10 @@ static bool semantics_typecmp(const type_t* a, const type_t* b)
             if(!semantics_typecmp(&a->func.args.data[i], &b->func.args.data[i]))
                 return false;
         break;
+    case TYPE_STRUCT:
+        if(a->struc.tag != b->struc.tag)
+            return false;
+        break;
     default:
         break;
     }
