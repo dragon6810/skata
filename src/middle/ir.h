@@ -71,6 +71,7 @@ typedef struct ir_type_s
     union
     {
         ir_primitive_e prim;
+        uint64_t agg;
     };
 } ir_type_t;
 
@@ -101,6 +102,9 @@ typedef enum
     IR_OP_RET, // [value]
     IR_OP_STORE, // dst, src
     IR_OP_LOAD, // dst, src
+    IR_OP_STOREFID, // dst [fid], src
+    IR_OP_LOADFID, // dst, src [fid]
+    IR_OP_FIDADR, // dst, src [fid]
     IR_OP_CMPEQ, // dst, a, b
     IR_OP_CMPNEQ, // dst, a, b
     IR_OP_BR, // value, truelabel, falselabel
@@ -195,9 +199,16 @@ typedef struct ir_copy_s
     ir_operand_t src;
 } ir_copy_t;
 
+typedef struct ir_fid_s
+{
+    uint64_t fid; // frame index
+    uint64_t typeid; // index of type within that frame index
+} ir_fid_t;
+
 LIST_DECL(ir_operand_t, ir_operand)
 LIST_DECL(ir_operand_t*, pir_operand)
 LIST_DECL(ir_copy_t, ir_copy)
+LIST_DECL(ir_fid_t, ir_fid)
 
 struct ir_inst_s
 {
@@ -219,6 +230,7 @@ struct ir_inst_s
         {
             ir_type_t type;
         } alloca;
+        list_ir_fid_t fids; // for store/load/adr fid
     };
 
     ir_inst_t *next;   

@@ -4,6 +4,7 @@
 #include <stdio.h>
 
 #include "ast.h"
+#include "tag.h"
 
 ir_t ir;
 
@@ -257,12 +258,44 @@ char* ir_gen_varname(const char* cname)
     return NULL;
 }
 
+// i think its fine to have a bunch of asserts here because if the front end works
+// the errors would be found during semantic analysis
+static void ir_gen_findfid(const type_t* aggtype, const char* member, ir_fid_t* outfid)
+{
+    int fid, typeid;
+
+    struct_t *def;
+
+    assert(aggtype->type == TYPE_STRUCT);
+
+    def = NULL;
+    if(aggtype->struc.def)
+        def = aggtype->struc.def;
+    if(aggtype->struc.tag && aggtype->struc.tag->defined)
+        def = &aggtype->struc.tag->struc;
+    assert(def);
+
+    for(fid=0; fid<def->members.len; fid++)
+    {
+        // if you encounter a nameless union, youd end up wanting to increment typeid
+        // for its members
+        typeid = 0;
+        if(!strcmp(def->members.data[fid].ident, member))
+            break;
+    }
+    assert(fid < def->members.len);
+
+    outfid->fid = fid;
+    outfid->typeid = typeid;
+}
+
 char* ir_gen_lvaladr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
 {
     ir_inst_t *inst;
+    char *res;
 
     assert(expr->lval);
-    assert(expr->op == EXPROP_VAR || expr->op == EXPROP_DEREF);
+    assert(expr->op == EXPROP_VAR || expr->op == EXPROP_DEREF || expr->op == EXPROP_MEMBER);
 
     if(expr->op == EXPROP_VAR)
     {
@@ -279,8 +312,40 @@ char* ir_gen_lvaladr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
 
         return outreg;
     }
+    if(expr->op == EXPROP_MEMBER)
+    {
+        res = outreg ? outreg : ir_gen_alloctemp(funcdef, IR_PRIM_PTR);
+
+        inst = gen_allocinst();
+        inst->op = IR_OP_FIDADR;
+        inst->binary[0].type = IR_OPERAND_REG;
+        inst->binary[0].reg.name = strdup(res);
+        inst->binary[1].type = IR_OPERAND_REG;
+        inst->binary[1].reg.name = ir_gen_lvaladr(funcdef, expr->operands[0], NULL);
+        list_ir_fid_init(&inst->fids, 1);
+        ir_gen_findfid(&expr->operands[0]->type, expr->member, &inst->fids.data[0]);
+
+        gen_appendinst(funcdef, inst);
+
+        return res;
+    }
 
     return ir_gen_expr(funcdef, expr->operand, outreg);
+}
+
+char* ir_gen_member(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
+{
+    ir_inst_t *inst;
+
+    inst = gen_allocinst();
+    inst->op = IR_OP_MOVE;
+    inst->binary[0].type = IR_OPERAND_REG;
+    inst->binary[0].reg.name = strdup(outreg);
+    inst->binary[1].type = IR_OPERAND_LIT;
+    inst->binary[1].literal.type = IR_PRIM_I32;
+    inst->binary[1].literal.i32 = expr->i64;
+    gen_appendinst(funcdef, inst);
+    return outreg;
 }
 
 // if outreg is NULL, it will alloc a new register
@@ -506,8 +571,18 @@ static void ir_gen_decl(ir_funcdef_t* funcdef, decl_t* decl)
     inst->op = IR_OP_ALLOCA;
     inst->unary.type = IR_OPERAND_REG;
     inst->unary.reg.name = strdup(name);
-    inst->alloca.type.type = IR_TYPE_PRIM;
-    inst->alloca.type.prim = type_toprim(decl->type.type);
+    switch(decl->type.type)
+    {
+    case TYPE_STRUCT:
+        inst->alloca.type.type = IR_TYPE_AGG;
+        inst->alloca.type.agg = decl->type.struc.agg;
+        break;
+    default:
+        inst->alloca.type.type = IR_TYPE_PRIM;
+        inst->alloca.type.prim = type_toprim(decl->type.type);
+        break;
+    }
+    
     gen_appendinst(funcdef, inst);
 
     pair.a = strdup(decl->ident);

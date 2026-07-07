@@ -96,6 +96,9 @@ void ir_instfree(ir_inst_t* inst)
     if(inst->op == IR_OP_PHI && inst->var)
         free(inst->var);
 
+    if(inst->op == IR_OP_STOREFID || inst->op == IR_OP_LOADFID || inst->op == IR_OP_FIDADR)
+        list_ir_fid_free(&inst->fids);
+
     switch(inst->op)
     {
     case IR_OP_RET:
@@ -105,6 +108,9 @@ void ir_instfree(ir_inst_t* inst)
     case IR_OP_MOVE:
     case IR_OP_STORE:
     case IR_OP_LOAD:
+    case IR_OP_STOREFID:
+    case IR_OP_LOADFID:
+    case IR_OP_FIDADR:
         noperand = 2;
         break;
     case IR_OP_ADD:
@@ -208,6 +214,8 @@ LIST_DEF(ir_param)
 LIST_DEF_FREE_DECONSTRUCT(ir_param, ir_freeparam)
 LIST_DEF(ir_copy)
 LIST_DEF_FREE_DECONSTRUCT(ir_copy, ir_freecopy)
+LIST_DEF(ir_fid)
+LIST_DEF_FREE(ir_fid)
 
 uint32_t ir_primflags(ir_primitive_e prim)
 {

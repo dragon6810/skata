@@ -52,6 +52,7 @@ ir_primitive_e type_toprim(type_e type)
         return IR_PRIM_PTR;
     default:
         printf("attempting to convert non-primitive type %d to an IR primitive!\n", (int) type);
+        *(int*)(1) = 5; // dumb way to print stack trace with asan
         assert(0);
     }
 }
