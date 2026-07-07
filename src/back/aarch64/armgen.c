@@ -468,9 +468,30 @@ static void armgen_emitload(ir_funcdef_t* funcdef, ir_inst_t* inst)
     if(frameloc)
         printf("[sp, #%"PRIu64"]", *frameloc);
     else
+    {
+        printf("[");
         armgen_operand(funcdef, &inst->binary[1]);
+        printf("]");
+    }
 
     printf("\n");
+}
+
+// literals may have been written through a narrower union member,
+// so read them back through the member matching their type
+static uint64_t armgen_litvalue(ir_constant_t* literal)
+{
+    switch(ir_primbytesize(literal->type))
+    {
+    case 1:
+        return literal->u8;
+    case 2:
+        return literal->u16;
+    case 4:
+        return literal->u32;
+    default:
+        return literal->u64;
+    }
 }
 
 static void armgen_emitstore(ir_funcdef_t* funcdef, ir_inst_t* inst)
@@ -490,7 +511,7 @@ static void armgen_emitstore(ir_funcdef_t* funcdef, ir_inst_t* inst)
     {
         prim = inst->binary[1].literal.type;
         src = scratchlist.data[0];
-        printf("  LDR %s, =0x%016"PRIx64"\n", *map_u64_str_get(&src->names, prim), inst->binary[1].literal.u64);
+        printf("  LDR %s, =0x%"PRIx64"\n", *map_u64_str_get(&src->names, prim), armgen_litvalue(&inst->binary[1].literal));
     }
     else
         assert(0);
@@ -505,7 +526,11 @@ static void armgen_emitstore(ir_funcdef_t* funcdef, ir_inst_t* inst)
     if(frameloc)
         printf("[sp, #%"PRIu64"]", *frameloc);
     else
+    {
+        printf("[");
         armgen_operand(funcdef, &inst->binary[0]);
+        printf("]");
+    }
 
     printf("\n");
 }
@@ -534,6 +559,33 @@ static void armgen_emitmul(ir_funcdef_t* funcdef, ir_inst_t* inst)
     printf(", ");
     armgen_operand(funcdef, &inst->ternary[2]);
     printf("\n");
+}
+
+static int armgen_getfidoffs(uint64_t aggid, ir_fid_t* fid)
+{
+    int i;
+
+    ir_aggregate_t *agg;
+    int size, elsize, typesize;
+
+    agg = map_u64_ir_aggregate_get(&ir.aggs, aggid);
+    assert(agg);
+    for(i=size=0; i<agg->fids.nbin; i++)
+    {
+        if(agg->fids.bins[i].state != MAP_EL_FULL)
+            continue;
+        if(agg->fids.bins[i].key >= fid->fid)
+            continue;
+        elsize = 0;
+        for(i=0; i<agg->fids.bins[i].val.types.len; i++)
+        {
+            typesize = ir_typebytesize(&agg->fids.bins[i].val.types.data[i]);
+            if(typesize > elsize)
+                elsize = typesize;
+        }
+        size += elsize;
+    }
+    return size;
 }
 
 static void armgen_inst(ir_funcdef_t* funcdef, ir_block_t* blk, int iinst, ir_inst_t* inst)
@@ -646,6 +698,13 @@ static void armgen_inst(ir_funcdef_t* funcdef, ir_block_t* blk, int iinst, ir_in
         armgen_operand(funcdef, &inst->binary[0]);
         printf(", sp, #%"PRIu64"\n", *map_str_u64_get(&stackptrs, inst->binary[1].reg.name));
         break;
+    case IR_OP_FIDADR:
+        printf("  ADD ");
+        armgen_operand(funcdef, &inst->binary[0]);
+        printf(", ");
+        armgen_operand(funcdef, &inst->binary[1]);
+        printf(", #%d\n", armgen_getfidoffs(inst->fid.agg, &inst->fid.fids.data[0]));
+        break;
     default:
         printf("unimplemented ir inst %d for arm.\n", (int) inst->op);
         assert(0);
@@ -677,11 +736,9 @@ static uint64_t argmen_buildvarframe(ir_funcdef_t* funcdef, int offs)
     {
         if(inst->op != IR_OP_ALLOCA)
             continue;
-        
-        assert(inst->alloca.type.type == IR_TYPE_PRIM);
 
         map_str_u64_set(&stackptrs, inst->unary.reg.name, stacksize);
-        stacksize += ir_primbytesize(inst->alloca.type.prim);
+        stacksize += ir_typebytesize(&inst->alloca.type);
     }
 
     return stacksize - offs;

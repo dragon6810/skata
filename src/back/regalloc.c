@@ -175,7 +175,7 @@ try:
     {
         if(funcdef->regs.bins[i].state != MAP_EL_FULL)
             continue;
-        if(funcdef->regs.bins[0].val.virtual)
+        if(funcdef->regs.bins[i].val.virtual)
             continue;
             
         if(!regalloc_colorreg(funcdef, &funcdef->regs.bins[i].val))

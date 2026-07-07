@@ -409,6 +409,39 @@ ir_primitive_e ir_regtype(ir_funcdef_t* funcdef, char* regname)
     return reg->type;
 }
 
+int ir_typebytesize(const ir_type_t* type)
+{
+    int i;
+
+    ir_aggregate_t *agg;
+    int size, elsize, typesize;
+
+    switch(type->type)
+    {
+    case IR_TYPE_PRIM:
+        return ir_primbytesize(type->prim);
+    case IR_TYPE_AGG:
+        agg = map_u64_ir_aggregate_get(&ir.aggs, type->agg);
+        assert(agg);
+        for(i=size=0; i<agg->fids.nbin; i++)
+        {
+            if(agg->fids.bins[i].state != MAP_EL_FULL)
+                continue;
+            elsize = 0;
+            for(i=0; i<agg->fids.bins[i].val.types.len; i++)
+            {
+                typesize = ir_typebytesize(&agg->fids.bins[i].val.types.data[i]);
+                if(typesize > elsize)
+                    elsize = typesize;
+            }
+            size += elsize;
+        }
+        return size;
+    default:
+        assert(0);
+    }
+}
+
 int ir_primbytesize(ir_primitive_e prim)
 {
     switch(prim)
