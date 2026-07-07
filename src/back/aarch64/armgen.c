@@ -648,10 +648,15 @@ static void armgen_inst(ir_funcdef_t* funcdef, ir_block_t* blk, int iinst, ir_in
         armgen_emitmul(funcdef, inst);
         break;
     case IR_OP_RET:
-        printf("  MOV %s, ", *map_u64_str_get(&retpool.data[0]->names, funcdef->rettype.prim));
-        armgen_operand(funcdef, &inst->unary);
-        printf("\n");
-        printf("  B _%s$exit\n", funcdef->name);
+        if(inst->unary.type != IR_OPERAND_REG
+        || map_str_ir_reg_get(&funcdef->regs, inst->unary.reg.name)->hardreg != retpool.data[0])
+        {
+            printf("  MOV %s, ", *map_u64_str_get(&retpool.data[0]->names, funcdef->rettype.prim));
+            armgen_operand(funcdef, &inst->unary);
+            printf("\n");
+        }
+        if(blk == &funcdef->blocks.data[funcdef->blocks.len-1] || strcmp((blk+1)->name, "exit"))
+            printf("  B _%s$exit\n", funcdef->name);
         break;
     case IR_OP_STORE:
     case IR_OP_STOREFID:
