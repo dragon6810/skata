@@ -447,12 +447,19 @@ static void armgen_emitcall(ir_funcdef_t* funcdef, ir_block_t* blk, int iinst, i
     set_pir_reg_free(&saved);
 }
 
+static int armgen_getfidoffs(uint64_t aggid, list_ir_fid_t* fids);
+
 static void armgen_emitload(ir_funcdef_t* funcdef, ir_inst_t* inst)
 {
     uint64_t *frameloc;
     ir_primitive_e prim;
+    int fidoffs;
 
-    assert(inst->op == IR_OP_LOAD);
+    assert(inst->op == IR_OP_LOAD || inst->op == IR_OP_LOADFID);
+
+    fidoffs = 0;
+    if(inst->op == IR_OP_LOADFID)
+        fidoffs = armgen_getfidoffs(inst->fid.agg, &inst->fid.fids);
 
     prim = ir_regtype(funcdef, inst->binary[0].reg.name);
 
@@ -460,17 +467,19 @@ static void armgen_emitload(ir_funcdef_t* funcdef, ir_inst_t* inst)
 
     armgen_operand(funcdef, &inst->binary[0]);
     printf(", ");
-    
+
     frameloc = NULL;
     if(inst->binary[1].type == IR_OPERAND_REG)
         frameloc = map_str_u64_get(&stackptrs, inst->binary[1].reg.name);
-    
+
     if(frameloc)
-        printf("[sp, #%"PRIu64"]", *frameloc);
+        printf("[sp, #%"PRIu64"]", *frameloc + fidoffs);
     else
     {
         printf("[");
         armgen_operand(funcdef, &inst->binary[1]);
+        if(fidoffs)
+            printf(", #%d", fidoffs);
         printf("]");
     }
 
@@ -499,8 +508,13 @@ static void armgen_emitstore(ir_funcdef_t* funcdef, ir_inst_t* inst)
     uint64_t *frameloc;
     ir_primitive_e prim;
     hardreg_t *src;
+    int fidoffs;
 
-    assert(inst->op == IR_OP_STORE);
+    assert(inst->op == IR_OP_STORE || inst->op == IR_OP_STOREFID);
+
+    fidoffs = 0;
+    if(inst->op == IR_OP_STOREFID)
+        fidoffs = armgen_getfidoffs(inst->fid.agg, &inst->fid.fids);
 
     if(inst->binary[1].type == IR_OPERAND_REG)
     {
@@ -522,13 +536,15 @@ static void armgen_emitstore(ir_funcdef_t* funcdef, ir_inst_t* inst)
     frameloc = NULL;
     if(inst->binary[0].type == IR_OPERAND_REG)
         frameloc = map_str_u64_get(&stackptrs, inst->binary[0].reg.name);
-    
+
     if(frameloc)
-        printf("[sp, #%"PRIu64"]", *frameloc);
+        printf("[sp, #%"PRIu64"]", *frameloc + fidoffs);
     else
     {
         printf("[");
         armgen_operand(funcdef, &inst->binary[0]);
+        if(fidoffs)
+            printf(", #%d", fidoffs);
         printf("]");
     }
 
@@ -561,29 +577,40 @@ static void armgen_emitmul(ir_funcdef_t* funcdef, ir_inst_t* inst)
     printf("\n");
 }
 
-static int armgen_getfidoffs(uint64_t aggid, ir_fid_t* fid)
+static int armgen_getfidoffs(uint64_t aggid, list_ir_fid_t* fids)
 {
-    int i, j;
+    int i, j, k;
 
     ir_aggregate_t *agg;
     int size, elsize, typesize;
 
+    size = 0;
+
     agg = map_u64_ir_aggregate_get(&ir.aggs, aggid);
     assert(agg);
-    for(i=size=0; i<agg->fids.nbin; i++)
+    for(i=0; i<fids->len; i++)
     {
-        if(agg->fids.bins[i].state != MAP_EL_FULL)
-            continue;
-        if(agg->fids.bins[i].key >= fid->fid)
-            continue;
-        elsize = 0;
-        for(j=0; j<agg->fids.bins[i].val.types.len; j++)
+        for(j=0; j<agg->fids.nbin; j++)
         {
-            typesize = ir_typebytesize(&agg->fids.bins[i].val.types.data[j]);
-            if(typesize > elsize)
-                elsize = typesize;
+            if(agg->fids.bins[j].state != MAP_EL_FULL)
+                continue;
+            if(agg->fids.bins[j].key >= fids->data[i].fid)
+                continue;
+            elsize = 0;
+            for(k=0; k<agg->fids.bins[j].val.types.len; k++)
+            {
+                typesize = ir_typebytesize(&agg->fids.bins[j].val.types.data[k]);
+                if(typesize > elsize)
+                    elsize = typesize;
+            }
+            size += elsize;
         }
-        size += elsize;
+        if(i<fids->len-1)
+        {
+            agg = 
+                map_u64_ir_aggregate_get(&ir.aggs, 
+                map_u64_ir_aggfid_get(&agg->fids, fids->data[i].fid)->types.data[fids->data[i].typeid].agg);
+        }
     }
     return size;
 }
@@ -627,9 +654,11 @@ static void armgen_inst(ir_funcdef_t* funcdef, ir_block_t* blk, int iinst, ir_in
         printf("  B _%s$exit\n", funcdef->name);
         break;
     case IR_OP_STORE:
+    case IR_OP_STOREFID:
         armgen_emitstore(funcdef, inst);
         break;
     case IR_OP_LOAD:
+    case IR_OP_LOADFID:
         armgen_emitload(funcdef, inst);
         break;
     case IR_OP_CMPEQ:
@@ -703,7 +732,7 @@ static void armgen_inst(ir_funcdef_t* funcdef, ir_block_t* blk, int iinst, ir_in
         armgen_operand(funcdef, &inst->binary[0]);
         printf(", ");
         armgen_operand(funcdef, &inst->binary[1]);
-        printf(", #%d\n", armgen_getfidoffs(inst->fid.agg, &inst->fid.fids.data[0]));
+        printf(", #%d\n", armgen_getfidoffs(inst->fid.agg, &inst->fid.fids));
         break;
     default:
         printf("unimplemented ir inst %d for arm.\n", (int) inst->op);

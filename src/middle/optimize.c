@@ -315,7 +315,7 @@ static void ir_chainfids(ir_funcdef_t* funcdef)
             if(inst->op != IR_OP_FIDADR && inst->op != IR_OP_LOADFID && inst->op != IR_OP_STOREFID)
                 continue;
 
-            if(inst->op == IR_OP_FIDADR || inst->op == IR_OP_LOAD)
+            if(inst->op == IR_OP_FIDADR || inst->op == IR_OP_LOADFID)
                 operand = &inst->binary[1];
             else
                 operand = &inst->binary[0];
@@ -328,6 +328,9 @@ static void ir_chainfids(ir_funcdef_t* funcdef)
 
             for(i=0; i<reg->def->fid.fids.len; i++)
                 list_ir_fid_insert(&inst->fid.fids, i, reg->def->fid.fids.data[i]);
+
+            // the merged path now starts at the def's aggregate
+            inst->fid.agg = reg->def->fid.agg;
 
             ir_operandfree(operand);
             ir_cpyoperand(operand, &reg->def->binary[1]);

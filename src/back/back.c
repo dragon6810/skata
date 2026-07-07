@@ -67,9 +67,9 @@ static void back_instfie(ir_funcdef_t* func, ir_block_t* blk, ir_inst_t* last, i
 
     ir_instoperands(&operands, inst);
 
-    if(inst->op == IR_OP_STORE || inst->op == IR_OP_ALLOCA)
+    if(inst->op == IR_OP_STORE || inst->op == IR_OP_STOREFID || inst->op == IR_OP_ALLOCA)
         list_pir_operand_remove(&operands, 0);
-    if(inst->op == IR_OP_LOAD)
+    if(inst->op == IR_OP_LOAD || inst->op == IR_OP_LOADFID)
         list_pir_operand_remove(&operands, 1);
 
     for(i=0; i<operands.len; i++)
