@@ -255,6 +255,207 @@ static void ir_lowersinglephi(ir_funcdef_t* funcdef)
     }
 }
 
+static void ir_fidloadstores(ir_funcdef_t* funcdef)
+{
+    int b;
+    ir_block_t *blk;
+    ir_inst_t *inst;
+    ir_reg_t *reg;
+
+    ir_operand_t *operand;
+
+    for(b=0, blk=funcdef->blocks.data; b<funcdef->blocks.len; b++, blk++)
+    {
+        for(inst=blk->insts; inst; inst=inst->next)
+        {
+            if(inst->op != IR_OP_LOAD && inst->op != IR_OP_STORE)
+                continue;
+
+            if(inst->op == IR_OP_LOAD)
+                operand = &inst->binary[1];
+            else
+                operand = &inst->binary[0];
+            
+            reg = map_str_ir_reg_get(&funcdef->regs, operand->reg.name);
+            assert(reg);
+
+            if(reg->def->op != IR_OP_FIDADR)
+                continue;
+
+            if(inst->op == IR_OP_LOAD)
+                inst->op = IR_OP_LOADFID;
+            if(inst->op == IR_OP_STORE)
+                inst->op = IR_OP_STOREFID;
+
+            list_ir_fid_dup(&inst->fid.fids, &reg->def->fid.fids);
+            inst->fid.agg = reg->def->fid.agg;
+
+            ir_operandfree(operand);
+            ir_cpyoperand(operand, &reg->def->binary[1]);
+
+            madechange = true;
+        }
+    }
+}
+
+static void ir_chainfids(ir_funcdef_t* funcdef)
+{
+    int i;
+    int b;
+    ir_block_t *blk;
+    ir_inst_t *inst;
+    ir_reg_t *reg;
+
+    ir_operand_t *operand;
+
+    for(b=0, blk=funcdef->blocks.data; b<funcdef->blocks.len; b++, blk++)
+    {
+        for(inst=blk->insts; inst; inst=inst->next)
+        {
+            if(inst->op != IR_OP_FIDADR && inst->op != IR_OP_LOADFID && inst->op != IR_OP_STOREFID)
+                continue;
+
+            if(inst->op == IR_OP_FIDADR || inst->op == IR_OP_LOAD)
+                operand = &inst->binary[1];
+            else
+                operand = &inst->binary[0];
+            
+            reg = map_str_ir_reg_get(&funcdef->regs, operand->reg.name);
+            assert(reg);
+
+            if(reg->def->op != IR_OP_FIDADR)
+                continue;
+
+            for(i=0; i<reg->def->fid.fids.len; i++)
+                list_ir_fid_insert(&inst->fid.fids, i, reg->def->fid.fids.data[i]);
+
+            ir_operandfree(operand);
+            ir_cpyoperand(operand, &reg->def->binary[1]);
+
+            madechange = true;
+        }
+    }
+}
+
+// true if the instruction's only effect is defining its dst register
+static bool ir_instpure(ir_inst_t* inst)
+{
+    switch(inst->op)
+    {
+    case IR_OP_MOVE:
+    case IR_OP_ADD:
+    case IR_OP_SUB:
+    case IR_OP_MUL:
+    case IR_OP_LOAD:
+    case IR_OP_LOADFID:
+    case IR_OP_FIDADR:
+    case IR_OP_CMPEQ:
+    case IR_OP_CMPNEQ:
+    case IR_OP_PHI:
+    case IR_OP_ZEXT:
+    case IR_OP_SEXT:
+    case IR_OP_TRUNC:
+    case IR_OP_ALLOCA:
+    case IR_OP_FIE:
+        return true;
+    default:
+        return false;
+    }
+}
+
+static void ir_funcusedregs(ir_funcdef_t* funcdef, set_str_t* used)
+{
+    int b;
+    ir_block_t *blk;
+    ir_inst_t *inst;
+
+    set_str_t accessed, defined;
+
+    set_str_alloc(used);
+    for(b=0, blk=funcdef->blocks.data; b<funcdef->blocks.len; b++, blk++)
+    {
+        for(inst=blk->insts; inst; inst=inst->next)
+        {
+            ir_accessedregs(&accessed, inst);
+            ir_definedregs(&defined, inst);
+
+            // an instruction shouldn't keep its own dst alive
+            set_str_subtract(&accessed, &defined);
+            set_str_union(used, &accessed);
+
+            set_str_free(&accessed);
+            set_str_free(&defined);
+        }
+    }
+}
+
+static void ir_eliminatedeadregs(ir_funcdef_t* funcdef)
+{
+    int i;
+    int b;
+    ir_block_t *blk;
+    ir_inst_t *inst, *lastinst, *next;
+
+    set_str_t used, defined;
+    bool dead;
+
+    ir_funcusedregs(funcdef, &used);
+
+    for(b=0, blk=funcdef->blocks.data; b<funcdef->blocks.len; b++, blk++)
+    {
+        for(lastinst=NULL, inst=blk->insts; inst; )
+        {
+            if(!ir_instpure(inst))
+            {
+                lastinst = inst;
+                inst = inst->next;
+                continue;
+            }
+
+            ir_definedregs(&defined, inst);
+
+            dead = false;
+            for(i=0; i<defined.nbin; i++)
+            {
+                if(defined.bins[i].state != SET_EL_FULL)
+                    continue;
+                dead = !set_str_contains(&used, defined.bins[i].val);
+                if(!dead)
+                    break;
+            }
+
+            if(!dead)
+            {
+                set_str_free(&defined);
+                lastinst = inst;
+                inst = inst->next;
+                continue;
+            }
+
+            for(i=0; i<defined.nbin; i++)
+            {
+                if(defined.bins[i].state != SET_EL_FULL)
+                    continue;
+                map_str_ir_reg_remove(&funcdef->regs, defined.bins[i].val);
+            }
+            set_str_free(&defined);
+
+            next = inst->next;
+            if(lastinst)
+                lastinst->next = next;
+            else
+                blk->insts = next;
+            inst->next = NULL;
+            ir_instfree(inst);
+            inst = next;
+
+            madechange = true;
+        }
+    }
+
+    set_str_free(&used);
+}
+
 // TODO: combine nested fids, and collapse fidadr then load/store to fidload and fidstore
 void optimize(void)
 {
@@ -266,9 +467,12 @@ void optimize(void)
         {
             madechange = false;
 
+            ir_chainfids(&ir.defs.data[i]);
+            ir_fidloadstores(&ir.defs.data[i]);
             ir_lowersinglephi(&ir.defs.data[i]);
             ir_eliminatelitcasts(&ir.defs.data[i]);
             ir_eliminatemoves(&ir.defs.data[i]);
+            ir_eliminatedeadregs(&ir.defs.data[i]);
         } while(madechange);
     }
 }

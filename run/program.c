@@ -1,16 +1,12 @@
-struct s { int x; int y; };
+struct inner { int x; int y; };
+struct outer { struct inner i; int z; };
 
 int main()
 {
-	struct s a;
-	struct s b;
-	struct s c;
-	struct s *ref;
+	struct outer o;
 
-	ref = &b;
-	ref->x = 1;
-	ref->y = 2;
-	a = c = b;
+	o.i.y = 5;
+	o.z = 3;
 
-	return a.x + a.y + c.x + c.y;
+	return o.i.y + o.z;
 }
