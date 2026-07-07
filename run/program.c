@@ -1,15 +1,12 @@
-struct s
-{
-    int a;
-	int b;
-};
+struct inner { int x; int y; };
+struct outer { struct inner i; int z; };
 
 int main()
 {
-	struct s var;
+	struct outer o;
 
-	var.a = 0;
-	var.b = 2;
+	o.i.y = 5;
+	o.z = 3;
 
-	return var.a + var.b;
+	return o.i.y + o.z;
 }

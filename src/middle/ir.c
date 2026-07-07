@@ -411,7 +411,7 @@ ir_primitive_e ir_regtype(ir_funcdef_t* funcdef, char* regname)
 
 int ir_typebytesize(const ir_type_t* type)
 {
-    int i;
+    int i, j;
 
     ir_aggregate_t *agg;
     int size, elsize, typesize;
@@ -428,9 +428,9 @@ int ir_typebytesize(const ir_type_t* type)
             if(agg->fids.bins[i].state != MAP_EL_FULL)
                 continue;
             elsize = 0;
-            for(i=0; i<agg->fids.bins[i].val.types.len; i++)
+            for(j=0; j<agg->fids.bins[i].val.types.len; j++)
             {
-                typesize = ir_typebytesize(&agg->fids.bins[i].val.types.data[i]);
+                typesize = ir_typebytesize(&agg->fids.bins[i].val.types.data[j]);
                 if(typesize > elsize)
                     elsize = typesize;
             }

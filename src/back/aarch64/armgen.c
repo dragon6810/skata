@@ -563,7 +563,7 @@ static void armgen_emitmul(ir_funcdef_t* funcdef, ir_inst_t* inst)
 
 static int armgen_getfidoffs(uint64_t aggid, ir_fid_t* fid)
 {
-    int i;
+    int i, j;
 
     ir_aggregate_t *agg;
     int size, elsize, typesize;
@@ -577,9 +577,9 @@ static int armgen_getfidoffs(uint64_t aggid, ir_fid_t* fid)
         if(agg->fids.bins[i].key >= fid->fid)
             continue;
         elsize = 0;
-        for(i=0; i<agg->fids.bins[i].val.types.len; i++)
+        for(j=0; j<agg->fids.bins[i].val.types.len; j++)
         {
-            typesize = ir_typebytesize(&agg->fids.bins[i].val.types.data[i]);
+            typesize = ir_typebytesize(&agg->fids.bins[i].val.types.data[j]);
             if(typesize > elsize)
                 elsize = typesize;
         }
