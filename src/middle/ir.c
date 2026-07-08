@@ -29,12 +29,18 @@ void ir_aggfidcpy(ir_aggfid_t* dst, ir_aggfid_t* src)
 
 void ir_aggregatefree(ir_aggregate_t* aggregate)
 {
-    map_u64_ir_aggfid_free(&aggregate->fids);
+    list_ir_aggfid_free(&aggregate->fids);
 }
 
 void ir_aggregatecpy(ir_aggregate_t* dst, ir_aggregate_t* src)
 {
-    map_u64_ir_aggfid_dup(&dst->fids, &src->fids);
+    int i;
+
+    // list_ir_aggfid_dup is a shallow memcpy, but each aggfid owns a
+    // types list, so copy element by element
+    list_ir_aggfid_init(&dst->fids, src->fids.len);
+    for(i=0; i<src->fids.len; i++)
+        ir_aggfidcpy(&dst->fids.data[i], &src->fids.data[i]);
 }
 
 void ir_typefree(const ir_type_t* type)
@@ -195,7 +201,8 @@ static void ir_freecopy(ir_copy_t* copy)
 MAP_DEF(char*, ir_reg_t, str, ir_reg, hash_str, map_strcmp, map_strcpy, ir_regcpy, map_freestr, ir_regfree)
 LIST_DEF(ir_type)
 LIST_DEF_FREE_DECONSTRUCT(ir_type, ir_typefree)
-MAP_DEF(uint64_t, ir_aggfid_t, u64, ir_aggfid, hash_u64, NULL, NULL, ir_aggfidcpy, NULL, ir_aggfidfree)
+LIST_DEF(ir_aggfid)
+LIST_DEF_FREE_DECONSTRUCT(ir_aggfid, ir_aggfidfree)
 MAP_DEF(uint64_t, ir_aggregate_t, u64, ir_aggregate, hash_u64, NULL, NULL, ir_aggregatecpy, NULL, ir_aggregatefree)
 LIST_DEF(pir_inst)
 SET_DEF(ir_inst_t*, pir_inst, ir_hashpinst, NULL, NULL, NULL)
@@ -407,39 +414,6 @@ ir_primitive_e ir_regtype(ir_funcdef_t* funcdef, char* regname)
     assert(reg);
 
     return reg->type;
-}
-
-int ir_typebytesize(const ir_type_t* type)
-{
-    int i, j;
-
-    ir_aggregate_t *agg;
-    int size, elsize, typesize;
-
-    switch(type->type)
-    {
-    case IR_TYPE_PRIM:
-        return ir_primbytesize(type->prim);
-    case IR_TYPE_AGG:
-        agg = map_u64_ir_aggregate_get(&ir.aggs, type->agg);
-        assert(agg);
-        for(i=size=0; i<agg->fids.nbin; i++)
-        {
-            if(agg->fids.bins[i].state != MAP_EL_FULL)
-                continue;
-            elsize = 0;
-            for(j=0; j<agg->fids.bins[i].val.types.len; j++)
-            {
-                typesize = ir_typebytesize(&agg->fids.bins[i].val.types.data[j]);
-                if(typesize > elsize)
-                    elsize = typesize;
-            }
-            size += elsize;
-        }
-        return size;
-    default:
-        assert(0);
-    }
 }
 
 int ir_primbytesize(ir_primitive_e prim)

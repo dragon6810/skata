@@ -347,14 +347,12 @@ void ir_dump_funcdef(ir_funcdef_t* funcdef)
 void ir_dump_aggregate(uint64_t id, ir_aggregate_t* agg)
 {
     int i;
-
-    uint64_t fid;
+    int fid;
     ir_aggfid_t *aggfid;
 
     printf("\e[0;96magg<%016llx>\e[0m:\n", (unsigned long long) id);
-
-    // fids are contiguous member indices, so count up until one is missing
-    for(fid=0; (aggfid=map_u64_ir_aggfid_get(&agg->fids, fid)); fid++)
+    
+    for(fid=0, aggfid=agg->fids.data; fid<agg->fids.len; fid++, aggfid++)
     {
         printf("  \e[0;95m[%llu]\e[0m ", (unsigned long long) fid);
         for(i=0; i<aggfid->types.len; i++)

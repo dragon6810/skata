@@ -447,8 +447,6 @@ static void armgen_emitcall(ir_funcdef_t* funcdef, ir_block_t* blk, int iinst, i
     set_pir_reg_free(&saved);
 }
 
-static int armgen_getfidoffs(uint64_t aggid, list_ir_fid_t* fids);
-
 static void armgen_emitload(ir_funcdef_t* funcdef, ir_inst_t* inst)
 {
     uint64_t *frameloc;
@@ -459,7 +457,7 @@ static void armgen_emitload(ir_funcdef_t* funcdef, ir_inst_t* inst)
 
     fidoffs = 0;
     if(inst->op == IR_OP_LOADFID)
-        fidoffs = armgen_getfidoffs(inst->fid.agg, &inst->fid.fids);
+        fidoffs = back_fidoffset(inst->fid.agg, &inst->fid.fids);
 
     prim = ir_regtype(funcdef, inst->binary[0].reg.name);
 
@@ -514,7 +512,7 @@ static void armgen_emitstore(ir_funcdef_t* funcdef, ir_inst_t* inst)
 
     fidoffs = 0;
     if(inst->op == IR_OP_STOREFID)
-        fidoffs = armgen_getfidoffs(inst->fid.agg, &inst->fid.fids);
+        fidoffs = back_fidoffset(inst->fid.agg, &inst->fid.fids);
 
     if(inst->binary[1].type == IR_OPERAND_REG)
     {
@@ -575,44 +573,6 @@ static void armgen_emitmul(ir_funcdef_t* funcdef, ir_inst_t* inst)
     printf(", ");
     armgen_operand(funcdef, &inst->ternary[2]);
     printf("\n");
-}
-
-static int armgen_getfidoffs(uint64_t aggid, list_ir_fid_t* fids)
-{
-    int i, j, k;
-
-    ir_aggregate_t *agg;
-    int size, elsize, typesize;
-
-    size = 0;
-
-    agg = map_u64_ir_aggregate_get(&ir.aggs, aggid);
-    assert(agg);
-    for(i=0; i<fids->len; i++)
-    {
-        for(j=0; j<agg->fids.nbin; j++)
-        {
-            if(agg->fids.bins[j].state != MAP_EL_FULL)
-                continue;
-            if(agg->fids.bins[j].key >= fids->data[i].fid)
-                continue;
-            elsize = 0;
-            for(k=0; k<agg->fids.bins[j].val.types.len; k++)
-            {
-                typesize = ir_typebytesize(&agg->fids.bins[j].val.types.data[k]);
-                if(typesize > elsize)
-                    elsize = typesize;
-            }
-            size += elsize;
-        }
-        if(i<fids->len-1)
-        {
-            agg = 
-                map_u64_ir_aggregate_get(&ir.aggs, 
-                map_u64_ir_aggfid_get(&agg->fids, fids->data[i].fid)->types.data[fids->data[i].typeid].agg);
-        }
-    }
-    return size;
 }
 
 static void armgen_inst(ir_funcdef_t* funcdef, ir_block_t* blk, int iinst, ir_inst_t* inst)
@@ -737,7 +697,7 @@ static void armgen_inst(ir_funcdef_t* funcdef, ir_block_t* blk, int iinst, ir_in
         armgen_operand(funcdef, &inst->binary[0]);
         printf(", ");
         armgen_operand(funcdef, &inst->binary[1]);
-        printf(", #%d\n", armgen_getfidoffs(inst->fid.agg, &inst->fid.fids));
+        printf(", #%d\n", back_fidoffset(inst->fid.agg, &inst->fid.fids));
         break;
     default:
         printf("unimplemented ir inst %d for arm.\n", (int) inst->op);
@@ -763,6 +723,7 @@ static uint64_t argmen_buildvarframe(ir_funcdef_t* funcdef, int offs)
 
     ir_block_t *entry;
     uint64_t stacksize;
+    int align;
 
     stacksize = offs;
     entry = funcdef->blocks.data;
@@ -771,8 +732,12 @@ static uint64_t argmen_buildvarframe(ir_funcdef_t* funcdef, int offs)
         if(inst->op != IR_OP_ALLOCA)
             continue;
 
+        align = back_typealignment(&inst->alloca.type);
+        if(align > 0)
+            stacksize = (stacksize + align - 1) / align * align;
+
         map_str_u64_set(&stackptrs, inst->unary.reg.name, stacksize);
-        stacksize += ir_typebytesize(&inst->alloca.type);
+        stacksize += back_typebytesize(&inst->alloca.type);
     }
 
     return stacksize - offs;

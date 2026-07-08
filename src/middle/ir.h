@@ -84,11 +84,11 @@ typedef struct ir_aggfid_s
     list_ir_type_t types; // all the types that occupy this frame index
 } ir_aggfid_t;
 
-MAP_DECL(uint64_t, ir_aggfid_t, u64, ir_aggfid)
+LIST_DECL(ir_aggfid_t, ir_aggfid)
 
 typedef struct ir_aggregate_s
 {
-    map_u64_ir_aggfid_t fids;
+    list_ir_aggfid_t fids;
 } ir_aggregate_t;
 
 MAP_DECL(uint64_t, ir_aggregate_t, u64, ir_aggregate)
@@ -330,7 +330,6 @@ char* ir_gen_alloctemp(ir_funcdef_t *funcdef, ir_primitive_e type);
 // frees the ptr itself
 void ir_instfree(ir_inst_t* inst);
 uint64_t gen_newblock(ir_funcdef_t* funcdef);
-int ir_typebytesize(const ir_type_t* type);
 int ir_primbytesize(ir_primitive_e prim);
 void ir_cpyoperand(ir_operand_t* dst, ir_operand_t* src);
 bool ir_registerwritten(ir_inst_t* inst, char* reg);
