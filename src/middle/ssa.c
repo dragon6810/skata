@@ -52,7 +52,7 @@ static void ir_rename(ir_funcdef_t* func, char* varreg, ir_primitive_e type, ir_
             if(!inst->var || strcmp(inst->var, varreg))
                 continue;
 
-            reg = ir_gen_alloctemp(func, type);
+            reg = ir_allocreg(func, type);
             list_string_push(&namestack, reg);
             inst->variadic.data[0].reg.name = strdup(reg);
             continue;
@@ -74,7 +74,7 @@ static void ir_rename(ir_funcdef_t* func, char* varreg, ir_primitive_e type, ir_
             if(strcmp(inst->binary[0].reg.name, varreg))
                 continue;
 
-            reg = ir_gen_alloctemp(func, type);
+            reg = ir_allocreg(func, type);
             list_string_push(&namestack, reg);
 
             inst->op = IR_OP_MOVE;

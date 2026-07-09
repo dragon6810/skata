@@ -474,3 +474,59 @@ void ir_regdefs(void)
     for(i=0; i<ir.defs.len; i++)
         ir_funcregdefs(&ir.defs.data[i]);
 }
+
+char* ir_allocreg(ir_funcdef_t* funcdef, ir_primitive_e prim)
+{
+    ir_reg_t reg;
+    char name[16];
+
+    memset(&reg, 0, sizeof(reg));
+
+    snprintf(name, 16, "%llu", (unsigned long long) funcdef->ntempreg++);
+    reg.name = strdup(name);
+    reg.type = prim;
+    set_str_alloc(&reg.interfere);
+    map_str_ir_reg_set(&funcdef->regs, reg.name, reg);
+    set_str_free(&reg.interfere);
+    
+    return reg.name;
+}
+
+int ir_ninstoperands(const ir_inst_t* inst)
+{
+    switch(inst->op)
+    {
+    case IR_OP_RET:
+        return inst->hasval;
+        break;
+    case IR_OP_JMP:
+    case IR_OP_ALLOCA:
+        return 1;
+        break;
+    case IR_OP_MOVE:
+    case IR_OP_STORE:
+    case IR_OP_LOAD:
+    case IR_OP_STOREFID:
+    case IR_OP_LOADFID:
+    case IR_OP_FIDADR:
+    case IR_OP_ZEXT:
+    case IR_OP_SEXT:
+    case IR_OP_TRUNC:
+    case IR_OP_FIE:
+        return 2;
+        break;
+    case IR_OP_ADD:
+    case IR_OP_SUB:
+    case IR_OP_MUL:
+    case IR_OP_CMPEQ:
+    case IR_OP_CMPNEQ:
+    case IR_OP_BR:
+        return 3;
+        break;
+    case IR_OP_PHI:
+    case IR_OP_CALL:
+        return -1;
+    default:
+        assert(0);
+    }
+}

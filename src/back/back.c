@@ -247,7 +247,7 @@ static void back_instfie(ir_funcdef_t* func, ir_block_t* blk, ir_inst_t* last, i
         fie = malloc(sizeof(ir_inst_t));
         fie->op = IR_OP_FIE;
         fie->binary[0].type = IR_OPERAND_REG;
-        fie->binary[0].reg.name = ir_gen_alloctemp(func, IR_PRIM_PTR);
+        fie->binary[0].reg.name = ir_allocreg(func, IR_PRIM_PTR);
         fie->binary[1].type = IR_OPERAND_REG;
         fie->binary[1].reg.name = operands.data[i]->reg.name;
         fie->next = inst;

@@ -52,6 +52,10 @@ typedef struct ir_reg_s
     // regalloc ignores virtual registers, but their lifetimes are still calculated
     bool virtual;
 
+    // don't spill when allocating registers
+    // usually only set for already spilled registers
+    bool nospill;
+
     set_str_t interfere; // interference graph edges
     struct hardreg_s *hardreg;
 } ir_reg_t;
@@ -340,6 +344,10 @@ void ir_accessedregs(set_str_t* set, ir_inst_t* inst);
 // list shouldn't be intialized
 void ir_instoperands(list_pir_operand_t* list, ir_inst_t* inst);
 void ir_regdefs(void);
+// you are responsible for the returned string
+char* ir_allocreg(ir_funcdef_t* funcdef, ir_primitive_e prim);
+// -1 for variadic
+int ir_ninstoperands(const ir_inst_t* inst);
 
 void ir_free(void);
 void ir_dump(void);

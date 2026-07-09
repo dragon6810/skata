@@ -54,24 +54,6 @@ void ir_initblock(ir_block_t* block)
     block->marked = false;
 }
 
-// YOU are responsible for the returned string
-char* ir_gen_alloctemp(ir_funcdef_t *funcdef, ir_primitive_e type)
-{
-    ir_reg_t reg;
-    char name[16];
-
-    memset(&reg, 0, sizeof(reg));
-
-    snprintf(name, 16, "%llu", (unsigned long long) funcdef->ntempreg++);
-    reg.name = strdup(name);
-    reg.type = type;
-    set_str_alloc(&reg.interfere);
-    map_str_ir_reg_set(&funcdef->regs, reg.name, reg);
-    set_str_free(&reg.interfere);
-    
-    return reg.name;
-}
-
 uint64_t gen_newblock(ir_funcdef_t* funcdef)
 {
     ir_block_t blk;
@@ -114,7 +96,7 @@ static char* ir_gen_ternary(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
     inst = gen_allocinst();
     inst->op = IR_OP_CMPEQ;
     inst->ternary[0].type = IR_OPERAND_REG;
-    inst->ternary[0].reg.name = cmpres = ir_gen_alloctemp(funcdef, IR_PRIM_U1);
+    inst->ternary[0].reg.name = cmpres = ir_allocreg(funcdef, IR_PRIM_U1);
     inst->ternary[1].type = IR_OPERAND_REG;
     inst->ternary[1].reg.name = ir_gen_expr(funcdef, expr->operands[0], NULL);
     inst->ternary[2].type = IR_OPERAND_LIT;
@@ -153,7 +135,7 @@ static char* ir_gen_ternary(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
     skipinst->unary.label = strdup(funcdef->blocks.data[funcdef->blocks.len-1].name);
 
     // phi statement
-    res = outreg ? outreg : ir_gen_alloctemp(funcdef, type_toprim(expr->operands[1]->type.type));
+    res = outreg ? outreg : ir_allocreg(funcdef, type_toprim(expr->operands[1]->type.type));
     inst = gen_allocinst();
     inst->op = IR_OP_PHI;
     inst->var = NULL;
@@ -198,7 +180,7 @@ static char* ir_gen_funccall(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
     if(outreg)
         res = outreg;
     else
-        res = ir_gen_alloctemp(funcdef, type_toprim(expr->type.type));
+        res = ir_allocreg(funcdef, type_toprim(expr->type.type));
     
     inst->variadic.data[0].type = IR_OPERAND_REG;
     inst->variadic.data[0].reg.name = strdup(res);
@@ -218,7 +200,7 @@ static char* ir_gen_cast(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
     dsttype = type_toprim(expr->casttype.type);
     srctype = type_toprim(expr->operand->type.type);
     
-    res = outreg ? outreg : ir_gen_alloctemp(funcdef, dsttype);
+    res = outreg ? outreg : ir_allocreg(funcdef, dsttype);
 
     opcode = IR_OP_MOVE;
     if(ir_primbytesize(dsttype) > ir_primbytesize(srctype))
@@ -317,7 +299,7 @@ char* ir_gen_lvaladr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
     }
     if(expr->op == EXPROP_MEMBER)
     {
-        res = outreg ? outreg : ir_gen_alloctemp(funcdef, IR_PRIM_PTR);
+        res = outreg ? outreg : ir_allocreg(funcdef, IR_PRIM_PTR);
 
         inst = gen_allocinst();
         inst->op = IR_OP_FIDADR;
@@ -341,7 +323,7 @@ char* ir_gen_member(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
     char *res;
     ir_inst_t *inst;
     
-    res = outreg ? outreg : ir_gen_alloctemp(funcdef, type_toprim(expr->type.type));
+    res = outreg ? outreg : ir_allocreg(funcdef, type_toprim(expr->type.type));
 
     inst = gen_allocinst();
     inst->op = IR_OP_LOAD;
@@ -360,7 +342,7 @@ static char* ir_gen_fidadr(ir_funcdef_t* funcdef, uint64_t agg, uint64_t fid, ch
     char *res;
     ir_inst_t *inst;
 
-    res = ir_gen_alloctemp(funcdef, IR_PRIM_PTR);
+    res = ir_allocreg(funcdef, IR_PRIM_PTR);
 
     inst = gen_allocinst();
     inst->op = IR_OP_FIDADR;
@@ -404,7 +386,7 @@ static void ir_gen_structcpy(ir_funcdef_t* funcdef, type_t* type, char* dstadr, 
             continue;
         }
 
-        tmp = ir_gen_alloctemp(funcdef, type_toprim(membertype->type));
+        tmp = ir_allocreg(funcdef, type_toprim(membertype->type));
 
         inst = gen_allocinst();
         inst->op = IR_OP_LOAD;
@@ -469,9 +451,9 @@ char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
     else
     {
         if(expr->type.type == TYPE_STRUCT)
-            res = ir_gen_alloctemp(funcdef, IR_PRIM_PTR);
+            res = ir_allocreg(funcdef, IR_PRIM_PTR);
         else
-            res = ir_gen_alloctemp(funcdef, type_toprim(expr->type.type));
+            res = ir_allocreg(funcdef, type_toprim(expr->type.type));
     }
 
     switch(expr->op)
@@ -682,7 +664,7 @@ static void ir_gen_decl(ir_funcdef_t* funcdef, decl_t* decl)
 
     ir_gen_typeuse(&decl->type);
 
-    name = ir_gen_alloctemp(funcdef, IR_PRIM_PTR);
+    name = ir_allocreg(funcdef, IR_PRIM_PTR);
     map_str_ir_reg_get(&funcdef->regs, name)->virtual = true;
 
     inst = gen_allocinst();
@@ -718,7 +700,7 @@ static void ir_gen_arglist(ir_funcdef_t* funcdef, list_decl_t* arglist)
 
     for(i=0; i<arglist->len; i++)
     {
-        reg = ir_gen_alloctemp(funcdef, type_toprim(arglist->data[i].type.type));
+        reg = ir_allocreg(funcdef, type_toprim(arglist->data[i].type.type));
 
         param.name = strdup(arglist->data[i].ident);
         param.loc.type = IR_LOCATION_REG;
