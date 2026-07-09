@@ -360,7 +360,7 @@ static ir_reg_t* regalloc_pickvictim(ir_funcdef_t* funcdef, set_pir_reg_t* set)
     {
         if(set->bins[i].state != SET_EL_FULL)
             continue;
-        if(set->bins[i].val->nospill)
+        if(set->bins[i].val->nospill || set->bins[i].val->virtual)
             continue;
         return set->bins[i].val;
     }
@@ -421,6 +421,7 @@ void regalloc_colorparams(ir_funcdef_t* funcdef)
         if(param->loc.type != IR_LOCATION_REG)
             continue;
 
+        map_str_ir_reg_get(&funcdef->regs, param->loc.reg)->nospill = true;
         map_str_ir_reg_get(&funcdef->regs, param->loc.reg)->hardreg = &regpool.data[i];
     }
 }
@@ -461,6 +462,8 @@ try:
     assert(reg && "every uncolorable register is unspillable");
     regalloc_spillreg(funcdef, reg->name);
 
+    ir_regdefs();
+    reglifetime();
     set_pir_reg_free(&failed);
     goto try;
 }

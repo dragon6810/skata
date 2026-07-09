@@ -117,7 +117,7 @@ static void blockspans(ir_block_t* block)
     {
         if(curspans.bins[j].state != MAP_EL_FULL)
             continue;
-        
+
         span = curspans.bins[j].val;
         span.reg = strdup(span.reg);
         if(set_str_contains(&block->liveout, curspans.bins[j].key))
@@ -219,6 +219,22 @@ static void blockusedefs(ir_funcdef_t* funcdef, ir_block_t* blk)
 static void lifetimefunc(ir_funcdef_t* funcdef)
 {
     int i;
+
+    for(i=0; i<funcdef->blocks.len; i++)
+    {
+        list_ir_regspan_clear(&funcdef->blocks.data[i].spans);
+        set_str_clear(&funcdef->blocks.data[i].regdefs);
+        set_str_clear(&funcdef->blocks.data[i].reguses);
+        set_str_clear(&funcdef->blocks.data[i].livein);
+        set_str_clear(&funcdef->blocks.data[i].liveout);
+    }
+
+    for(i=0; i<funcdef->regs.nbin; i++)
+    {
+        if(funcdef->regs.bins[i].state != MAP_EL_FULL)
+            continue;
+        set_str_clear(&funcdef->regs.bins[i].val.interfere);
+    }
 
     for(i=0; i<funcdef->blocks.len; i++)
         blockusedefs(funcdef, &funcdef->blocks.data[i]);
