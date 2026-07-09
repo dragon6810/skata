@@ -31,6 +31,7 @@ extern set_phardreg_t scratchpool;
 extern list_phardreg_t scratchlist;
 extern list_phardreg_t parampool;
 extern list_phardreg_t retpool;
+extern hardreg_t* indirectreg; // x8: the aggregate-return / indirect-result pointer
 
 // call after spec init
 void regalloc_init(void);

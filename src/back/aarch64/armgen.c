@@ -366,12 +366,18 @@ static void armgen_populateliveset(set_pir_reg_t* set, ir_funcdef_t* funcdef, ir
 
     ir_regspan_t *span;
 
+    ir_reg_t *reg;
+
     for(i=0, span=blk->spans.data; i<blk->spans.len; i++, span++)
     {
         if(span->span[0] >= inst || span->span[1] <= inst+1)
             continue;
+        
+        reg = map_str_ir_reg_get(&funcdef->regs, span->reg);
+        if(reg->virtual)
+            continue;
 
-        set_pir_reg_add(set, map_str_ir_reg_get(&funcdef->regs, span->reg));
+        set_pir_reg_add(set, reg);
     }
 }
 
@@ -417,15 +423,30 @@ static void armgen_emitcall(ir_funcdef_t* funcdef, ir_block_t* blk, int iinst, i
         stackcur += 4;
     }
 
+    assert(inst->variadic.data[0].type == IR_OPERAND_REG);
+    reg = map_str_ir_reg_get(&funcdef->regs, inst->variadic.data[0].reg.name);
+
+    // aggregate return: the dst pointer must reach x8, but emitparams will
+    // shuffle the arg registers (possibly clobbering dst's). stage it in a
+    // scratch reg first, then move it into x8 once the args are placed.
+    if(inst->call.rettype.type == IR_TYPE_AGG)
+        printf("  MOV %s, %s\n",
+            *map_u64_str_get(&scratchlist.data[0]->names, IR_PRIM_PTR),
+            *map_u64_str_get(&reg->hardreg->names, IR_PRIM_PTR));
+
     armgen_emitparams(funcdef, inst);
+
+    if(inst->call.rettype.type == IR_TYPE_AGG)
+        printf("  MOV %s, %s\n",
+            *map_u64_str_get(&indirectreg->names, IR_PRIM_PTR),
+            *map_u64_str_get(&scratchlist.data[0]->names, IR_PRIM_PTR));
 
     printf("  BL _%s\n", inst->variadic.data[1].func);
 
-    assert(inst->variadic.data[0].type == IR_OPERAND_REG);
-    reg = map_str_ir_reg_get(&funcdef->regs, inst->variadic.data[0].reg.name);
-    if(reg->hardreg != retpool.data[0])
-        printf("  MOV %s, %s\n", 
-            *map_u64_str_get(&reg->hardreg->names, inst->variadic.data[0].type), 
+    // a scalar result comes back in x0; an aggregate was written through x8
+    if(inst->call.rettype.type != IR_TYPE_AGG && reg->hardreg != retpool.data[0])
+        printf("  MOV %s, %s\n",
+            *map_u64_str_get(&reg->hardreg->names, inst->variadic.data[0].type),
             *map_u64_str_get(&retpool.data[0]->names, inst->variadic.data[0].type));
 
     // restore caller-saved
@@ -608,8 +629,15 @@ static void armgen_inst(ir_funcdef_t* funcdef, ir_block_t* blk, int iinst, ir_in
         armgen_emitmul(funcdef, inst);
         break;
     case IR_OP_RET:
-        if(inst->unary.type != IR_OPERAND_REG
-        || map_str_ir_reg_get(&funcdef->regs, inst->unary.reg.name)->hardreg != retpool.data[0])
+        if(funcdef->rettype.type == IR_TYPE_AGG)
+        {
+            printf("  MOV %s, %s\n",
+                *map_u64_str_get(&retpool.data[0]->names, IR_PRIM_PTR),
+                *map_u64_str_get(&indirectreg->names, IR_PRIM_PTR));
+        }
+        else if(inst->hasval
+        && (inst->unary.type != IR_OPERAND_REG
+        || map_str_ir_reg_get(&funcdef->regs, inst->unary.reg.name)->hardreg != retpool.data[0]))
         {
             printf("  MOV %s, ", *map_u64_str_get(&retpool.data[0]->names, funcdef->rettype.prim));
             armgen_operand(funcdef, &inst->unary);

@@ -173,6 +173,7 @@ void ir_freeparam(ir_param_t* param)
 void ir_freefuncdef(ir_funcdef_t* funcdef)
 {
     free(funcdef->name);
+    free(funcdef->retreg);
     list_ir_param_free(&funcdef->params);
     map_str_ir_reg_free(&funcdef->regs);
     list_ir_block_free(&funcdef->blocks);
@@ -283,8 +284,10 @@ void ir_definedregs(set_str_t* set, ir_inst_t* inst)
     case IR_OP_CMPNEQ:
         set_str_add(set, inst->ternary[0].reg.name);
         break;
-    case IR_OP_PHI:
     case IR_OP_CALL:
+        if(inst->call.rettype.type == IR_TYPE_AGG)
+            break;
+    case IR_OP_PHI:
         if(inst->variadic.len && inst->variadic.data[0].reg.name)
             set_str_add(set, inst->variadic.data[0].reg.name);
         break;
@@ -340,6 +343,9 @@ void ir_accessedregs(set_str_t* set, ir_inst_t* inst)
             if(inst->variadic.data[i].type == IR_OPERAND_REG) set_str_add(set, inst->variadic.data[i].reg.name);
         break;
     case IR_OP_CALL:
+        if(inst->call.rettype.type == IR_TYPE_AGG
+        && inst->variadic.len && inst->variadic.data[0].reg.name)
+            set_str_add(set, inst->variadic.data[0].reg.name);
         for(i=2; i<inst->variadic.len; i++)
             if(inst->variadic.data[i].type == IR_OPERAND_REG) set_str_add(set, inst->variadic.data[i].reg.name);
         break;

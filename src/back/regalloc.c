@@ -45,6 +45,7 @@ set_phardreg_t scratchpool;
 list_phardreg_t scratchlist;
 list_phardreg_t parampool;
 list_phardreg_t retpool;
+hardreg_t* indirectreg;
 
 static uint64_t regalloc_hashpreg(ir_reg_t** val)
 {
@@ -83,6 +84,9 @@ void regalloc_init(void)
 
         if(reg->flags & HARDREG_RETURN)
             list_phardreg_push(&retpool, reg);
+
+        if(reg->flags & HARDREG_INDIRECTADR)
+            indirectreg = reg;
     }
 }
 
@@ -420,6 +424,12 @@ void regalloc_colorparams(ir_funcdef_t* funcdef)
     {
         map_str_ir_reg_get(&funcdef->regs, param->reg)->nospill = true;
         map_str_ir_reg_get(&funcdef->regs, param->reg)->hardreg = &regpool.data[i];
+    }
+    
+    if(funcdef->retreg)
+    {
+        map_str_ir_reg_get(&funcdef->regs, funcdef->retreg)->nospill = true;
+        map_str_ir_reg_get(&funcdef->regs, funcdef->retreg)->hardreg = indirectreg;
     }
 }
 

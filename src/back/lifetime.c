@@ -203,11 +203,16 @@ static void blockusedefs(ir_funcdef_t* funcdef, ir_block_t* blk)
         set_str_free(&uses);
     }
 
-    // parameters must be alive from the start
-    // their values are implicitly defined at entry
+    // parameters and return adresses are alive from the start
+    // their values are defined by the caller
     if(!strcmp(blk->name, "entry"))
+    {
         for(i=0; i<funcdef->params.len; i++)
             set_str_add(&blk->reguses, funcdef->params.data[i].reg);
+
+        if(funcdef->retreg)
+            set_str_add(&blk->reguses, funcdef->retreg);
+    }
 }
 
 static void lifetimefunc(ir_funcdef_t* funcdef)

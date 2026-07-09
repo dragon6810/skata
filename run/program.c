@@ -13,10 +13,8 @@ struct res add(struct sum nums)
 int main()
 {
 	struct sum input;
-	struct res output;
 
 	input.x = 1;
 	input.y = 2;
-	output = add(input);
-	return output.a;
+	return add(input).a;
 }

@@ -305,6 +305,7 @@ typedef struct ir_funcdef_s
 
     ir_type_t rettype;
     list_ir_param_t params;
+    char *retreg;
 
     uint64_t ntempreg;
     map_str_ir_reg_t regs;
