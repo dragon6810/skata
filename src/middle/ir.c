@@ -105,6 +105,12 @@ void ir_instfree(ir_inst_t* inst)
     if(inst->op == IR_OP_STOREFID || inst->op == IR_OP_LOADFID || inst->op == IR_OP_FIDADR)
         list_ir_fid_free(&inst->fid.fids);
 
+    if(inst->op == IR_OP_CALL)
+    {
+        ir_typefree(&inst->call.rettype);
+        list_ir_type_free(&inst->call.argtypes);
+    }
+
     switch(inst->op)
     {
     case IR_OP_RET:
@@ -161,17 +167,7 @@ void ir_freeblock(ir_block_t* block)
 
 void ir_freeparam(ir_param_t* param)
 {
-    switch(param->loc.type)
-    {
-    case IR_LOCATION_REG:
-        free(param->loc.reg);
-        break;
-    case IR_LOCATION_VAR:
-        free(param->loc.var);
-        break;
-    default:
-        break;
-    }
+    free(param->reg);
 }
 
 void ir_freefuncdef(ir_funcdef_t* funcdef)
@@ -462,6 +458,10 @@ static void ir_blockregdefs(ir_funcdef_t* funcdef, ir_block_t* blk)
 static void ir_funcregdefs(ir_funcdef_t* funcdef)
 {
     int i;
+
+    for(i=0; i<funcdef->regs.nbin; i++)
+        if(funcdef->regs.bins[i].state == MAP_EL_FULL)
+            funcdef->regs.bins[i].val.def = NULL;
 
     for(i=0; i<funcdef->blocks.len; i++)
         ir_blockregdefs(funcdef, &funcdef->blocks.data[i]);

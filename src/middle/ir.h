@@ -239,6 +239,11 @@ struct ir_inst_s
             list_ir_fid_t fids;
             uint64_t agg;
         } fid;
+        struct
+        {
+            ir_type_t rettype;
+            list_ir_type_t argtypes;
+        } call;
     };
 
     ir_inst_t *next;   
@@ -287,8 +292,8 @@ LIST_DECL(ir_block_t, ir_block)
 
 typedef struct ir_param_s
 {
-    char* name;
-    ir_location_t loc;
+    ir_type_t type;
+    char *reg; // if not a prim, this is an address of the aggregate
 } ir_param_t;
 
 LIST_DECL(ir_param_t, ir_param)

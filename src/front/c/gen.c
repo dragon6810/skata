@@ -81,6 +81,35 @@ uint64_t gen_newblock(ir_funcdef_t* funcdef)
 
 // YOU are responsible for the returned string, unless you gave outreg
 static char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg);
+char* ir_gen_lvaladr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg);
+static void ir_gen_structcpy(ir_funcdef_t* funcdef, type_t* type, char* dstadr, char* srcadr);
+static void ir_gen_typeuse(type_t* type);
+
+// alloca a fresh struct slot in the entry block; returns its address register
+// (you own the returned string). the entry block is where argmen_buildvarframe
+// looks for allocas, so it must land there rather than the current block.
+static char* ir_gen_structtemp(ir_funcdef_t* funcdef, uint64_t agg)
+{
+    char *name;
+    ir_inst_t *inst;
+    ir_block_t *entry;
+
+    name = ir_allocreg(funcdef, IR_PRIM_PTR);
+    map_str_ir_reg_get(&funcdef->regs, name)->virtual = true;
+
+    inst = gen_allocinst();
+    inst->op = IR_OP_ALLOCA;
+    inst->unary.type = IR_OPERAND_REG;
+    inst->unary.reg.name = strdup(name);
+    inst->alloca.type.type = IR_TYPE_AGG;
+    inst->alloca.type.agg = agg;
+
+    entry = &funcdef->blocks.data[0];
+    inst->next = entry->insts;
+    entry->insts = inst;
+
+    return name;
+}
 
 // if outreg is NULL, it will alloc a new register
 // YOU are responsible for the returned string, unless you gave outreg
@@ -162,6 +191,8 @@ static char* ir_gen_funccall(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
     char *res;
     ir_inst_t *inst;
     ir_operand_t operand;
+    expr_t *arg;
+    char *copy, *src;
 
     inst = gen_allocinst();
     inst->op = IR_OP_CALL;
@@ -172,18 +203,69 @@ static char* ir_gen_funccall(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
 
     for(i=0; i<expr->variadic.len; i++)
     {
+        arg = expr->variadic.data[i];
         operand.type = IR_OPERAND_REG;
-        operand.reg.name = ir_gen_expr(funcdef, expr->variadic.data[i], NULL);
+
+        if(arg->type.type == TYPE_STRUCT)
+        {
+            // by-value: copy the struct into a fresh temp and pass its
+            // address. the temp is the caller-owned copy the callee is
+            // handed a pointer to, so mutations can't escape.
+            ir_gen_typeuse(&arg->type);
+            copy = ir_gen_structtemp(funcdef, arg->type.struc.agg);
+            src = arg->lval ? ir_gen_lvaladr(funcdef, arg, NULL)
+                            : ir_gen_expr(funcdef, arg, NULL);
+            ir_gen_structcpy(funcdef, &arg->type, copy, src);
+            free(src);
+            operand.reg.name = copy;
+        }
+        else
+            operand.reg.name = ir_gen_expr(funcdef, arg, NULL);
+
         list_ir_operand_push(&inst->variadic, operand);
     }
 
-    if(outreg)
+    // for a struct return the result lives in memory; res holds the address
+    // of a caller-allocated slot the callee writes into
+    if(expr->type.type == TYPE_STRUCT)
+    {
+        ir_gen_typeuse(&expr->type);
+        res = ir_gen_structtemp(funcdef, expr->type.struc.agg);
+    }
+    else if(outreg)
         res = outreg;
     else
         res = ir_allocreg(funcdef, type_toprim(expr->type.type));
-    
+
     inst->variadic.data[0].type = IR_OPERAND_REG;
     inst->variadic.data[0].reg.name = strdup(res);
+
+    if(expr->type.type == TYPE_STRUCT)
+    {
+        inst->call.rettype.type = IR_TYPE_AGG;
+        inst->call.rettype.agg = expr->type.struc.agg;
+    }
+    else
+    {
+        inst->call.rettype.type = IR_TYPE_PRIM;
+        inst->call.rettype.prim = type_toprim(expr->type.type);
+    }
+
+    list_ir_type_init(&inst->call.argtypes, expr->variadic.len);
+    for(i=0; i<expr->variadic.len; i++)
+    {
+        arg = expr->variadic.data[i];
+        if(arg->type.type == TYPE_STRUCT)
+        {
+            inst->call.argtypes.data[i].type = IR_TYPE_AGG;
+            inst->call.argtypes.data[i].agg = arg->type.struc.agg;
+        }
+        else
+        {
+            inst->call.argtypes.data[i].type = IR_TYPE_PRIM;
+            inst->call.argtypes.data[i].prim = type_toprim(arg->type.type);
+        }
+    }
 
     gen_appendinst(funcdef, inst);
 
@@ -697,17 +779,37 @@ static void ir_gen_arglist(ir_funcdef_t* funcdef, list_decl_t* arglist)
     ir_inst_t *inst;
     char *reg;
     ir_param_t param;
+    strpair_t pair;
+    decl_t *arg;
 
     for(i=0; i<arglist->len; i++)
     {
-        reg = ir_allocreg(funcdef, type_toprim(arglist->data[i].type.type));
+        arg = &arglist->data[i];
 
-        param.name = strdup(arglist->data[i].ident);
-        param.loc.type = IR_LOCATION_REG;
-        param.loc.reg = reg;
+        if(arg->type.type == TYPE_STRUCT)
+        {
+            ir_gen_typeuse(&arg->type);
+
+            reg = ir_allocreg(funcdef, IR_PRIM_PTR);
+            param.type.type = IR_TYPE_AGG;
+            param.type.agg = arg->type.struc.agg;
+            param.reg = reg;
+            list_ir_param_push(&funcdef->params, param);
+
+            pair.a = strdup(arg->ident);
+            pair.b = strdup(reg);
+            list_strpair_ppush(&varnames, &pair);
+            continue;
+        }
+
+        reg = ir_allocreg(funcdef, type_toprim(arg->type.type));
+
+        param.type.type = IR_TYPE_PRIM;
+        param.type.prim = type_toprim(arg->type.type);
+        param.reg = reg;
         list_ir_param_push(&funcdef->params, param);
 
-        ir_gen_decl(funcdef, &arglist->data[i]);
+        ir_gen_decl(funcdef, arg);
 
         inst = gen_allocinst();
         inst->op = IR_OP_STORE;

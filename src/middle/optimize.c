@@ -323,6 +323,10 @@ static void ir_chainfids(ir_funcdef_t* funcdef)
             reg = map_str_ir_reg_get(&funcdef->regs, operand->reg.name);
             assert(reg);
 
+            // function param probably
+            if(!reg->def)
+                continue;
+
             if(reg->def->op != IR_OP_FIDADR)
                 continue;
 
@@ -476,6 +480,8 @@ void optimize(void)
             ir_eliminatelitcasts(&ir.defs.data[i]);
             ir_eliminatemoves(&ir.defs.data[i]);
             ir_eliminatedeadregs(&ir.defs.data[i]);
+
+            ir_regdefs();
         } while(madechange);
     }
 }

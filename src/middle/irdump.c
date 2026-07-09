@@ -321,10 +321,14 @@ void ir_dump_arglist(ir_funcdef_t* funcdef)
 {
     int i;
 
+    ir_reg_t *reg;
+
     printf("(");
     for(i=0; i<funcdef->params.len; i++)
     {
-        ir_print_location(funcdef, &funcdef->params.data[i].loc);
+        reg = map_str_ir_reg_get(&funcdef->regs, funcdef->params.data[i].reg);
+        ir_print_prim(reg->type);
+        printf(" \e[0;31m%%%s\e[0m", funcdef->params.data[i].reg);
         if(i != funcdef->params.len-1)
             printf(", ");
     }
@@ -351,7 +355,7 @@ void ir_dump_aggregate(uint64_t id, ir_aggregate_t* agg)
     ir_aggfid_t *aggfid;
 
     printf("\e[0;96magg<%016llx>\e[0m:\n", (unsigned long long) id);
-    
+
     for(fid=0, aggfid=agg->fids.data; fid<agg->fids.len; fid++, aggfid++)
     {
         printf("  \e[0;95m[%llu]\e[0m ", (unsigned long long) fid);

@@ -418,11 +418,8 @@ void regalloc_colorparams(ir_funcdef_t* funcdef)
 
     for(i=0, param=funcdef->params.data; i<funcdef->params.len && i<regpool.len; i++, param++)
     {
-        if(param->loc.type != IR_LOCATION_REG)
-            continue;
-
-        map_str_ir_reg_get(&funcdef->regs, param->loc.reg)->nospill = true;
-        map_str_ir_reg_get(&funcdef->regs, param->loc.reg)->hardreg = &regpool.data[i];
+        map_str_ir_reg_get(&funcdef->regs, param->reg)->nospill = true;
+        map_str_ir_reg_get(&funcdef->regs, param->reg)->hardreg = &regpool.data[i];
     }
 }
 

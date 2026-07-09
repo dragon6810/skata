@@ -841,9 +841,7 @@ static void armgen_prolouge(ir_funcdef_t* funcdef)
     
     for(i=nregparam=stackparamoffs=0, param=funcdef->params.data; i<funcdef->params.len; i++, param++)
     {
-        assert(param->loc.type == IR_LOCATION_REG);
-
-        reg = map_str_ir_reg_get(&funcdef->regs, param->loc.reg);
+        reg = map_str_ir_reg_get(&funcdef->regs, param->reg);
         if(nregparam < parampool.len)
         {
 
