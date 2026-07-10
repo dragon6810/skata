@@ -37,6 +37,7 @@ static void parse_freeexpr(expr_t* expr)
         break;
     case EXPROP_ADD:
     case EXPROP_MULT:
+    case EXPROP_INDEX:
         parse_freeexpr(expr->operands[0]);
         parse_freeexpr(expr->operands[1]);
         break;

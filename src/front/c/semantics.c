@@ -314,6 +314,37 @@ static void semantics_memberexpr(expr_t* expr)
     error(true, expr->line, expr->col, "struct %s has no member '%s'\n", name, expr->member);
 }
 
+static void semantics_indexexpr(expr_t* expr)
+{
+    assert(expr->op == EXPROP_INDEX);
+
+    expr->lval = true;
+
+    semantics_expr(expr->operands[0]);
+    if(expr->operands[0]->type.type != TYPE_PTR)
+        error(true, expr->operands[0]->line, expr->operands[0]->col, "expression must have ptr type\n");
+
+    semantics_expr(expr->operands[1]);
+    switch(expr->operands[1]->type.type)
+    {
+    case TYPE_U1:
+    case TYPE_U8:
+    case TYPE_U16:
+    case TYPE_U32:
+    case TYPE_U64:
+    case TYPE_I8:
+    case TYPE_I16:
+    case TYPE_I32:
+    case TYPE_I64:
+        break;
+    default:
+        error(true, expr->operands[1]->line, expr->operands[1]->col, "expression must have integral type\n");
+        break;
+    }
+
+    type_cpy(&expr->type, expr->operands[0]->type.ptrtype);
+}
+
 static void semantics_var(expr_t* expr)
 {
     int i, j;
@@ -350,6 +381,17 @@ static void semantics_var(expr_t* expr)
             semantics_typecpy(&type, &scope.data[i]->args.data[j].type);
             list_type_ppush(&expr->type.func.args, &type);
         }
+
+        expr->lval = false;
+        return;
+    }
+
+    if(scope.data[i]->form == DECL_VAR && scope.data[i]->isarray)
+    {
+        expr->type.type = TYPE_PTR;
+        
+        expr->type.ptrtype = malloc(sizeof(type_t));
+        semantics_typecpy(expr->type.ptrtype, &scope.data[i]->type);
 
         expr->lval = false;
         return;
@@ -417,6 +459,9 @@ static void semantics_expr(expr_t* expr)
         break;
     case EXPROP_MEMBER:
         semantics_memberexpr(expr);
+        break;
+    case EXPROP_INDEX:
+        semantics_indexexpr(expr);
         break;
     default:
         assert(0);

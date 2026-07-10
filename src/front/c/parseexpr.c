@@ -130,6 +130,13 @@ static void parse_printexpr_r(const expr_t* expr)
         parse_printexpr_r(expr->operand);
         printf(" %s )", expr->member);
         return;
+    case EXPROP_INDEX:
+        printf("( [] ");
+        parse_printexpr_r(expr->operands[0]);
+        printf(" ");
+        parse_printexpr_r(expr->operands[1]);
+        printf(" )");
+        return;
     default:
         assert(0);
         return;
@@ -395,6 +402,23 @@ static expr_t* parse_expr_r(int minbp)
             }
 
             parse_eatstr(")");
+
+            goto continueloop;
+        }
+        else if(!strcmp(tokstr, "["))
+        {
+            parse_eatstr("[");
+
+            lhs = expr;
+
+            expr = malloc(sizeof(expr_t));
+            expr->line = parse_getline();
+            expr->col = parse_getcol();
+            expr->op = EXPROP_INDEX;
+            expr->operands[0] = lhs;
+            expr->operands[1] = parse_expr_r(0);
+
+            parse_eatstr("]");
 
             goto continueloop;
         }

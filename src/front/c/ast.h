@@ -54,7 +54,9 @@ typedef enum
     EXPROP_LOGICNOT, // !
     EXPROP_POSTINC, // ++
     EXPROP_POSTDEC, // --
+
     EXPROP_MEMBER, // . <member>
+    EXPROP_INDEX, // [ <index> ]
 
     // variadic operators
     EXPROP_CALL, // ( ... )
