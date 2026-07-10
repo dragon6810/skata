@@ -856,7 +856,8 @@ static void ir_gen_typeuse(type_t* type)
     if(map_u64_ir_aggregate_get(&ir.aggs, def->hash))
         return;
 
-    list_ir_aggfid_init(&agg.fids, def->members.len);
+    agg.type = AGG_STRUCT;
+    list_ir_aggfid_init(&agg.struc.fids, def->members.len);
     for(i=0; i<def->members.len; i++)
     {
         membertype = &def->members.data[i].type;
@@ -875,7 +876,7 @@ static void ir_gen_typeuse(type_t* type)
 
         list_ir_type_init(&fid.types, 1);
         fid.types.data[0] = irtype;
-        agg.fids.data[i] = fid;
+        agg.struc.fids.data[i] = fid;
     }
 
     map_u64_ir_aggregate_set(&ir.aggs, def->hash, agg);

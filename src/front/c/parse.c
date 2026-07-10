@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 
+#include "constexpr.h"
 #include "front/error.h"
 #include "struct.h"
 #include "tag.h"
@@ -31,7 +32,6 @@ static void parse_freeexpr(expr_t* expr)
 {
     switch(expr->op)
     {
-    case EXPROP_LIT:
     case EXPROP_VAR:
         free(expr->msg);
         break;
@@ -429,6 +429,7 @@ bool parse_istype()
 static void parse_decl(decl_t* decl)
 {
     type_t type;
+    expr_t *expr;
 
     parse_type(&type);
 
@@ -450,6 +451,18 @@ static void parse_decl(decl_t* decl)
 
     decl->ident = strdup(parse_eatform(TOKEN_IDENT));
     decl->expr = NULL;
+
+    if(!strcmp(parse_peekstr(0), "["))
+    {
+        decl->isarray = true;
+        parse_eat();
+        expr = parse_expr();
+        decl->arrlen = constexpr_eval(expr);
+        if(decl->arrlen < 0)
+            error(true, expr->line, expr->col, "array length must not be less than zero\n");
+        parse_freeexpr(expr);
+        parse_eatstr("]");
+    }
 
     if(!strcmp(parse_peekstr(0), "="))
     {
@@ -799,7 +812,12 @@ static void parse_printdecl(decl_t* decl, int depth, bool last, char* leftstr)
     newleft = parse_printprefix(depth, last, leftstr);
 
     if(decl->form == DECL_VAR || decl->form == DECL_FUNC)
-        printf("\e[1;32m<declaration> \e[0;96m(type: %s), (name: %s)\e[0m\n", type_names[decl->type.type], decl->ident);
+    {
+        if(decl->isarray)
+            printf("\e[1;32m<declaration> \e[0;96m(type: %lld x %s), (name: %s)\e[0m\n", decl->arrlen, type_names[decl->type.type], decl->ident);
+        else
+            printf("\e[1;32m<declaration> \e[0;96m(type: %s), (name: %s)\e[0m\n", type_names[decl->type.type], decl->ident);
+    }
     else
         printf("\e[1;32m<declaration> \e[0;96m(type: %s)\e[0m\n", type_names[decl->type.type]);
 

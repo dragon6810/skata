@@ -71,11 +71,12 @@ static int back_structalignment(uint64_t aggid)
 
     agg = map_u64_ir_aggregate_get(&ir.aggs, aggid);
     assert(agg);
+    assert(agg->type == AGG_STRUCT);
 
     biggest = 0;
-    for(i=0; i<agg->fids.len; i++)
+    for(i=0; i<agg->struc.fids.len; i++)
     {
-        for(j=0, type=agg->fids.data[i].types.data; j<agg->fids.data[i].types.len; j++, type++)
+        for(j=0, type=agg->struc.fids.data[i].types.data; j<agg->struc.fids.data[i].types.len; j++, type++)
         {
             switch(type->type)
             {
@@ -115,9 +116,10 @@ static int back_nextprimsize(uint64_t aggid, int nextfid)
 
     agg = map_u64_ir_aggregate_get(&ir.aggs, aggid);
     assert(agg);
-    assert(nextfid < agg->fids.len);
+    assert(agg->type == AGG_STRUCT);
+    assert(nextfid < agg->struc.fids.len);
 
-    for(i=biggest=0, type=agg->fids.data[nextfid].types.data; i<agg->fids.data[nextfid].types.len; i++, type++)
+    for(i=biggest=0, type=agg->struc.fids.data[nextfid].types.data; i<agg->struc.fids.data[nextfid].types.len; i++, type++)
     {
         switch(type->type)
         {
@@ -166,8 +168,9 @@ int back_typebytesize(const ir_type_t* type)
     case IR_TYPE_AGG:
         agg = map_u64_ir_aggregate_get(&ir.aggs, type->agg);
         assert(agg);
+        assert(agg->type == AGG_STRUCT);
         list_ir_fid_init(&fidlist, 1);
-        fidlist.data[0].fid = agg->fids.len;
+        fidlist.data[0].fid = agg->struc.fids.len;
         fidlist.data[0].typeid = 0;
         size = back_fidoffset(type->agg, &fidlist);
         list_ir_fid_free(&fidlist);
@@ -191,14 +194,15 @@ int back_fidoffset(uint64_t aggid, list_ir_fid_t* fids)
     curaggid = aggid;
     agg = map_u64_ir_aggregate_get(&ir.aggs, curaggid);
     assert(agg);
+    assert(agg->type == AGG_STRUCT);
     for(i=0; i<fids->len; i++)
     {
         for(j=0; j<fids->data[i].fid; j++)
         {
             elsize = 0;
-            for(k=0; k<agg->fids.data[j].types.len; k++)
+            for(k=0; k<agg->struc.fids.data[j].types.len; k++)
             {
-                typesize = back_typebytesize(&agg->fids.data[j].types.data[k]);
+                typesize = back_typebytesize(&agg->struc.fids.data[j].types.data[k]);
                 if(typesize > elsize)
                     elsize = typesize;
             }
@@ -206,14 +210,14 @@ int back_fidoffset(uint64_t aggid, list_ir_fid_t* fids)
 
             // pad this element up to the alignment of the next element,
             // or to the whole struct's alignment when it's the last one
-            if(j+1 < agg->fids.len)
+            if(j+1 < agg->struc.fids.len)
                 size = back_alignup(size, back_nextprimsize(curaggid, j+1));
             else
                 size = back_alignup(size, back_structalignment(curaggid));
         }
         if(i<fids->len-1)
         {
-            curaggid = agg->fids.data[fids->data[i].fid].types.data[fids->data[i].typeid].agg;
+            curaggid = agg->struc.fids.data[fids->data[i].fid].types.data[fids->data[i].typeid].agg;
             agg = map_u64_ir_aggregate_get(&ir.aggs, curaggid);
         }
     }

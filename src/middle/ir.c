@@ -29,18 +29,37 @@ void ir_aggfidcpy(ir_aggfid_t* dst, ir_aggfid_t* src)
 
 void ir_aggregatefree(ir_aggregate_t* aggregate)
 {
-    list_ir_aggfid_free(&aggregate->fids);
+    switch(aggregate->type)
+    {
+    case AGG_STRUCT:
+        list_ir_aggfid_free(&aggregate->struc.fids);
+        break;
+    case AGG_ARR:
+        ir_typefree(&aggregate->arr.type);
+        break;
+    default:
+        assert(0);
+    }
 }
 
 void ir_aggregatecpy(ir_aggregate_t* dst, ir_aggregate_t* src)
 {
     int i;
 
-    // list_ir_aggfid_dup is a shallow memcpy, but each aggfid owns a
-    // types list, so copy element by element
-    list_ir_aggfid_init(&dst->fids, src->fids.len);
-    for(i=0; i<src->fids.len; i++)
-        ir_aggfidcpy(&dst->fids.data[i], &src->fids.data[i]);
+    *dst = *src;
+    switch(src->type)
+    {
+    case AGG_STRUCT:
+        list_ir_aggfid_init(&dst->struc.fids, src->struc.fids.len);
+        for(i=0; i<src->struc.fids.len; i++)
+            ir_aggfidcpy(&dst->struc.fids.data[i], &src->struc.fids.data[i]);
+        break;
+    case AGG_ARR:
+        break;
+    default:
+        assert(0);
+        break;
+    }
 }
 
 void ir_typefree(const ir_type_t* type)

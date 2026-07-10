@@ -356,16 +356,28 @@ void ir_dump_aggregate(uint64_t id, ir_aggregate_t* agg)
 
     printf("\e[0;96magg<%016llx>\e[0m:\n", (unsigned long long) id);
 
-    for(fid=0, aggfid=agg->fids.data; fid<agg->fids.len; fid++, aggfid++)
+    switch(agg->type)
     {
-        printf("  \e[0;95m[%llu]\e[0m ", (unsigned long long) fid);
-        for(i=0; i<aggfid->types.len; i++)
+    case AGG_STRUCT:
+        for(fid=0, aggfid=agg->struc.fids.data; fid<agg->struc.fids.len; fid++, aggfid++)
         {
-            if(i)
-                printf(", ");
-            ir_print_type(aggfid->types.data[i]);
+            printf("  \e[0;95m[%llu]\e[0m ", (unsigned long long) fid);
+            for(i=0; i<aggfid->types.len; i++)
+            {
+                if(i)
+                    printf(", ");
+                ir_print_type(aggfid->types.data[i]);
+            }
+            printf("\n");
         }
+        break;
+    case AGG_ARR:
+        printf("  \e[0;95m%llu \e[0;x ", agg->arr.size);
+        ir_print_type(agg->arr.type);
         printf("\n");
+        break;
+    default:
+        assert(0);
     }
 }
 

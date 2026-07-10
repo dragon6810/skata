@@ -123,6 +123,9 @@ struct decl_s
     type_t type;
     char *ident;
 
+    bool isarray;
+    int64_t arrlen;
+
     expr_t *expr;
     list_decl_t args;
 };

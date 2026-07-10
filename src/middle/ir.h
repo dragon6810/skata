@@ -83,6 +83,12 @@ LIST_DECL(ir_type_t, ir_type)
 
 MAP_DECL(char*, ir_reg_t, str, ir_reg)
 
+typedef enum
+{
+    AGG_STRUCT=0, // also unions
+    AGG_ARR,
+} ir_aggtype_e;
+
 typedef struct ir_aggfid_s
 {
     list_ir_type_t types; // all the types that occupy this frame index
@@ -92,7 +98,19 @@ LIST_DECL(ir_aggfid_t, ir_aggfid)
 
 typedef struct ir_aggregate_s
 {
-    list_ir_aggfid_t fids;
+    ir_aggtype_e type;
+    union
+    {
+        struct
+        {
+            list_ir_aggfid_t fids;
+        } struc;
+        struct
+        {
+            uint64_t size;
+            ir_type_t type;
+        } arr;
+    };
 } ir_aggregate_t;
 
 MAP_DECL(uint64_t, ir_aggregate_t, u64, ir_aggregate)
