@@ -324,6 +324,20 @@ static char* ir_gen_varname(const char* cname)
     return NULL;
 }
 
+// an array variable decays to a pointer whose value is its own address,
+// so it is read without a load
+static bool ir_gen_vararray(const char* cname)
+{
+    int i;
+
+    for(i=varnames.len-1; i>=0; i--)
+        if(!strcmp(cname, varnames.data[i].a))
+            return vardecls.data[i]->type.type == TYPE_ARR;
+
+    assert(0);
+    return false;
+}
+
 // i think its fine to have a bunch of asserts here because if the front end works
 // the errors would be found during semantic analysis
 // returns the aggregate id
@@ -403,13 +417,13 @@ char* ir_gen_lvaladr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
     {
         res = outreg ? outreg : ir_allocreg(funcdef, IR_PRIM_PTR);
 
-        switch(expr->operands[0]->type.type)
+        switch(expr->operands[0]->type.ptrtype->type)
         {
         case TYPE_STRUCT:
-            typesize = back_aggbytesize(expr->operands[0]->type.struc.agg);
+            typesize = back_aggbytesize(expr->operands[0]->type.ptrtype->struc.agg);
             break;
         default:
-            typesize = ir_primbytesize(type_toprim(expr->operands[0]->type.type));
+            typesize = ir_primbytesize(type_toprim(expr->operands[0]->type.ptrtype->type));
             break;
         }
 
@@ -429,6 +443,8 @@ char* ir_gen_lvaladr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
         inst->ternary[0].type = IR_OPERAND_REG;
         inst->ternary[0].reg.name = strdup(res);
         inst->ternary[1].type = IR_OPERAND_REG;
+        // the base is the pointer VALUE of operands[0]: a decayed array
+        // yields its address, a real pointer yields its loaded value
         inst->ternary[1].reg.name = ir_gen_expr(funcdef, expr->operands[0], NULL);
         inst->ternary[2].type = IR_OPERAND_REG;
         inst->ternary[2].reg.name = strdup(adrname);
@@ -591,8 +607,9 @@ char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
         gen_appendinst(funcdef, inst);
         return res;
     case EXPROP_VAR:
+        // an array decays to its address; everything else loads its value
         inst = gen_allocinst();
-        inst->op = IR_OP_LOAD;
+        inst->op = ir_gen_vararray(expr->msg) ? IR_OP_MOVE : IR_OP_LOAD;
         inst->binary[0].type = IR_OPERAND_REG;
         inst->binary[0].reg.name = strdup(res);
         inst->binary[1].type = IR_OPERAND_REG;
