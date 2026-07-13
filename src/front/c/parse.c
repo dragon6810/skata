@@ -427,10 +427,38 @@ bool parse_istype()
     return false;
 }
 
+// modify type by parsing 0 or more [<size>]
+static void parse_arraydims(type_t* type)
+{
+    expr_t *expr;
+    uint64_t len;
+    type_t *lowesttype;
+    type_t *subtype;
+
+    lowesttype = type;
+    while(!strcmp(parse_peekstr(0), "["))
+    {
+        parse_eat();
+        expr = parse_expr();
+        len = constexpr_eval(expr);
+        if(len < 0)
+            error(true, expr->line, expr->col, "array length must not be less than zero\n");
+        parse_freeexpr(expr);
+        parse_eatstr("]");
+
+        subtype = malloc(sizeof(type_t));
+        *subtype = *lowesttype;
+        lowesttype->type = TYPE_ARR;
+        lowesttype->arr.type = subtype;
+        lowesttype->arr.size = len;
+
+        lowesttype = subtype;
+    }
+}
+
 static void parse_decl(decl_t* decl)
 {
     type_t type;
-    expr_t *expr;
 
     parse_type(&type);
 
@@ -453,17 +481,7 @@ static void parse_decl(decl_t* decl)
     decl->ident = strdup(parse_eatform(TOKEN_IDENT));
     decl->expr = NULL;
 
-    if(!strcmp(parse_peekstr(0), "["))
-    {
-        decl->isarray = true;
-        parse_eat();
-        expr = parse_expr();
-        decl->arrlen = constexpr_eval(expr);
-        if(decl->arrlen < 0)
-            error(true, expr->line, expr->col, "array length must not be less than zero\n");
-        parse_freeexpr(expr);
-        parse_eatstr("]");
-    }
+    parse_arraydims(&decl->type);
 
     if(!strcmp(parse_peekstr(0), "="))
     {
@@ -748,6 +766,24 @@ static void parse_printstatement(stmnt_t* stmnt, int depth, bool last, char* lef
 
 static void parse_printdecl(decl_t* decl, int depth, bool last, char* leftstr);
 
+static void parse_printarraytype(decl_t* decl, int depth, bool last, char* leftstr)
+{
+    type_t *type;
+
+    printf("\e[1;32m<array> \e[0;96m(size: ");
+    
+    type = &decl->type;
+    while(type->type == TYPE_ARR)
+    {
+        if(type != &decl->type)
+            printf(" x ");
+        printf("%llu", type->arr.size);
+        type = type->arr.type;
+    }
+
+    printf(") (type: %s)\e[0m\n", type_names[type->type]);
+}
+
 static void parse_printarglist(decl_t* decl, int depth, bool last, char* leftstr)
 {
     int i;
@@ -814,13 +850,13 @@ static void parse_printdecl(decl_t* decl, int depth, bool last, char* leftstr)
 
     if(decl->form == DECL_VAR || decl->form == DECL_FUNC)
     {
-        if(decl->isarray)
-            printf("\e[1;32m<declaration> \e[0;96m(type: %lld x %s), (name: %s)\e[0m\n", decl->arrlen, type_names[decl->type.type], decl->ident);
-        else
-            printf("\e[1;32m<declaration> \e[0;96m(type: %s), (name: %s)\e[0m\n", type_names[decl->type.type], decl->ident);
+        printf("\e[1;32m<declaration> \e[0;96m(type: %s), (name: %s)\e[0m\n", type_names[decl->type.type], decl->ident);
     }
     else
         printf("\e[1;32m<declaration> \e[0;96m(type: %s)\e[0m\n", type_names[decl->type.type]);
+
+    if(decl->type.type == TYPE_ARR)
+        parse_printarraytype(decl, depth + 1, (decl->form != DECL_FUNC) && !decl->expr, newleft);
 
     if(decl->type.type == TYPE_STRUCT)
         parse_printstructtype(&decl->type, depth + 1, (decl->form != DECL_FUNC) && !decl->expr, newleft);

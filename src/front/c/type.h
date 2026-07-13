@@ -24,6 +24,7 @@ typedef enum
     TYPE_U64,
 
     TYPE_PTR,
+    TYPE_ARR,
     TYPE_FUNC,
 
     TYPE_STRUCT,
@@ -55,6 +56,11 @@ typedef struct type_s
             uint64_t agg;
         } struc;
         type_t *ptrtype; // type it points to
+        struct
+        {
+            type_t *type; // type of each array element
+            uint64_t size;
+        } arr;
     };
 
     int line;

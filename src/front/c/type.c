@@ -20,6 +20,7 @@ const char* type_names[TYPE_COUNT] =
     "i64",
     "u64",
     "ptr",
+    "arr",
     "func",
     "struct",
 };

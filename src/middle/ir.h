@@ -354,7 +354,6 @@ void ir_typefree(const ir_type_t* type);
 // sets name to NULL
 void ir_initblock(ir_block_t* block);
 ir_primitive_e ir_regtype(ir_funcdef_t* funcdef, char* regname);
-char* ir_gen_alloctemp(ir_funcdef_t *funcdef, ir_primitive_e type);
 // frees the ptr itself
 void ir_instfree(ir_inst_t* inst);
 uint64_t gen_newblock(ir_funcdef_t* funcdef);

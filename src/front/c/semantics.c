@@ -322,7 +322,7 @@ static void semantics_indexexpr(expr_t* expr)
 
     semantics_expr(expr->operands[0]);
     if(expr->operands[0]->type.type != TYPE_PTR)
-        error(true, expr->operands[0]->line, expr->operands[0]->col, "expression must have ptr type\n");
+        error(true, expr->operands[0]->line, expr->operands[0]->col, "expression must have pointer type\n");
 
     semantics_expr(expr->operands[1]);
     switch(expr->operands[1]->type.type)
@@ -386,12 +386,12 @@ static void semantics_var(expr_t* expr)
         return;
     }
 
-    if(scope.data[i]->form == DECL_VAR && scope.data[i]->isarray)
+    if(scope.data[i]->form == DECL_VAR && scope.data[i]->type.type == TYPE_ARR)
     {
         expr->type.type = TYPE_PTR;
         
         expr->type.ptrtype = malloc(sizeof(type_t));
-        semantics_typecpy(expr->type.ptrtype, &scope.data[i]->type);
+        semantics_typecpy(expr->type.ptrtype, scope.data[i]->type.arr.type);
 
         expr->lval = false;
         return;

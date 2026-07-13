@@ -362,7 +362,7 @@ char* ir_gen_lvaladr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
     char *res;
 
     assert(expr->lval);
-    assert(expr->op == EXPROP_VAR || expr->op == EXPROP_DEREF || expr->op == EXPROP_MEMBER);
+    assert(expr->op == EXPROP_VAR || expr->op == EXPROP_DEREF || expr->op == EXPROP_MEMBER || expr->op == EXPROP_INDEX);
 
     if(expr->op == EXPROP_VAR)
     {
@@ -395,6 +395,24 @@ char* ir_gen_lvaladr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
         gen_appendinst(funcdef, inst);
 
         return res;
+    }
+    if(expr->op == EXPROP_INDEX)
+    {
+        res = outreg ? outreg : ir_allocreg(funcdef, IR_PRIM_PTR);
+
+        /*
+        inst = gen_allocinst();
+        inst->op = IR_OP_MUL;
+        inst->binary[0].type = IR_OPERAND_REG;
+        inst->binary[0].reg.name = ir_allocreg(funcdef, IR_PRIM_PTR);
+        inst->binary[1].type = IR_OPERAND_REG;
+        inst->binary[1].reg.name = strdup(ir_gen_varname(expr->msg));
+        inst->binary[2].type = IR_OPERAND_REG;
+        inst->binary[2].reg.name = strdup(ir_gen_varname(expr->msg));
+        gen_appendinst(funcdef, inst);
+        */
+
+        return outreg;
     }
 
     return ir_gen_expr(funcdef, expr->operand, outreg);
