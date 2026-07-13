@@ -4,5 +4,5 @@ int main()
 
 	x[0] = 1;
 
-	return 0;
+	return x[0];
 }

@@ -316,6 +316,8 @@ static void semantics_memberexpr(expr_t* expr)
 
 static void semantics_indexexpr(expr_t* expr)
 {
+    expr_t *castexpr;
+
     assert(expr->op == EXPROP_INDEX);
 
     expr->lval = true;
@@ -343,6 +345,20 @@ static void semantics_indexexpr(expr_t* expr)
     }
 
     type_cpy(&expr->type, expr->operands[0]->type.ptrtype);
+
+    // in the ir indexing is done with a multiply that needs two operands of same type.
+    // cast to pointer now for simplicity in gen.
+    castexpr = calloc(1, sizeof(expr_t));
+    castexpr->op = EXPROP_CAST;
+    castexpr->operand = expr->operands[1];
+    castexpr->type.type = TYPE_PTR;
+    castexpr->type.ptrtype = calloc(1, sizeof(expr_t));
+    castexpr->type.ptrtype->type = TYPE_VOID;
+    castexpr->casttype.type = TYPE_PTR;
+    castexpr->casttype.ptrtype = calloc(1, sizeof(expr_t));
+    castexpr->casttype.ptrtype->type = TYPE_VOID;
+
+    expr->operands[1] = castexpr;
 }
 
 static void semantics_var(expr_t* expr)

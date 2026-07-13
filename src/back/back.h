@@ -11,6 +11,7 @@ void back_init(void);
 void back_typereduction(void);
 // can you use indirect adressing for this operand?
 bool back_canindirect(ir_inst_e opcode, int ioperand);
+int back_aggbytesize(uint64_t aggid);
 int back_typebytesize(const ir_type_t* type);
 int back_typealignment(const ir_type_t* type);
 int back_fidoffset(uint64_t aggid, list_ir_fid_t* fids);

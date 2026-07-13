@@ -265,8 +265,8 @@ void ir_dump_inst(ir_funcdef_t* funcdef, ir_inst_t* inst)
         break;
     case IR_OP_ALLOCA:
         printf("  ");
-        ir_print_operand(funcdef, &inst->unary);
-        printf("\e[0;95m := alloca ");
+        ir_print_operand(funcdef, &inst->binary[0]);
+        printf("\e[0;95m := alloca %llu x ", inst->binary[1].literal.u64);
         ir_print_type(inst->alloca.type);
         printf("\n");
         break;

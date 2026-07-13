@@ -136,7 +136,7 @@ typedef enum
     IR_OP_ZEXT, // dst, src
     IR_OP_SEXT, // dst, src
     IR_OP_TRUNC, // dst, src
-    IR_OP_ALLOCA, // dst
+    IR_OP_ALLOCA, // dst, count (must be lit)
     IR_OP_FIE, // frame index elimination (get ptr of stack var): dst, src
     IR_OP_COUNT,
 } ir_inst_e;

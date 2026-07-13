@@ -4,6 +4,7 @@
 #include <stdio.h>
 
 #include "ast.h"
+#include "back/back.h"
 #include "tag.h"
 
 ir_t ir;
@@ -308,9 +309,10 @@ static char* ir_gen_cast(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
 }
 
 list_strpair_t varnames;
+list_pdecl_t vardecls; // indexes match with varnames
 
 // return string belongs to the varnames
-char* ir_gen_varname(const char* cname)
+static char* ir_gen_varname(const char* cname)
 {
     int i;
 
@@ -359,7 +361,8 @@ static uint64_t ir_gen_findfid(const type_t* aggtype, const char* member, ir_fid
 char* ir_gen_lvaladr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
 {
     ir_inst_t *inst;
-    char *res;
+    char *res, *adrname;
+    uint64_t typesize;
 
     assert(expr->lval);
     assert(expr->op == EXPROP_VAR || expr->op == EXPROP_DEREF || expr->op == EXPROP_MEMBER || expr->op == EXPROP_INDEX);
@@ -400,19 +403,38 @@ char* ir_gen_lvaladr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
     {
         res = outreg ? outreg : ir_allocreg(funcdef, IR_PRIM_PTR);
 
-        /*
+        switch(expr->operands[0]->type.type)
+        {
+        case TYPE_STRUCT:
+            typesize = back_aggbytesize(expr->operands[0]->type.struc.agg);
+            break;
+        default:
+            typesize = ir_primbytesize(type_toprim(expr->operands[0]->type.type));
+            break;
+        }
+
         inst = gen_allocinst();
         inst->op = IR_OP_MUL;
-        inst->binary[0].type = IR_OPERAND_REG;
-        inst->binary[0].reg.name = ir_allocreg(funcdef, IR_PRIM_PTR);
-        inst->binary[1].type = IR_OPERAND_REG;
-        inst->binary[1].reg.name = strdup(ir_gen_varname(expr->msg));
-        inst->binary[2].type = IR_OPERAND_REG;
-        inst->binary[2].reg.name = strdup(ir_gen_varname(expr->msg));
+        inst->ternary[0].type = IR_OPERAND_REG;
+        inst->ternary[0].reg.name = adrname = ir_allocreg(funcdef, IR_PRIM_PTR);
+        inst->ternary[1].type = IR_OPERAND_LIT;
+        inst->ternary[1].literal.type = IR_PRIM_PTR;
+        inst->ternary[1].literal.ptr = typesize;
+        inst->ternary[2].type = IR_OPERAND_REG;
+        inst->ternary[2].reg.name = ir_gen_expr(funcdef, expr->operands[1], NULL);
         gen_appendinst(funcdef, inst);
-        */
 
-        return outreg;
+        inst = gen_allocinst();
+        inst->op = IR_OP_ADD;
+        inst->ternary[0].type = IR_OPERAND_REG;
+        inst->ternary[0].reg.name = strdup(res);
+        inst->ternary[1].type = IR_OPERAND_REG;
+        inst->ternary[1].reg.name = ir_gen_expr(funcdef, expr->operands[0], NULL);
+        inst->ternary[2].type = IR_OPERAND_REG;
+        inst->ternary[2].reg.name = strdup(adrname);
+        gen_appendinst(funcdef, inst);
+
+        return res;
     }
 
     return ir_gen_expr(funcdef, expr->operand, outreg);
@@ -609,6 +631,7 @@ char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
     case EXPROP_REF:
         return ir_gen_lvaladr(funcdef, expr->operand, outreg);
     case EXPROP_DEREF:
+    case EXPROP_INDEX:
         inst = gen_allocinst();
         inst->op = IR_OP_LOAD;
         inst->binary[0].type = IR_OPERAND_REG;
@@ -775,6 +798,8 @@ static void ir_gen_decl(ir_funcdef_t* funcdef, decl_t* decl)
     char *name;
     ir_inst_t *inst;
     strpair_t pair;
+    int arrsize;
+    type_t *curtype;
 
     ir_gen_typeuse(&decl->type);
 
@@ -783,25 +808,50 @@ static void ir_gen_decl(ir_funcdef_t* funcdef, decl_t* decl)
 
     inst = gen_allocinst();
     inst->op = IR_OP_ALLOCA;
-    inst->unary.type = IR_OPERAND_REG;
-    inst->unary.reg.name = strdup(name);
+    inst->binary[0].type = IR_OPERAND_REG;
+    inst->binary[0].reg.name = strdup(name);
+    arrsize = 1;
     switch(decl->type.type)
     {
     case TYPE_STRUCT:
         inst->alloca.type.type = IR_TYPE_AGG;
         inst->alloca.type.agg = decl->type.struc.agg;
         break;
+    case TYPE_ARR:
+        arrsize = decl->type.arr.size;
+        curtype = decl->type.arr.type;
+        while(curtype->type == TYPE_ARR)
+        {
+            arrsize *= curtype->arr.size;
+            curtype = curtype->arr.type;
+        }
+        if(curtype->type == TYPE_STRUCT)
+        {
+            inst->alloca.type.type = IR_TYPE_AGG;
+            inst->alloca.type.agg = curtype->struc.agg;
+        }
+        else
+        {
+            inst->alloca.type.type = IR_TYPE_PRIM;
+            inst->alloca.type.prim = type_toprim(curtype->type);
+        }
+        break;
     default:
         inst->alloca.type.type = IR_TYPE_PRIM;
         inst->alloca.type.prim = type_toprim(decl->type.type);
         break;
     }
+
+    inst->binary[1].type = IR_OPERAND_LIT;
+    inst->binary[1].literal.type = IR_PRIM_U64;
+    inst->binary[1].literal.u64 = arrsize;
     
     gen_appendinst(funcdef, inst);
 
     pair.a = strdup(decl->ident);
     pair.b = name;
     list_strpair_ppush(&varnames, &pair);
+    list_pdecl_push(&vardecls, decl);
 }
 
 static void ir_gen_arglist(ir_funcdef_t* funcdef, list_decl_t* arglist)
@@ -831,6 +881,7 @@ static void ir_gen_arglist(ir_funcdef_t* funcdef, list_decl_t* arglist)
             pair.a = strdup(arg->ident);
             pair.b = strdup(reg);
             list_strpair_ppush(&varnames, &pair);
+            list_pdecl_push(&vardecls, arg);
             continue;
         }
 
@@ -963,6 +1014,7 @@ static void ir_gen_globaldecl(globaldecl_t *globdecl)
     list_ir_funcdef_ppush(&ir.defs, &funcdef);
 
     list_strpair_resize(&varnames, oldvarstack);
+    list_pdecl_resize(&vardecls, oldvarstack);
 }
 
 void gen(void)
@@ -970,12 +1022,14 @@ void gen(void)
     int i;
 
     list_strpair_init(&varnames, 0);
+    list_pdecl_init(&vardecls, 0);
 
     list_ir_funcdef_init(&ir.defs, 0);
     map_u64_ir_aggregate_alloc(&ir.aggs);
     for(i=0; i<ast.len; i++)
         ir_gen_globaldecl(&ast.data[i]);
 
+    list_pdecl_free(&vardecls);
     list_strpair_free(&varnames);
 }
 

@@ -60,7 +60,24 @@ void back_typereduction(void)
 // NOTE: all alignment stuff depends on each primitive type size being divisible by any smaller primitive type size
 // im not sure if this is true on every arch
 
-// biggest primitive, recursing down subaggregates
+int back_aggbytesize(uint64_t aggid)
+{
+    ir_aggregate_t *agg;
+    int size;
+    list_ir_fid_t fidlist;
+
+    agg = map_u64_ir_aggregate_get(&ir.aggs, aggid);
+    assert(agg);
+    assert(agg->type == AGG_STRUCT);
+    list_ir_fid_init(&fidlist, 1);
+    fidlist.data[0].fid = agg->struc.fids.len;
+    fidlist.data[0].typeid = 0;
+    size = back_fidoffset(aggid, &fidlist);
+    list_ir_fid_free(&fidlist);
+
+    return size;
+}
+
 static int back_structalignment(uint64_t aggid)
 {
     int i, j;
@@ -157,24 +174,12 @@ int back_typealignment(const ir_type_t* type)
 
 int back_typebytesize(const ir_type_t* type)
 {
-    ir_aggregate_t *agg;
-    int size;
-    list_ir_fid_t fidlist;
-
     switch(type->type)
     {
     case IR_TYPE_PRIM:
         return ir_primbytesize(type->prim);
     case IR_TYPE_AGG:
-        agg = map_u64_ir_aggregate_get(&ir.aggs, type->agg);
-        assert(agg);
-        assert(agg->type == AGG_STRUCT);
-        list_ir_fid_init(&fidlist, 1);
-        fidlist.data[0].fid = agg->struc.fids.len;
-        fidlist.data[0].typeid = 0;
-        size = back_fidoffset(type->agg, &fidlist);
-        list_ir_fid_free(&fidlist);
-        return size;
+        return back_aggbytesize(type->agg);
     default:
         assert(0);
         return 0;

@@ -151,7 +151,11 @@ static bool ir_varssaable(ir_funcdef_t* func, const char* var)
         for(inst=blk->insts; inst; inst=inst->next)
         {
             if(inst->op == IR_OP_ALLOCA)
+            {
+                if(inst->binary[1].literal.u64 != 1)
+                    return false;
                 continue;
+            }
             
             ir_instoperands(&operands, inst);
             if(inst->op == IR_OP_STORE)
