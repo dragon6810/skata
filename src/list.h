@@ -212,6 +212,7 @@ typedef struct strpair_s
 
 LIST_DECL(char*, string)
 LIST_DECL(strpair_t, strpair)
+LIST_DECL(uint8_t, u8)
 LIST_DECL(uint64_t, u64)
 LIST_DECL(set_str_t, set_str)
 

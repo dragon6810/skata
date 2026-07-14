@@ -1,6 +1,7 @@
 #include "ir.h"
 
 #include <assert.h>
+#include <inttypes.h>
 #include <stdio.h>
 
 static void ir_print_prim(ir_primitive_e prim)
@@ -101,8 +102,8 @@ void ir_print_operand(ir_funcdef_t* funcdef, ir_operand_t* operand)
     case IR_OPERAND_LABEL:
         printf("\e[0;96mlabel \e[0;31m%s\e[0m", operand->label);
         break;
-    case IR_OPERAND_FUNC:
-        printf("\e[1;93m@%s\e[0m", operand->func);
+    case IR_OPERAND_SYMBOL:
+        printf("\e[1;93m@%s\e[0m", operand->sym);
         break;
     default:
         break;
@@ -263,6 +264,13 @@ void ir_dump_inst(ir_funcdef_t* funcdef, ir_inst_t* inst)
         ir_print_operand(funcdef, &inst->binary[1]);
         printf("\n");
         break;
+    case IR_OP_SYMADR:
+        printf("  ");
+        ir_print_operand(funcdef, &inst->binary[0]);
+        printf("\e[0;95m := symadr ");
+        ir_print_operand(funcdef, &inst->binary[1]);
+        printf("\n");
+        break; 
     case IR_OP_ALLOCA:
         printf("  ");
         ir_print_operand(funcdef, &inst->binary[0]);
@@ -381,9 +389,40 @@ void ir_dump_aggregate(uint64_t id, ir_aggregate_t* agg)
     }
 }
 
+void ir_dump_datadata(ir_data_t* data)
+{
+    int i;
+
+    for(i=0; i<data->data.len; i++)
+    {
+        if(i)
+            printf(", ");
+        if(i && !(i%8))
+            printf("\n");
+        printf(" \e[0;93m0x%"PRIx8"\e[0m", data->data.data[i]);
+    }
+
+    printf("\n");
+}
+
+void ir_dump_data(ir_data_t* data)
+{
+    if(data->constant)
+        printf("\e[0;96mconstant\e[0m ");
+    if(data->dontlink)
+        printf("\e[0;96minternal\e[0m ");
+    printf("\e[1;93m@%s\e[0m:\n", data->name);
+    ir_dump_datadata(data);
+}
+
 void ir_dump(void)
 {
     int i;
+
+    for(i=0; i<ir.data.len; i++)
+        ir_dump_data(&ir.data.data[i]);
+    if(ir.data.len)
+        printf("\n");
 
     for(i=0; i<ir.aggs.nbin; i++)
     {

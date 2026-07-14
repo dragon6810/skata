@@ -80,9 +80,9 @@ void ir_cpyoperand(ir_operand_t* dst, ir_operand_t* src)
         if(dst->label)
             dst->label = strdup(dst->label);
         break;
-    case IR_OPERAND_FUNC:
-        if(dst->func)
-            dst->func = strdup(dst->func);
+    case IR_OPERAND_SYMBOL:
+        if(dst->sym)
+            dst->sym = strdup(dst->sym);
         break;
     default:
         break;
@@ -99,8 +99,8 @@ void ir_operandfree(ir_operand_t* operand)
     case IR_OPERAND_LABEL:
         free(operand->label);
         break;
-    case IR_OPERAND_FUNC:
-        free(operand->func);
+    case IR_OPERAND_SYMBOL:
+        free(operand->sym);
         break;
     default:
         break;
@@ -214,6 +214,12 @@ static void ir_freecopy(ir_copy_t* copy)
     ir_operandfree(&copy->src);
 }
 
+static void ir_freedata(ir_data_t* data)
+{
+    free(data->name);
+    list_u8_free(&data->data);
+}
+
 MAP_DEF(char*, ir_reg_t, str, ir_reg, hash_str, map_strcmp, map_strcpy, ir_regcpy, map_freestr, ir_regfree)
 LIST_DEF(ir_type)
 LIST_DEF_FREE_DECONSTRUCT(ir_type, ir_typefree)
@@ -239,6 +245,8 @@ LIST_DEF(ir_copy)
 LIST_DEF_FREE_DECONSTRUCT(ir_copy, ir_freecopy)
 LIST_DEF(ir_fid)
 LIST_DEF_FREE(ir_fid)
+LIST_DEF(ir_data)
+LIST_DEF_FREE_DECONSTRUCT(ir_data, ir_freedata)
 
 uint32_t ir_primflags(ir_primitive_e prim)
 {

@@ -136,6 +136,7 @@ typedef enum
     IR_OP_ZEXT, // dst, src
     IR_OP_SEXT, // dst, src
     IR_OP_TRUNC, // dst, src
+    IR_OP_SYMADR, // dst, symbol
     IR_OP_ALLOCA, // dst, count (must be lit)
     IR_OP_FIE, // frame index elimination (get ptr of stack var): dst, src
     IR_OP_COUNT,
@@ -179,7 +180,7 @@ typedef enum
     IR_OPERAND_REG=0,
     IR_OPERAND_LIT,
     IR_OPERAND_LABEL,
-    IR_OPERAND_FUNC,
+    IR_OPERAND_SYMBOL,
 } ir_operand_e;
 
 typedef struct ir_operand_s
@@ -193,7 +194,7 @@ typedef struct ir_operand_s
         } reg;
         ir_constant_t literal;
         char *label;
-        char *func;
+        char *sym;
     };
 } ir_operand_t;
 
@@ -335,8 +336,19 @@ typedef struct ir_funcdef_s
 
 LIST_DECL(ir_funcdef_t, ir_funcdef)
 
+typedef struct
+{
+    bool dontlink; // 'static' in c
+    bool constant;
+    char *name;
+    list_u8_t data;
+} ir_data_t;
+
+LIST_DECL(ir_data_t, ir_data)
+
 typedef struct ir_s
 {
+    list_ir_data_t data;
     map_u64_ir_aggregate_t aggs;
     list_ir_funcdef_t defs;
 } ir_t;

@@ -205,8 +205,8 @@ static char* ir_gen_funccall(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
     inst->op = IR_OP_CALL;
     list_ir_operand_init(&inst->variadic, 2);
 
-    inst->variadic.data[1].type = IR_OPERAND_FUNC;
-    inst->variadic.data[1].func = strdup(expr->operand->msg);
+    inst->variadic.data[1].type = IR_OPERAND_SYMBOL;
+    inst->variadic.data[1].sym = strdup(expr->operand->msg);
 
     for(i=0; i<expr->variadic.len; i++)
     {
@@ -576,6 +576,38 @@ char* ir_gen_structassign(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
     return outreg;
 }
 
+static uint64_t nstringliterals;
+
+char* ir_gen_stringlit(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
+{
+    ir_inst_t *inst;
+    int len;
+    ir_data_t data;
+
+    assert(expr->op == EXPROP_STRING);
+
+    inst = gen_allocinst();
+    inst->op = IR_OP_SYMADR;
+    inst->binary[0].type = IR_OPERAND_REG;
+    inst->binary[0].reg.name = strdup(outreg);
+    inst->binary[1].type = IR_OPERAND_SYMBOL;
+    len = snprintf(NULL, 0, ".str.%llu", nstringliterals) + 1;
+    inst->binary[1].sym = malloc(len + 1);
+    snprintf(inst->binary[1].sym, len, ".str.%llu", nstringliterals);
+    gen_appendinst(funcdef, inst);
+
+    data.dontlink = true;
+    data.constant = true;
+    data.name = strdup(inst->binary[1].sym);
+    // TODO: escape sequences and stuff
+    list_u8_init(&data.data, strlen(expr->msg) + 1);
+    strcpy((char*) data.data.data, expr->msg);
+    list_ir_data_ppush(&ir.data, &data);
+
+    nstringliterals++;
+    return outreg;
+}
+
 // if outreg is NULL, it will alloc a new register
 // YOU are responsible for the returned string, unless you gave outreg
 char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
@@ -616,6 +648,8 @@ char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
         inst->binary[1].reg.name = strdup(ir_gen_varname(expr->msg));
         gen_appendinst(funcdef, inst);
         return res;
+    case EXPROP_STRING:
+        return ir_gen_stringlit(funcdef, expr, res);
     case EXPROP_COND:
         return ir_gen_ternary(funcdef, expr, res);
     case EXPROP_ADD:
@@ -1038,11 +1072,14 @@ void gen(void)
 {
     int i;
 
+    nstringliterals = 0;
+
     list_strpair_init(&varnames, 0);
     list_pdecl_init(&vardecls, 0);
 
     list_ir_funcdef_init(&ir.defs, 0);
     map_u64_ir_aggregate_alloc(&ir.aggs);
+    list_ir_data_init(&ir.data, 0);
     for(i=0; i<ast.len; i++)
         ir_gen_globaldecl(&ast.data[i]);
 

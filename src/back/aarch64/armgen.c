@@ -372,7 +372,7 @@ static void armgen_populateliveset(set_pir_reg_t* set, ir_funcdef_t* funcdef, ir
     {
         if(span->span[0] >= inst || span->span[1] <= inst+1)
             continue;
-        
+
         reg = map_str_ir_reg_get(&funcdef->regs, span->reg);
         if(reg->virtual)
             continue;
@@ -441,7 +441,7 @@ static void armgen_emitcall(ir_funcdef_t* funcdef, ir_block_t* blk, int iinst, i
             *map_u64_str_get(&indirectreg->names, IR_PRIM_PTR),
             *map_u64_str_get(&scratchlist.data[0]->names, IR_PRIM_PTR));
 
-    printf("  BL _%s\n", inst->variadic.data[1].func);
+    printf("  BL _%s\n", inst->variadic.data[1].sym);
 
     // a scalar result comes back in x0; an aggregate was written through x8
     if(inst->call.rettype.type != IR_TYPE_AGG && reg->hardreg != retpool.data[0])

@@ -1,5 +1,6 @@
 int main()
 {
-	char *str = "hello";
+	char *str;
+	str = "hello";
 	return str[0];
 }
