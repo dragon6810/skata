@@ -51,6 +51,7 @@ bool compileback(void)
 {
     back_fie();
     back_typereduction();
+    optimize();
     if(emitbackir)
     {
         ir_dump();

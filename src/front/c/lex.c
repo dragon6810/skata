@@ -31,6 +31,50 @@ list_token_t tokens;
 char* curpos = NULL;
 int line = 0, column = 0;
 
+bool lex_trystring(void)
+{
+    char *c;
+    int len;
+    token_t tok;
+
+    c = curpos;
+    if(*c != '"')
+        return false;
+    c++;
+
+    len = 0;
+    for(;;c++, len++)
+    {
+        if(*c == '"' && *(c-1) != '\\')
+            break;
+        if(!*c)
+            error(true, line, column, "file terminates before string literal\n");
+    }
+
+    tok.line = line;
+    tok.column = column;
+    tok.form = TOKEN_STRING;
+    if(!len)
+    {
+        tok.msg = NULL;
+        list_token_ppush(&tokens, &tok);
+
+        curpos += 2;
+        column += 2;
+        return true;
+    }
+
+    tok.msg = malloc(len + 1);
+    memcpy(tok.msg, curpos + 1, len);
+    tok.msg[len] = 0;
+    list_token_ppush(&tokens, &tok);
+
+    curpos += len + 2;
+    column += len + 2;
+
+    return true;
+}
+
 bool lex_trynumber(void)
 {
     char* c;
@@ -207,6 +251,9 @@ void lex_nexttok(void)
     if(lex_trynumber())
         return;
 
+    if(lex_trystring())
+        return;
+
     error(true, line, column, "unrecognized token\n");
 }
 
@@ -235,7 +282,7 @@ int tokenlen(token_t* tok)
     case TOKEN_NUMBER:
         return strlen(tok->msg);
     case TOKEN_STRING:
-        return strlen(tok->msg);
+        return strlen(tok->msg) + 2;
     case TOKEN_PUNC:
         return strlen(punc_strs[tok->punc]);
     case TOKEN_TYPE:

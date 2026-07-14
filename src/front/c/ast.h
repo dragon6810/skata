@@ -29,6 +29,7 @@ typedef enum
     EXPROP_LIT=0,
     EXPROP_VAR,
     EXPROP_FUNC,
+    EXPROP_STRING,
 
     // ternary operators
     EXPROP_COND, // ? :
@@ -61,27 +62,6 @@ typedef enum
     // variadic operators
     EXPROP_CALL, // ( ... )
 } exprop_e;
-
-// -1 is variadic, 0 is atom
-static const int exprop_nop[] = 
-{
-    0,
-    0,
-    3,
-    2,
-    2,
-    2,
-    2,
-    2,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    -1,
-};
 
 typedef struct expr_s expr_t;
 

@@ -43,6 +43,9 @@ static void parse_printexpr_r(const expr_t* expr)
     case EXPROP_VAR:
         printf("%s", expr->msg);
         return;
+    case EXPROP_STRING:
+        printf("\"%s\"", expr->msg);
+        return;
     case EXPROP_COND:
         nterms = 3;
         op = "?:";
@@ -202,6 +205,7 @@ static void parse_ternaryopbp(exprop_e op, int bp[2])
     case EXPROP_COND:
         bp[0] = 4;
         bp[1] = 3;
+        break;
     default:
         bp[0] = bp[1] = 0;
         break;
@@ -265,6 +269,13 @@ static expr_t* parse_expr_r(int minbp)
         expr->line = parse_getline();
         expr->col = parse_getcol();
         expr->op = EXPROP_VAR;
+        expr->msg = strdup(parse_eat());
+        break;
+    case TOKEN_STRING:
+        expr = malloc(sizeof(expr_t));
+        expr->line = parse_getline();
+        expr->col = parse_getcol();
+        expr->op = EXPROP_STRING;
         expr->msg = strdup(parse_eat());
         break;
     case TOKEN_PUNC:
