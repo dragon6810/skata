@@ -232,6 +232,48 @@ bool lex_trypunc(void)
     return true;
 }
 
+void lex_skipcomment(void)
+{
+    int startline, startcol;
+
+    if(!strncmp(curpos, "//", 2))
+    {
+        while(*curpos)
+        {
+            column++;
+            curpos++;
+        }
+        return;
+    }
+
+    if(!strncmp(curpos, "/*", 2))
+    {
+        startline = lines.data[line].linenum[column];
+        startcol = lines.data[line].colnum[column];
+
+        curpos += 2;
+        column += 2;
+        while(1)
+        {
+            if(!strncmp(curpos, "*/", 2))
+                break;
+            if(!*curpos)
+            {
+                if(line >= lines.len-1)
+                    error(true, startline, startcol, "unterminated comment\n");
+                line++;
+                curpos = lines.data[line].text;
+                column = 0;
+                continue;
+            }
+            column++;
+            curpos++;
+        }
+        curpos += 2;
+        column += 2;
+    }
+}
+
 void lex_skipwhitespace(void)
 {
     while(*curpos && *curpos <= 32)
@@ -245,6 +287,7 @@ void lex_skipwhitespace(void)
 bool lex_nexttok(void)
 {
     lex_skipwhitespace();
+    lex_skipcomment();
 
     if(column >= lines.data[line].nchars)
         return true;
@@ -285,17 +328,6 @@ static void lex_tokenize(void)
     tok.line = lines.data[line-1].linenum[lines.data[line-1].nchars-1];
     tok.column = lines.data[line-1].colnum[lines.data[line-1].nchars-1]+1;
     list_token_ppush(&tokens, &tok);
-
-    for(int i = 0; i < tokens.len; i++)
-    {
-        token_t *t = &tokens.data[i];
-        const char *s = "?";
-        if(t->form == TOKEN_RID) s = rid_strs[t->rid];
-        else if(t->form == TOKEN_PUNC) s = punc_strs[t->punc];
-        else if(t->form == TOKEN_IDENT || t->form == TOKEN_NUMBER || t->form == TOKEN_STRING) s = t->msg ? t->msg : "(null)";
-        else if(t->form == TOKEN_EOF) s = "<EOF>";
-        fprintf(stderr, "TOK[%d] form=%d '%s' @%d:%d\n", i, t->form, s, t->line, t->column);
-    }
 }
 
 // merge (lineindex+1) into line
@@ -394,8 +426,6 @@ static void lex_nextline(void)
 
 static void lex_makelines(void)
 {
-    int i;
-
     curpos = srctext - 1;
     line = column = 0;
 
@@ -403,9 +433,6 @@ static void lex_makelines(void)
         lex_nextline();
     while(*curpos);
     lex_mergelines();
-
-    for(i=0; i<lines.len; i++)
-        puts(lines.data[i].text);
 }
 
 void lex(void)
