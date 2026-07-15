@@ -214,7 +214,14 @@ static void ir_freecopy(ir_copy_t* copy)
     ir_operandfree(&copy->src);
 }
 
-static void ir_freedata(ir_data_t* data)
+static void ir_copydata(ir_data_t* dst, ir_data_t* src)
+{
+    *dst = *src;
+    dst->name = strdup(dst->name);
+    list_u8_dup(&dst->data, &src->data);
+}
+
+void ir_freedata(ir_data_t* data)
 {
     free(data->name);
     list_u8_free(&data->data);
@@ -245,8 +252,7 @@ LIST_DEF(ir_copy)
 LIST_DEF_FREE_DECONSTRUCT(ir_copy, ir_freecopy)
 LIST_DEF(ir_fid)
 LIST_DEF_FREE(ir_fid)
-LIST_DEF(ir_data)
-LIST_DEF_FREE_DECONSTRUCT(ir_data, ir_freedata)
+MAP_DEF(char*, ir_data_t, str, ir_data, hash_str, map_strcmp, map_strcpy, ir_copydata, map_freestr, ir_freedata)
 
 uint32_t ir_primflags(ir_primitive_e prim)
 {

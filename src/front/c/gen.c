@@ -602,7 +602,8 @@ char* ir_gen_stringlit(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
     // TODO: escape sequences and stuff
     list_u8_init(&data.data, strlen(expr->msg) + 1);
     strcpy((char*) data.data.data, expr->msg);
-    list_ir_data_ppush(&ir.data, &data);
+    map_str_ir_data_set(&ir.data, data.name, data);
+    ir_freedata(&data);
 
     nstringliterals++;
     return outreg;
@@ -1079,7 +1080,7 @@ void gen(void)
 
     list_ir_funcdef_init(&ir.defs, 0);
     map_u64_ir_aggregate_alloc(&ir.aggs);
-    list_ir_data_init(&ir.data, 0);
+    map_str_ir_data_alloc(&ir.data);
     for(i=0; i<ast.len; i++)
         ir_gen_globaldecl(&ast.data[i]);
 
@@ -1089,6 +1090,7 @@ void gen(void)
 
 void ir_free(void)
 {
+    map_str_ir_data_free(&ir.data);
     map_u64_ir_aggregate_free(&ir.aggs);
     list_ir_funcdef_free(&ir.defs);
 }

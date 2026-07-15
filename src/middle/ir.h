@@ -344,11 +344,11 @@ typedef struct
     list_u8_t data;
 } ir_data_t;
 
-LIST_DECL(ir_data_t, ir_data)
+MAP_DECL(char*, ir_data_t, str, ir_data)
 
 typedef struct ir_s
 {
-    list_ir_data_t data;
+    map_str_ir_data_t data;
     map_u64_ir_aggregate_t aggs;
     list_ir_funcdef_t defs;
 } ir_t;
@@ -360,6 +360,7 @@ void ir_aggfidcpy(ir_aggfid_t* dst, ir_aggfid_t* src);
 void ir_aggregatefree(ir_aggregate_t* aggregate);
 void ir_aggregatecpy(ir_aggregate_t* dst, ir_aggregate_t* src);
 void ir_operandfree(ir_operand_t* operand);
+void ir_freedata(ir_data_t* data);
 
 uint32_t ir_primflags(ir_primitive_e prim);
 void ir_typefree(const ir_type_t* type);

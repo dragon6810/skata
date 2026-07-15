@@ -393,13 +393,14 @@ void ir_dump_datadata(ir_data_t* data)
 {
     int i;
 
+    printf("  ");
     for(i=0; i<data->data.len; i++)
     {
         if(i)
             printf(", ");
         if(i && !(i%8))
-            printf("\n");
-        printf(" \e[0;93m0x%"PRIx8"\e[0m", data->data.data[i]);
+            printf("\n  ");
+        printf("\e[0;93m0x%02"PRIx8"\e[0m", data->data.data[i]);
     }
 
     printf("\n");
@@ -419,9 +420,10 @@ void ir_dump(void)
 {
     int i;
 
-    for(i=0; i<ir.data.len; i++)
-        ir_dump_data(&ir.data.data[i]);
-    if(ir.data.len)
+    for(i=0; i<ir.data.nbin; i++)
+        if(ir.data.bins[i].state == MAP_EL_FULL)
+            ir_dump_data(&ir.data.bins[i].val);
+    if(ir.data.nfull)
         printf("\n");
 
     for(i=0; i<ir.aggs.nbin; i++)
