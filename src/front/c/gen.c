@@ -683,13 +683,23 @@ char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
     case EXPROP_REF:
         return ir_gen_lvaladr(funcdef, expr->operand, outreg);
     case EXPROP_DEREF:
-    case EXPROP_INDEX:
         inst = gen_allocinst();
         inst->op = IR_OP_LOAD;
         inst->binary[0].type = IR_OPERAND_REG;
         inst->binary[0].reg.name = strdup(res);
         inst->binary[1].type = IR_OPERAND_REG;
         inst->binary[1].reg.name = ir_gen_expr(funcdef, expr->operand, NULL);
+        gen_appendinst(funcdef, inst);
+        return res;
+    case EXPROP_INDEX:
+        // load from base + index*typesize; ir_gen_lvaladr handles the offset,
+        // whereas expr->operand would alias operands[0] (the base) and drop the index
+        inst = gen_allocinst();
+        inst->op = IR_OP_LOAD;
+        inst->binary[0].type = IR_OPERAND_REG;
+        inst->binary[0].reg.name = strdup(res);
+        inst->binary[1].type = IR_OPERAND_REG;
+        inst->binary[1].reg.name = ir_gen_lvaladr(funcdef, expr, NULL);
         gen_appendinst(funcdef, inst);
         return res;
     case EXPROP_CALL:

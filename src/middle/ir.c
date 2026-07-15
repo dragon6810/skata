@@ -306,6 +306,7 @@ void ir_definedregs(set_str_t* set, ir_inst_t* inst)
     case IR_OP_ZEXT:
     case IR_OP_SEXT:
     case IR_OP_TRUNC:
+    case IR_OP_SYMADR:
     case IR_OP_ALLOCA:
     case IR_OP_FIE:
         set_str_add(set, inst->binary[0].reg.name);
@@ -339,6 +340,7 @@ void ir_accessedregs(set_str_t* set, ir_inst_t* inst)
     switch(inst->op)
     {
     case IR_OP_JMP:
+    case IR_OP_SYMADR:
     case IR_OP_ALLOCA:
         break;
     case IR_OP_STORE:
@@ -415,6 +417,7 @@ void ir_instoperands(list_pir_operand_t* list, ir_inst_t* inst)
     case IR_OP_ZEXT:
     case IR_OP_SEXT:
     case IR_OP_TRUNC:
+    case IR_OP_SYMADR:
     case IR_OP_FIE:
         noperands = 2;
         break;
@@ -551,6 +554,7 @@ int ir_ninstoperands(const ir_inst_t* inst)
     case IR_OP_ZEXT:
     case IR_OP_SEXT:
     case IR_OP_TRUNC:
+    case IR_OP_SYMADR:
     case IR_OP_FIE:
         return 2;
         break;

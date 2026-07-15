@@ -8,7 +8,7 @@
 
 const char* armheader = 
 ".text\n"
-".global _main\n\n";
+".global _main\n";
 
 const int stackpad = 16;
 
@@ -127,6 +127,8 @@ static const char* armgen_storeinst(ir_primitive_e prim)
 
 static void armgen_operand(ir_funcdef_t* funcdef, ir_operand_t* operand)
 {
+    ir_data_t *datasym;
+
     switch(operand->type)
     {
     case IR_OPERAND_REG:
@@ -139,6 +141,14 @@ static void armgen_operand(ir_funcdef_t* funcdef, ir_operand_t* operand)
         break;
     case IR_OPERAND_LABEL:
         printf("_%s$%s", funcdef->name, operand->label);
+        break;
+    case IR_OPERAND_SYMBOL:
+        // shouldnt funcs be here too? i forget what i was doing when doing func calls.
+        datasym = map_str_ir_data_get(&ir.data, operand->sym);
+        assert(datasym);
+        if(datasym->dontlink)
+            printf("l");
+        printf("_%s", datasym->name);
         break;
     default:
         assert(0 && "unexpected operand");
@@ -713,6 +723,20 @@ static void armgen_inst(ir_funcdef_t* funcdef, ir_block_t* blk, int iinst, ir_in
     case IR_OP_TRUNC:
         armgen_emittrunc(funcdef, inst);
         break;
+    case IR_OP_SYMADR:
+        printf("  ADRP ");
+        armgen_operand(funcdef, &inst->binary[0]);
+        printf(", ");
+        armgen_operand(funcdef, &inst->binary[1]);
+        printf("@PAGE\n");
+        printf("  ADD ");
+        armgen_operand(funcdef, &inst->binary[0]);
+        printf(", ");
+        armgen_operand(funcdef, &inst->binary[0]);
+        printf(", ");
+        armgen_operand(funcdef, &inst->binary[1]);
+        printf("@PAGEOFF\n");
+        break;
     case IR_OP_ALLOCA:
         break;
     case IR_OP_FIE:
@@ -909,12 +933,34 @@ static void armgen_funcdef(ir_funcdef_t* funcdef)
     map_str_u64_free(&stackptrs);
 }
 
+static void armgen_data(ir_data_t* data)
+{
+    int i;
+
+    if(data->dontlink)
+        printf("l");
+    printf("_%s:\n  .byte", data->name);
+    for(i=0; i<data->data.len; i++)
+    {
+        if(i)
+            printf(",");
+        printf(" %"PRIu8, data->data.data[i]);
+    }
+    printf("\n");
+}
+
 void back_gen(void)
 {
     int i;
 
     printf("%s", armheader);
 
+    printf("\n.section __TEXT,__text\n\n");
     for(i=0; i<ir.defs.len; i++)
         armgen_funcdef(&ir.defs.data[i]);
+
+    printf("\n.section __TEXT,__const\n\n");
+    for(i=0; i<ir.data.nbin; i++)
+        if(ir.data.bins[i].state == MAP_EL_FULL && ir.data.bins[i].val.constant)
+            armgen_data(&ir.data.bins[i].val);
 }

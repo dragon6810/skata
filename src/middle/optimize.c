@@ -89,6 +89,234 @@ static void ir_eliminatemoves(ir_funcdef_t* funcdef)
     }
 }
 
+static void ir_eliminateconstantarithmetic(ir_funcdef_t* funcdef)
+{
+    int b;
+    ir_block_t *blk;
+    ir_inst_t *inst;
+    ir_constant_t lit;
+    ir_primitive_e prim;
+
+    for(b=0, blk=funcdef->blocks.data; b<funcdef->blocks.len; b++, blk++)
+    {
+        do
+        {
+            for(inst=blk->insts; inst; inst=inst->next)
+            {
+                if(ir_ninstoperands(inst) != 3)
+                    continue;
+                if(inst->ternary[1].type != IR_OPERAND_LIT || inst->ternary[2].type != IR_OPERAND_LIT)
+                    continue;
+                if(inst->ternary[1].literal.type != inst->ternary[2].literal.type)
+                    continue;
+                prim = inst->ternary[1].literal.type;
+                lit.type = IR_PRIM_COUNT;
+                // theres gotta be a better way to do this this sucks
+                switch(inst->op)
+                {
+                case IR_OP_ADD:
+                    lit.type = prim;
+                    switch(prim)
+                    {
+                    case IR_PRIM_U1:
+                        lit.u8 = (inst->ternary[1].literal.u8 + inst->ternary[2].literal.u8) & 1;
+                        break;
+                    case IR_PRIM_I8:
+                        lit.i8 =  inst->ternary[1].literal.i8 + inst->ternary[2].literal.i8;
+                        break;
+                    case IR_PRIM_U8:
+                        lit.u8 =  inst->ternary[1].literal.u8 + inst->ternary[2].literal.u8;
+                        break;
+                    case IR_PRIM_I16:
+                        lit.i16 =  inst->ternary[1].literal.i16 + inst->ternary[2].literal.i16;
+                        break;
+                    case IR_PRIM_U16:
+                        lit.u16 =  inst->ternary[1].literal.u16 + inst->ternary[2].literal.u16;
+                        break;
+                    case IR_PRIM_I32:
+                        lit.i32 =  inst->ternary[1].literal.i32 + inst->ternary[2].literal.i32;
+                        break;
+                    case IR_PRIM_U32:
+                        lit.u32 =  inst->ternary[1].literal.u32 + inst->ternary[2].literal.u32;
+                        break;
+                    case IR_PRIM_I64:
+                        lit.i64 =  inst->ternary[1].literal.i64 + inst->ternary[2].literal.i64;
+                        break;
+                    case IR_PRIM_U64:
+                    case IR_PRIM_PTR:
+                        lit.u64 =  inst->ternary[1].literal.u64 + inst->ternary[2].literal.u64;
+                        break;
+                    default:
+                        assert(0);
+                        break;
+                    }
+                    break;
+                case IR_OP_SUB:
+                    lit.type = prim;
+                    switch(prim)
+                    {
+                    case IR_PRIM_U1:
+                        lit.u8 = (inst->ternary[1].literal.u8 - inst->ternary[2].literal.u8) & 1;
+                        break;
+                    case IR_PRIM_I8:
+                        lit.i8 =  inst->ternary[1].literal.i8 - inst->ternary[2].literal.i8;
+                        break;
+                    case IR_PRIM_U8:
+                        lit.u8 =  inst->ternary[1].literal.u8 - inst->ternary[2].literal.u8;
+                        break;
+                    case IR_PRIM_I16:
+                        lit.i16 =  inst->ternary[1].literal.i16 - inst->ternary[2].literal.i16;
+                        break;
+                    case IR_PRIM_U16:
+                        lit.u16 =  inst->ternary[1].literal.u16 - inst->ternary[2].literal.u16;
+                        break;
+                    case IR_PRIM_I32:
+                        lit.i32 =  inst->ternary[1].literal.i32 - inst->ternary[2].literal.i32;
+                        break;
+                    case IR_PRIM_U32:
+                        lit.u32 =  inst->ternary[1].literal.u32 - inst->ternary[2].literal.u32;
+                        break;
+                    case IR_PRIM_I64:
+                        lit.i64 =  inst->ternary[1].literal.i64 - inst->ternary[2].literal.i64;
+                        break;
+                    case IR_PRIM_U64:
+                    case IR_PRIM_PTR:
+                        lit.u64 =  inst->ternary[1].literal.u64 - inst->ternary[2].literal.u64;
+                        break;
+                    default:
+                        assert(0);
+                        break;
+                    }
+                    break;
+                case IR_OP_MUL:
+                    lit.type = prim;
+                    switch(prim)
+                    {
+                    case IR_PRIM_U1:
+                        lit.u8 = (inst->ternary[1].literal.u8 * inst->ternary[2].literal.u8) & 1;
+                        break;
+                    case IR_PRIM_I8:
+                        lit.i8 =  inst->ternary[1].literal.i8 * inst->ternary[2].literal.i8;
+                        break;
+                    case IR_PRIM_U8:
+                        lit.u8 =  inst->ternary[1].literal.u8 * inst->ternary[2].literal.u8;
+                        break;
+                    case IR_PRIM_I16:
+                        lit.i16 =  inst->ternary[1].literal.i16 * inst->ternary[2].literal.i16;
+                        break;
+                    case IR_PRIM_U16:
+                        lit.u16 =  inst->ternary[1].literal.u16 * inst->ternary[2].literal.u16;
+                        break;
+                    case IR_PRIM_I32:
+                        lit.i32 =  inst->ternary[1].literal.i32 * inst->ternary[2].literal.i32;
+                        break;
+                    case IR_PRIM_U32:
+                        lit.u32 =  inst->ternary[1].literal.u32 * inst->ternary[2].literal.u32;
+                        break;
+                    case IR_PRIM_I64:
+                        lit.i64 =  inst->ternary[1].literal.i64 * inst->ternary[2].literal.i64;
+                        break;
+                    case IR_PRIM_U64:
+                    case IR_PRIM_PTR:
+                        lit.u64 =  inst->ternary[1].literal.u64 * inst->ternary[2].literal.u64;
+                        break;
+                    default:
+                        assert(0);
+                        break;
+                    }
+                    break;
+                case IR_OP_CMPEQ:
+                    lit.type = prim;
+                    switch(prim)
+                    {
+                    case IR_PRIM_U1:
+                        lit.u8 = inst->ternary[1].literal.u8 == inst->ternary[2].literal.u8;
+                        break;
+                    case IR_PRIM_I8:
+                        lit.i8 =  inst->ternary[1].literal.i8 == inst->ternary[2].literal.i8;
+                        break;
+                    case IR_PRIM_U8:
+                        lit.u8 =  inst->ternary[1].literal.u8 == inst->ternary[2].literal.u8;
+                        break;
+                    case IR_PRIM_I16:
+                        lit.i16 =  inst->ternary[1].literal.i16 == inst->ternary[2].literal.i16;
+                        break;
+                    case IR_PRIM_U16:
+                        lit.u16 =  inst->ternary[1].literal.u16 == inst->ternary[2].literal.u16;
+                        break;
+                    case IR_PRIM_I32:
+                        lit.i32 =  inst->ternary[1].literal.i32 == inst->ternary[2].literal.i32;
+                        break;
+                    case IR_PRIM_U32:
+                        lit.u32 =  inst->ternary[1].literal.u32 == inst->ternary[2].literal.u32;
+                        break;
+                    case IR_PRIM_I64:
+                        lit.i64 =  inst->ternary[1].literal.i64 == inst->ternary[2].literal.i64;
+                        break;
+                    case IR_PRIM_U64:
+                    case IR_PRIM_PTR:
+                        lit.u64 =  inst->ternary[1].literal.u64 == inst->ternary[2].literal.u64;
+                        break;
+                    default:
+                        assert(0);
+                        break;
+                    }
+                    break;
+                case IR_OP_CMPNEQ:
+                    lit.type = prim;
+                    switch(prim)
+                    {
+                    case IR_PRIM_U1:
+                        lit.u8 = inst->ternary[1].literal.u8 != inst->ternary[2].literal.u8;
+                        break;
+                    case IR_PRIM_I8:
+                        lit.i8 =  inst->ternary[1].literal.i8 != inst->ternary[2].literal.i8;
+                        break;
+                    case IR_PRIM_U8:
+                        lit.u8 =  inst->ternary[1].literal.u8 != inst->ternary[2].literal.u8;
+                        break;
+                    case IR_PRIM_I16:
+                        lit.i16 =  inst->ternary[1].literal.i16 != inst->ternary[2].literal.i16;
+                        break;
+                    case IR_PRIM_U16:
+                        lit.u16 =  inst->ternary[1].literal.u16 != inst->ternary[2].literal.u16;
+                        break;
+                    case IR_PRIM_I32:
+                        lit.i32 =  inst->ternary[1].literal.i32 != inst->ternary[2].literal.i32;
+                        break;
+                    case IR_PRIM_U32:
+                        lit.u32 =  inst->ternary[1].literal.u32 != inst->ternary[2].literal.u32;
+                        break;
+                    case IR_PRIM_I64:
+                        lit.i64 =  inst->ternary[1].literal.i64 != inst->ternary[2].literal.i64;
+                        break;
+                    case IR_PRIM_U64:
+                    case IR_PRIM_PTR:
+                        lit.u64 =  inst->ternary[1].literal.u64 != inst->ternary[2].literal.u64;
+                        break;
+                    default:
+                        assert(0);
+                        break;
+                    }
+                    break;
+                default:
+                    break;
+                }
+
+                if(lit.type == IR_PRIM_COUNT)
+                    continue;
+
+                ir_operandfree(&inst->ternary[1]);
+                ir_operandfree(&inst->ternary[2]);
+                inst->op = IR_OP_MOVE;
+                inst->ternary[1].type = IR_OPERAND_LIT;
+                inst->ternary[1].literal = lit;
+                madechange = true;
+            }
+        } while(inst);
+    }
+}
+
 static void ir_eliminatelitzext(ir_funcdef_t* funcdef, ir_inst_t* inst)
 {
     if(inst->binary[1].type != IR_OPERAND_LIT)
@@ -478,6 +706,7 @@ void optimize(void)
             ir_fidloadstores(&ir.defs.data[i]);
             ir_lowersinglephi(&ir.defs.data[i]);
             ir_eliminatelitcasts(&ir.defs.data[i]);
+            ir_eliminateconstantarithmetic(&ir.defs.data[i]);
             ir_eliminatemoves(&ir.defs.data[i]);
             ir_eliminatedeadregs(&ir.defs.data[i]);
 
