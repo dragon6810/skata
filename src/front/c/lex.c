@@ -8,6 +8,33 @@
 
 #include "front/error.h"
 
+typedef struct
+{
+    // all arrays are parallel
+    int nchars;
+    char *text;
+    int *linenum;
+    int *colnum;
+} line_t;
+
+static void lex_freeline(line_t* line)
+{
+    if(!line->nchars)
+        return;
+    line->nchars = 0;
+    free(line->text);
+    free(line->linenum);
+    free(line->colnum);
+    line->text = NULL;
+    line->linenum = line->colnum = NULL;
+}
+
+LIST_DECL(line_t, line)
+LIST_DEF(line)
+LIST_DEF_FREE_DECONSTRUCT(line, lex_freeline)
+
+static list_line_t lines;
+
 static void lex_freetok(token_t* tok)
 {
     switch(tok->form)
@@ -257,7 +284,7 @@ void lex_nexttok(void)
     error(true, line, column, "unrecognized token\n");
 }
 
-void lex(void)
+static void lex_tokenize(void)
 {
     list_token_init(&tokens, 0);
 
@@ -267,6 +294,126 @@ void lex(void)
     do
         lex_nexttok();
     while(tokens.data[tokens.len-1].form != TOKEN_EOF);
+}
+
+// merge (lineindex+1) into line
+static void lex_mergeline(int lineindex)
+{
+    line_t *line, *nextline;
+    line_t newline;
+
+    line = &lines.data[lineindex];
+    nextline = line + 1;
+    
+    newline.nchars = line->nchars - 1 + nextline->nchars;
+    newline.text = malloc(newline.nchars + 1);
+    newline.linenum = malloc(sizeof(int) * (newline.nchars + 1));
+    newline.colnum = malloc(sizeof(int) * (newline.nchars + 1));
+
+    newline.text[newline.nchars] = 0;
+    newline.linenum[newline.nchars] = -1;
+    newline.colnum[newline.nchars] = -1;
+
+    memcpy(newline.text, line->text, line->nchars - 1);
+    memcpy(newline.linenum, line->linenum, sizeof(int) * (line->nchars - 1));
+    memcpy(newline.colnum, line->colnum, sizeof(int) * (line->nchars - 1));
+
+    memcpy(newline.text + line->nchars - 1, nextline->text, nextline->nchars);
+    memcpy(newline.linenum + line->nchars - 1, nextline->linenum, sizeof(int) * nextline->nchars);
+    memcpy(newline.colnum + line->nchars - 1, nextline->colnum, sizeof(int) * nextline->nchars);
+
+    list_line_remove(&lines, lineindex + 1);
+    lex_freeline(&lines.data[lineindex]);
+    lines.data[lineindex] = newline;
+}
+
+static void lex_mergelines(void)
+{
+    int i;
+
+    for(i=0; i<lines.len; i++)
+    {
+        if(lines.data[i].text[lines.data[i].nchars-1] != '\\')
+            continue;
+        if(i == lines.len-1)
+            error(true, 
+                lines.data[i].linenum[lines.data[i].nchars-1],
+                lines.data[i].colnum[lines.data[i].nchars-1],
+                "can not cancel a newline on the last line");
+        lex_mergeline(i);
+        i--;
+    }
+}
+
+static void lex_nextline(void)
+{
+    int i;
+
+    int len;
+    char *linestart;
+    line_t *newline;
+
+    curpos++;
+
+    linestart = curpos;
+    len = 0;
+    while(*curpos && *curpos != '\n')
+    {
+        curpos++;
+        len++;
+    }
+
+    // no point in making the line if theres nothing in it
+    if(!len)
+    {
+        line++;
+        return;
+    }
+
+    list_line_push(&lines, (line_t) {});
+    newline = &lines.data[lines.len-1];
+
+    newline->nchars = len;
+    newline->text = malloc(len + 1);
+    newline->linenum = malloc(sizeof(int) * (len + 1));
+    newline->colnum = malloc(sizeof(int) * (len + 1));
+    newline->text[len] = 0;
+    newline->linenum[len] = newline->colnum[len] = -1;
+
+    for(i=0, curpos=linestart; i<len; i++, curpos++)
+    {
+        newline->text[i] = *curpos;
+        newline->linenum[i] = line;
+        newline->colnum[i] = i;
+    }
+
+    line++;
+}
+
+static void lex_makelines(void)
+{
+    int i;
+
+    curpos = srctext - 1;
+    line = column = 0;
+
+    do
+        lex_nextline();
+    while(*curpos);
+    lex_mergelines();
+
+    for(i=0; i<lines.len; i++)
+        puts(lines.data[i].text);
+}
+
+void lex(void)
+{
+    list_line_init(&lines, 0);
+
+    lex_makelines();
+    lex_tokenize();
+
+    list_line_free(&lines);
 }
 
 int tokenlen(token_t* tok)

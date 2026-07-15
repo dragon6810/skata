@@ -1,6 +1,6 @@
 int main()
 {
-	char *str;
+	char *str;\
 	str = "hello";
 	return str[3];
 }
