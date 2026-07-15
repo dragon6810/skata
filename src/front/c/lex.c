@@ -78,8 +78,8 @@ bool lex_trystring(void)
             error(true, line, column, "file terminates before string literal\n");
     }
 
-    tok.line = line;
-    tok.column = column;
+    tok.line = lines.data[line].linenum[column];
+    tok.column = lines.data[line].colnum[column];
     tok.form = TOKEN_STRING;
     if(!len)
     {
@@ -117,8 +117,8 @@ bool lex_trynumber(void)
 
     len = c - curpos;
 
-    tok.line = line;
-    tok.column = column;
+    tok.line = lines.data[line].linenum[column];
+    tok.column = lines.data[line].colnum[column];
     tok.form = TOKEN_NUMBER;
     tok.msg = malloc(len + 1);
     memcpy(tok.msg, curpos, len);
@@ -159,8 +159,8 @@ bool lex_tryident(void)
         if(strncmp(curpos, rid_strs[rid], len))
             continue;
 
-        tok.line = line;
-        tok.column = column;
+        tok.line = lines.data[line].linenum[column];
+        tok.column = lines.data[line].colnum[column];
         tok.form = TOKEN_RID;
         tok.rid = rid;
         list_token_ppush(&tokens, &tok);
@@ -173,8 +173,8 @@ bool lex_tryident(void)
 
     len = c - curpos;
 
-    tok.line = line;
-    tok.column = column;
+    tok.line = lines.data[line].linenum[column];
+    tok.column = lines.data[line].colnum[column];
     tok.form = TOKEN_IDENT;
     tok.msg = malloc(len + 1);
     memcpy(tok.msg, curpos, len);
@@ -220,8 +220,8 @@ bool lex_trypunc(void)
     if(!bestlen)
         return false;
 
-    tok.line = line;
-    tok.column = column;
+    tok.line = lines.data[line].linenum[column];
+    tok.column = lines.data[line].colnum[column];
     tok.form = TOKEN_PUNC;
     tok.punc = besttype;
     list_token_ppush(&tokens, &tok);
@@ -232,68 +232,70 @@ bool lex_trypunc(void)
     return true;
 }
 
-bool lex_tryeof(void)
-{
-    token_t tok;
-
-    if(*curpos)
-        return false;
-
-    tok.line = line;
-    tok.column = column;
-    tok.form = TOKEN_EOF;
-    list_token_ppush(&tokens, &tok);
-
-    return true;
-}
-
 void lex_skipwhitespace(void)
 {
     while(*curpos && *curpos <= 32)
     {
         column++;
-        if(*curpos == '\n')
-        {
-            line++;
-            column = 0;
-        }
-
         curpos++;
     }
 }
 
-void lex_nexttok(void)
+// return true if end of line
+bool lex_nexttok(void)
 {
     lex_skipwhitespace();
 
-    if(lex_tryeof())
-        return;
+    if(column >= lines.data[line].nchars)
+        return true;
 
     if(lex_trypunc())
-        return;
+        return false;
 
     if(lex_tryident())
-        return;
+        return false;
 
     if(lex_trynumber())
-        return;
+        return false;
 
     if(lex_trystring())
-        return;
+        return false;
 
     error(true, line, column, "unrecognized token\n");
+    return false;
+}
+
+static void lex_tokenizeline(void)
+{
+    curpos = lines.data[line].text;
+    column = 0;
+    while(!lex_nexttok());
 }
 
 static void lex_tokenize(void)
 {
+    token_t tok;
+
     list_token_init(&tokens, 0);
 
-    curpos = srctext;
-    line = column = 0;
+    for(line=0; line<lines.len; line++)
+        lex_tokenizeline();
 
-    do
-        lex_nexttok();
-    while(tokens.data[tokens.len-1].form != TOKEN_EOF);
+    tok.form = TOKEN_EOF;
+    tok.line = lines.data[line-1].linenum[lines.data[line-1].nchars-1];
+    tok.column = lines.data[line-1].colnum[lines.data[line-1].nchars-1]+1;
+    list_token_ppush(&tokens, &tok);
+
+    for(int i = 0; i < tokens.len; i++)
+    {
+        token_t *t = &tokens.data[i];
+        const char *s = "?";
+        if(t->form == TOKEN_RID) s = rid_strs[t->rid];
+        else if(t->form == TOKEN_PUNC) s = punc_strs[t->punc];
+        else if(t->form == TOKEN_IDENT || t->form == TOKEN_NUMBER || t->form == TOKEN_STRING) s = t->msg ? t->msg : "(null)";
+        else if(t->form == TOKEN_EOF) s = "<EOF>";
+        fprintf(stderr, "TOK[%d] form=%d '%s' @%d:%d\n", i, t->form, s, t->line, t->column);
+    }
 }
 
 // merge (lineindex+1) into line
