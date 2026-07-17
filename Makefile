@@ -34,13 +34,17 @@ ifeq ($(PLATFORM), aarch64)
 	SRC_FILE += $(wildcard $(SRC_DIR)/$(BACK_DIR)/$(BACK_AARCH64_DIR)/*.c)
 endif
 
-.PHONY: all clean mkdirs
+.PHONY: all clean mkdirs test
 
 all: $(BIN_FILE)
+
+test: $(BIN_FILE)
+	@./tests/run.sh
 
 clean:
 	rm -rf $(BIN_DIR)
 	rm -rf $(OBJ_DIR)
+	rm -rf tests/build
 
 $(BIN_FILE): $(OBJ_FILE)
 	@mkdir -p $(BIN_DIR)
