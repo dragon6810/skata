@@ -21,25 +21,6 @@ static type_e semantics_getliteraltype(uint64_t lit)
     return TYPE_U64;
 }
 
-static void semantics_typecpy(type_t* dst, type_t* src)
-{
-    *dst = *src;
-
-    switch(dst->type)
-    {
-    case TYPE_FUNC:
-        if(dst->func.ret)
-        {
-            dst->func.ret = malloc(sizeof(type_t));
-            semantics_typecpy(dst->func.ret, src->func.ret);
-        }
-        list_type_dup(&dst->func.args, &src->func.args);
-        break;
-    default:
-        break;
-    }
-}
-
 static bool semantics_typecmp(const type_t* a, const type_t* b)
 {
     int i;
@@ -49,6 +30,12 @@ static bool semantics_typecmp(const type_t* a, const type_t* b)
 
     switch(a->type)
     {
+    case TYPE_PTR:
+        if(!a->ptrtype && !b->ptrtype)
+            break;
+        if(!a->ptrtype || !b->ptrtype)
+            return false;
+        return semantics_typecmp(a->ptrtype, b->ptrtype);
     case TYPE_FUNC:
         if(!semantics_typecmp(a->func.ret, b->func.ret))
             return false;
@@ -83,8 +70,8 @@ static void semantics_cast(type_t type, expr_t* expr)
 
     expr->op = EXPROP_CAST;
     expr->operand = newexpr;
-    semantics_typecpy(&expr->type, &type);
-    semantics_typecpy(&expr->casttype, &type);
+    type_cpy(&expr->type, &type);
+    type_cpy(&expr->casttype, &type);
 }
 
 static void semantics_expr(expr_t* expr);
@@ -117,12 +104,12 @@ static void semantics_binaryexpr(expr_t* expr)
     if(expr->operands[1]->type.type > expr->operands[0]->type.type)
     {
         semantics_cast(expr->operands[1]->type, expr->operands[0]);
-        semantics_typecpy(&expr->type, &expr->operands[1]->type);
+        type_cpy(&expr->type, &expr->operands[1]->type);
     }
     else
     {
         semantics_cast(expr->operands[0]->type, expr->operands[1]);
-        semantics_typecpy(&expr->type, &expr->operands[0]->type);
+        type_cpy(&expr->type, &expr->operands[0]->type);
     }
 }
 
@@ -276,7 +263,7 @@ static void semantics_callexpr(expr_t* expr)
         semantics_cast(functype->func.args.data[i], expr->variadic.data[i]);
     }
 
-    semantics_typecpy(&expr->type, functype->func.ret);
+    type_cpy(&expr->type, functype->func.ret);
 }
 
 static void semantics_memberexpr(expr_t* expr)
@@ -389,12 +376,12 @@ static void semantics_var(expr_t* expr)
         expr->type.type = TYPE_FUNC;
         
         expr->type.func.ret = malloc(sizeof(type_t));
-        semantics_typecpy(expr->type.func.ret, &scope.data[i]->type);
+        type_cpy(expr->type.func.ret, &scope.data[i]->type);
 
         list_type_init(&expr->type.func.args, 0);
         for(j=0; j<scope.data[i]->args.len; j++)
         {
-            semantics_typecpy(&type, &scope.data[i]->args.data[j].type);
+            type_cpy(&type, &scope.data[i]->args.data[j].type);
             list_type_ppush(&expr->type.func.args, &type);
         }
 
@@ -407,13 +394,13 @@ static void semantics_var(expr_t* expr)
         expr->type.type = TYPE_PTR;
         
         expr->type.ptrtype = malloc(sizeof(type_t));
-        semantics_typecpy(expr->type.ptrtype, scope.data[i]->type.arr.type);
+        type_cpy(expr->type.ptrtype, scope.data[i]->type.arr.type);
 
         expr->lval = false;
         return;
     }
 
-    semantics_typecpy(&expr->type, &scope.data[i]->type);
+    type_cpy(&expr->type, &scope.data[i]->type);
     expr->lval = true;
 }
 
@@ -527,6 +514,8 @@ static void semantics_statement(globaldecl_t* func, stmnt_t* stmnt)
     }
 }
 
+static void semantics_decl(decl_t* decl);
+
 static void semantics_compound(globaldecl_t* func, compound_t* compound)
 {
     int i;
@@ -536,7 +525,10 @@ static void semantics_compound(globaldecl_t* func, compound_t* compound)
     scopesize = scope.len;
 
     for(i=0; i<compound->decls.len; i++)
+    {
         list_pdecl_push(&scope, &compound->decls.data[i]);
+        semantics_decl(&compound->decls.data[i]);
+    }
 
     for(i=0; i<compound->stmnts.len; i++)
         semantics_statement(func, &compound->stmnts.data[i]);
@@ -561,7 +553,8 @@ static void semantics_funcdef(globaldecl_t* func)
 
 static void semantics_decl(decl_t* decl)
 {
-
+    if(decl->expr)
+        semantics_expr(decl->expr);
 }
 
 void semantics(void)

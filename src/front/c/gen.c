@@ -1027,6 +1027,7 @@ static void ir_gen_globaldecl(globaldecl_t *globdecl)
 
     ir_block_t blk;
     ir_funcdef_t funcdef;
+    list_pexpr_t initializers;
     uint64_t oldvarstack;
 
     if(!globdecl->hasfuncdef)
@@ -1068,9 +1069,17 @@ static void ir_gen_globaldecl(globaldecl_t *globdecl)
     
     ir_gen_arglist(&funcdef, &globdecl->decl.args);
 
+    list_pexpr_init(&initializers, 0);
     for(i=0; i<globdecl->funcdef.decls.len; i++)
+    {
         ir_gen_decl(&funcdef, &globdecl->funcdef.decls.data[i]);
+        if(globdecl->funcdef.decls.data[i].expr)
+            list_pexpr_push(&initializers, globdecl->funcdef.decls.data[i].expr);
+    }
     gen_newblock(&funcdef);
+    for(i=0; i<initializers.len; i++)
+        free(ir_gen_expr(&funcdef, initializers.data[i], NULL));
+    free(initializers.data); // i should add a non-deconstructing free variant to lists to make this clearer
     for(i=0; i<globdecl->funcdef.stmnts.len; i++)
         ir_gen_statement(&funcdef, &globdecl->funcdef.stmnts.data[i]);
 
