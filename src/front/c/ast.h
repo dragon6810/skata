@@ -122,7 +122,7 @@ typedef struct compound_s
 typedef struct ifstmnt_s
 {
     expr_t *expr;
-    stmnt_t *ifblk;
+    stmnt_t *ifblk, *elseblk;
 } ifstmnt_t;
 
 typedef struct whilestmnt_s

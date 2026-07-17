@@ -536,6 +536,14 @@ static void parse_statement(stmnt_t* stmnt)
         stmnt->ifstmnt.ifblk = malloc(sizeof(stmnt_t));
         parse_statement(stmnt->ifstmnt.ifblk);
 
+        stmnt->ifstmnt.elseblk = NULL;
+        if(!strcmp(parse_peekstr(0), "else"))
+        {
+            parse_eat();
+            stmnt->ifstmnt.elseblk = malloc(sizeof(stmnt_t));
+            parse_statement(stmnt->ifstmnt.elseblk);
+        }
+
         return;
     }
 
@@ -720,7 +728,9 @@ static void parse_printifstatement(stmnt_t* stmnt, int depth, bool last, char* l
     parse_printexpr(stmnt->expr);
     printf("\e[0m\n");
 
-    parse_printstatement(stmnt->ifstmnt.ifblk, depth + 1, true, newleft);
+    parse_printstatement(stmnt->ifstmnt.ifblk, depth + 1, !stmnt->ifstmnt.elseblk, newleft);
+    if(stmnt->ifstmnt.elseblk)
+        parse_printstatement(stmnt->ifstmnt.elseblk, depth + 1, true, newleft);
 
     free(newleft);
 }

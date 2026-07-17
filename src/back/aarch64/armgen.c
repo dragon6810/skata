@@ -669,8 +669,17 @@ static void armgen_inst(ir_funcdef_t* funcdef, ir_block_t* blk, int iinst, ir_in
             CMP %a, %b
             CSET %dst, eq
         */
+        if(inst->ternary[1].type != IR_OPERAND_REG)
+        {
+            printf("  MOV %s, ", *map_u64_str_get(&scratchlist.data[0]->names, inst->ternary[1].literal.type));
+            armgen_operand(funcdef, &inst->ternary[1]);
+            printf("\n");
+        }
         printf("  CMP ");
-        armgen_operand(funcdef, &inst->ternary[1]);
+        if(inst->ternary[1].type == IR_OPERAND_REG)
+            armgen_operand(funcdef, &inst->ternary[1]);
+        else
+            printf("%s", *map_u64_str_get(&scratchlist.data[0]->names, inst->ternary[1].literal.type));
         printf(", ");
         armgen_operand(funcdef, &inst->ternary[2]);
         printf("\n");
@@ -683,8 +692,17 @@ static void armgen_inst(ir_funcdef_t* funcdef, ir_block_t* blk, int iinst, ir_in
             CMP %a, %b
             CSET %dst, neq
         */
+        if(inst->ternary[1].type != IR_OPERAND_REG)
+        {
+            printf("  MOV %s, ", *map_u64_str_get(&scratchlist.data[0]->names, inst->ternary[1].literal.type));
+            armgen_operand(funcdef, &inst->ternary[1]);
+            printf("\n");
+        }
         printf("  CMP ");
-        armgen_operand(funcdef, &inst->ternary[1]);
+        if(inst->ternary[1].type == IR_OPERAND_REG)
+            armgen_operand(funcdef, &inst->ternary[1]);
+        else
+            printf("%s", *map_u64_str_get(&scratchlist.data[0]->names, inst->ternary[1].literal.type));
         printf(", ");
         armgen_operand(funcdef, &inst->ternary[2]);
         printf("\n");
@@ -697,8 +715,17 @@ static void armgen_inst(ir_funcdef_t* funcdef, ir_block_t* blk, int iinst, ir_in
             CBZ %reg, _false
             B _true
         */
+        if(inst->ternary[0].type != IR_OPERAND_REG)
+        {
+            printf("  MOV %s, ", *map_u64_str_get(&scratchlist.data[0]->names, inst->ternary[0].literal.type));
+            armgen_operand(funcdef, &inst->ternary[0]);
+            printf("\n");
+        }
         printf("  CBZ ");
-        armgen_operand(funcdef, &inst->ternary[0]);
+        if(inst->ternary[0].type == IR_OPERAND_REG)
+            armgen_operand(funcdef, &inst->ternary[0]);
+        else
+            printf("%s", *map_u64_str_get(&scratchlist.data[0]->names, inst->ternary[0].literal.type));
         printf(", ");
         armgen_operand(funcdef, &inst->ternary[2]);
         printf("\n");

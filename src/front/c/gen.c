@@ -772,27 +772,34 @@ static void ir_gen_statement(ir_funcdef_t *funcdef, stmnt_t *stmnt);
 
 static void ir_gen_if(ir_funcdef_t* funcdef, ifstmnt_t* ifstmnt)
 {
-    ir_inst_t *inst, *brinst;
+    ir_inst_t *inst, *brinst, *jmpinst;
 
     // branch
     brinst = inst = gen_allocinst();
     inst->op = IR_OP_BR;
     inst->ternary[0].type = IR_OPERAND_REG;
     inst->ternary[0].reg.name = ir_gen_expr(funcdef, ifstmnt->expr, NULL);
-    inst->ternary[1].type = IR_OPERAND_LABEL;
+    inst->ternary[1].type = inst->ternary[2].type = IR_OPERAND_LABEL;
     gen_appendinst(funcdef, inst);
     
     // then
     gen_newblock(funcdef);
     brinst->ternary[1].label = strdup(funcdef->blocks.data[funcdef->blocks.len-1].name);
     ir_gen_statement(funcdef, ifstmnt->ifblk);
+    jmpinst = gen_allocinst();
+    jmpinst->op = IR_OP_JMP;
+    jmpinst->unary.type = IR_OPERAND_LABEL;
+    gen_appendinst(funcdef, jmpinst);
 
-    // TODO: else
+    // else
+    gen_newblock(funcdef);
+    brinst->ternary[2].label = strdup(funcdef->blocks.data[funcdef->blocks.len-1].name);
+    if(ifstmnt->elseblk)
+        ir_gen_statement(funcdef, ifstmnt->elseblk);
 
     // rest of function
     gen_newblock(funcdef);
-    brinst->ternary[2].type = IR_OPERAND_LABEL;
-    brinst->ternary[2].label = strdup(funcdef->blocks.data[funcdef->blocks.len-1].name);
+    jmpinst->unary.label = strdup(funcdef->blocks.data[funcdef->blocks.len-1].name);
 }
 
 static void ir_gen_while(ir_funcdef_t* funcdef, whilestmnt_t* whilestmnt)

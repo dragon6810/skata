@@ -515,6 +515,8 @@ static void semantics_statement(globaldecl_t* func, stmnt_t* stmnt)
     case STMNT_IF:
         semantics_condition(stmnt->ifstmnt.expr);
         semantics_statement(func, stmnt->ifstmnt.ifblk);
+        if(stmnt->ifstmnt.elseblk)
+            semantics_statement(func, stmnt->ifstmnt.elseblk);
         break;
     case STMNT_WHILE:
         semantics_condition(stmnt->whilestmnt.expr);

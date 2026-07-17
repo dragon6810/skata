@@ -1,8 +1,7 @@
 int main()
 {
-	char *str;
-	str = "hello";
-	/* return 
-	str[2];*/
-	return str[3];
+	if(1)
+		return 1;
+	else
+		return 0;
 }

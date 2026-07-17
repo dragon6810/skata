@@ -33,6 +33,7 @@ static void parse_printexpr_r(const expr_t* expr)
         case TYPE_U16:
         case TYPE_U32:
         case TYPE_U64:
+        case TYPE_PTR:
             printf("%" PRIu64, expr->u64);
             break;
         default:
