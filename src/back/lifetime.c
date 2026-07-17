@@ -62,7 +62,8 @@ static void blockspans(ir_block_t* block)
         if(block->livein.bins[i].state != SET_EL_FULL)
             continue;
         span.reg = block->livein.bins[i].val;
-        span.span[0] = span.span[1] = 0;
+        span.span[0] = -1;
+        span.span[1] = 0;
         map_str_ir_regspan_set(&curspans, span.reg, span);
     }
 

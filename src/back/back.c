@@ -116,7 +116,7 @@ static int back_structalignment(uint64_t aggid)
     return biggest;
 }
 
-static int back_alignup(int val, int align)
+int back_alignup(int val, int align)
 {
     if(align <= 0)
         return val;

@@ -12,9 +12,9 @@
 typedef struct ir_regspan_s
 {
     char *reg;
-    // span[0] is first instruction where it must be preserved
+    // span[0] is first instruction where it must be preserved, -1 means live-in
     // span[1] is last instruction where it must be preserved + 1 (last instruction used)
-    uint64_t span[2];
+    int64_t span[2];
 } ir_regspan_t;
 
 LIST_DECL(ir_regspan_t, ir_regspan)

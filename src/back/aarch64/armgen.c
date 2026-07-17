@@ -241,10 +241,26 @@ static void armgen_emittrunc(ir_funcdef_t* funcdef, ir_inst_t* inst)
         *map_u64_str_get(&src->hardreg->names, dst->type));
 }
 
-static void armgen_emitparamcopy(ir_funcdef_t* funcdef, 
+// byte size of a stack-passed argument, matching how emitcall reserves its
+// slot: a prim takes its own size, an aggregate is passed by pointer (8 bytes).
+static int armgen_stackargsize(ir_funcdef_t* funcdef, ir_operand_t* operand)
+{
+    switch(operand->type)
+    {
+    case IR_OPERAND_REG:
+        return ir_primbytesize(map_str_ir_reg_get(&funcdef->regs, operand->reg.name)->type);
+    case IR_OPERAND_LIT:
+        return ir_primbytesize(operand->literal.type);
+    default:
+        assert(0);
+        return 0;
+    }
+}
+
+static void armgen_emitparamcopy(ir_funcdef_t* funcdef,
     bool stackparam, uint64_t* stackoffs, uint64_t* regparam, ir_operand_t* operand)
 {
-    int i;
+    int i, argsize;
 
     ir_reg_t *reg;
     hardreg_t *scratch;
@@ -278,6 +294,9 @@ static void armgen_emitparamcopy(ir_funcdef_t* funcdef,
             break;
     scratch = scratchpool.bins[i].val;
 
+    argsize = armgen_stackargsize(funcdef, operand);
+    *stackoffs = back_alignup(*stackoffs, argsize);
+
     switch(operand->type)
     {
     case IR_OPERAND_REG:
@@ -295,13 +314,13 @@ static void armgen_emitparamcopy(ir_funcdef_t* funcdef,
         assert(0);
     }
 
-    *stackoffs += 4;
+    *stackoffs += argsize;
 }
 
 // sp should have already been moved
 static void armgen_emitparams(ir_funcdef_t* funcdef, ir_inst_t* inst)
 {
-    int i, j;
+    int i, j, argsize;
 
     uint64_t nregarg, stackspot;
     set_u64_t stackargs;
@@ -331,7 +350,11 @@ static void armgen_emitparams(ir_funcdef_t* funcdef, ir_inst_t* inst)
             if(set_u64_contains(&emitted, i))
             {
                 if(set_u64_contains(&stackargs, i))
-                    stackspot += 4;
+                {
+                    argsize = armgen_stackargsize(funcdef, &inst->variadic.data[i]);
+                    stackspot = back_alignup(stackspot, argsize);
+                    stackspot += argsize;
+                }
                 else
                     nregarg++;
                 continue;
@@ -370,7 +393,7 @@ static void armgen_emitparams(ir_funcdef_t* funcdef, ir_inst_t* inst)
 }
 
 // populates with registers that "straddle" the instruction, meaning they are alive before and after it.
-static void armgen_populateliveset(set_pir_reg_t* set, ir_funcdef_t* funcdef, ir_block_t* blk, uint64_t inst)
+static void armgen_populateliveset(set_pir_reg_t* set, ir_funcdef_t* funcdef, ir_block_t* blk, int64_t inst)
 {
     int i;
 
@@ -396,14 +419,14 @@ static void armgen_emitcall(ir_funcdef_t* funcdef, ir_block_t* blk, int iinst, i
     int i;
 
     int nregparam;
-    int stacktotal, stackcur, paramsize;
+    int stacktotal, stackcur, paramsize, argsize;
     set_pir_reg_t saved;
     ir_reg_t *reg;
 
     set_pir_reg_alloc(&saved);
     armgen_populateliveset(&saved, funcdef, blk, iinst);
 
-    stacktotal = saved.nfull * 4;
+    stacktotal = 0;
     for(i=2, nregparam=paramsize=0; i<inst->variadic.len; i++)
     {
         if(nregparam < parampool.len)
@@ -412,11 +435,27 @@ static void armgen_emitcall(ir_funcdef_t* funcdef, ir_block_t* blk, int iinst, i
             continue;
         }
 
-        stacktotal += 4;
-        paramsize += 4;
+        if(inst->call.argtypes.data[i-2].type == IR_TYPE_PRIM)
+            argsize = ir_primbytesize(saved.bins[i].val->type);
+        else
+            argsize = ir_primbytesize(IR_PRIM_U64);
+        
+        stacktotal = back_alignup(stacktotal, argsize);
+        stacktotal += argsize;
     }
 
-    stacktotal = (stacktotal + stackpad - 1) & ~(stackpad - 1); 
+    paramsize = stacktotal;
+
+    for(i=0; i<saved.nbin; i++)
+    {
+        if(saved.bins[i].state != SET_EL_FULL)
+            continue;
+        argsize = ir_primbytesize(saved.bins[i].val->type);
+        stacktotal = back_alignup(stacktotal, argsize);
+        stacktotal += argsize;
+    }
+
+    stacktotal = back_alignup(stacktotal, stackpad);
     if(stacktotal)
         printf("  SUB sp, sp, #%d\n", stacktotal);
 
@@ -425,12 +464,13 @@ static void armgen_emitcall(ir_funcdef_t* funcdef, ir_block_t* blk, int iinst, i
     {
         if(saved.bins[i].state != SET_EL_FULL)
             continue;
-        
+        argsize = ir_primbytesize(saved.bins[i].val->type);
+        stackcur = back_alignup(stackcur, argsize);
         printf("  %s %s, [sp, #%d]\n", 
-            armgen_storeinst(IR_PRIM_U64),
-            *map_u64_str_get(&saved.bins[i].val->hardreg->names, IR_PRIM_U64), 
+            armgen_storeinst(saved.bins[i].val->type),
+            *map_u64_str_get(&saved.bins[i].val->hardreg->names, saved.bins[i].val->type), 
             stackcur);
-        stackcur += 4;
+        stackcur += argsize;
     }
 
     assert(inst->variadic.data[0].type == IR_OPERAND_REG);
@@ -465,11 +505,13 @@ static void armgen_emitcall(ir_funcdef_t* funcdef, ir_block_t* blk, int iinst, i
         if(saved.bins[i].state != SET_EL_FULL)
             continue;
         
+        argsize = ir_primbytesize(saved.bins[i].val->type);
+        stackcur = back_alignup(stackcur, argsize);
         printf("  %s %s, [sp, #%d]\n",
-            armgen_loadinst(IR_PRIM_U64),
-            *map_u64_str_get(&saved.bins[i].val->hardreg->names, IR_PRIM_U64),
+            armgen_loadinst(saved.bins[i].val->type),
+            *map_u64_str_get(&saved.bins[i].val->hardreg->names, saved.bins[i].val->type),
             stackcur);
-        stackcur += 4;
+        stackcur += argsize;
     }
 
     if(stacktotal)
