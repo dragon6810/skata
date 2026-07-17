@@ -130,7 +130,7 @@ static char* ir_gen_ternary(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
 
     // cmp
     inst = gen_allocinst();
-    inst->op = IR_OP_CMPEQ;
+    inst->op = IR_OP_CMPNEQ;
     inst->ternary[0].type = IR_OPERAND_REG;
     inst->ternary[0].reg.name = cmpres = ir_allocreg(funcdef, IR_PRIM_U1);
     inst->ternary[1].type = IR_OPERAND_REG;

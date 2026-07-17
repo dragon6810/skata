@@ -1,7 +1,7 @@
 int main()
 {
-	if(1)
-		return 1;
-	else
-		return 0;
+	int x;
+
+	x = 1;
+	return x ? 1 : 0;
 }
