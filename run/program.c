@@ -1,5 +1,7 @@
+// char *str = "hello";
+int x = 0;
+
 int main()
 {
-	char *str = "hello";
-	return str[0];
+	return x;
 }

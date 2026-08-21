@@ -82,7 +82,7 @@ int type_bytesize(type_t type)
     }
 }
 
-void type_cpy(type_t* dst, type_t* src)
+void type_cpy(type_t* dst, const type_t* src)
 {
     memcpy(dst, src, sizeof(type_t));
     switch(dst->type)
@@ -94,14 +94,14 @@ void type_cpy(type_t* dst, type_t* src)
     case TYPE_FUNC:
         dst->func.ret = malloc(sizeof(type_t));
         type_cpy(dst->func.ret, src->func.ret);
-        list_type_dup(&dst->func.args, &src->func.args);
+        list_type_dup(&dst->func.args, &((type_t*)src)->func.args);
         break;
     case TYPE_STRUCT:
         dst->struc.def = NULL;
         if(src->struc.def)
         {
             dst->struc.def = malloc(sizeof(struct_t));
-            struct_cpy(dst->struc.def, src->struc.def);
+            struct_cpy(dst->struc.def, ((type_t*)src)->struc.def);
         }
         break;
     default:

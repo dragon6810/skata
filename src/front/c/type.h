@@ -72,7 +72,7 @@ MAP_DECL(char*, type_t*, str, ptype)
 ir_primitive_e type_toprim(type_e type);
 int type_bytesize(type_t type);
 
-void type_cpy(type_t* dst, type_t* src);
+void type_cpy(type_t* dst, const type_t* src);
 void type_free(type_t* type);
 
 #endif

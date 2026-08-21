@@ -28,7 +28,7 @@ static void parse_freeglobaldecl(globaldecl_t* decl)
         list_decl_free(&decl->funcdef.decls);
 }
 
-static void parse_freeexpr(expr_t* expr)
+void parse_freeexpr(expr_t* expr)
 {
     switch(expr->op)
     {
@@ -440,7 +440,7 @@ static void parse_arraydims(type_t* type)
     {
         parse_eat();
         expr = parse_expr();
-        len = constexpr_eval(expr);
+        len = intconstexpr_eval(expr);
         if(len < 0)
             error(true, expr->line, expr->col, "array length must not be less than zero\n");
         parse_freeexpr(expr);
@@ -635,6 +635,8 @@ static void parse_globaldecl(void)
     parse_type(&decl.decl.type);
     if(decl.decl.type.type == TYPE_STRUCT && parse_peekpunc(0, PUNC_SEMICOLON))
         decl.decl.form = DECL_STRUCT;
+
+    parse_modifytypewithptr(&decl.decl.type);
     
     decl.decl.expr = NULL;
     list_decl_init(&decl.decl.args, 0);
@@ -659,7 +661,20 @@ static void parse_globaldecl(void)
         parse_compound(&decl.funcdef);
     }
     else
+    {
+        if(!strcmp(parse_peekstr(0), "="))
+        {
+            parse_eat();
+
+            decl.decl.expr = calloc(1, sizeof(expr_t));
+            decl.decl.expr->op = EXPROP_ASSIGN;
+            decl.decl.expr->operands[0] = calloc(1, sizeof(expr_t));
+            decl.decl.expr->operands[0]->op = EXPROP_VAR;
+            decl.decl.expr->operands[0]->msg = strdup(decl.decl.ident);
+            decl.decl.expr->operands[1] = parse_expr();
+        }
         parse_eatstr(";");
+    }
     
     list_globaldecl_ppush(&ast, &decl);
 }

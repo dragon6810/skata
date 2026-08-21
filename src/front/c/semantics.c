@@ -2,6 +2,7 @@
 #include <stdio.h>
 
 #include "ast.h"
+#include "constexpr.h"
 #include "front/error.h"
 #include "struct.h"
 #include "tag.h"
@@ -514,7 +515,7 @@ static void semantics_statement(globaldecl_t* func, stmnt_t* stmnt)
     }
 }
 
-static void semantics_decl(decl_t* decl);
+static void semantics_decl(decl_t* decl, bool global);
 
 static void semantics_compound(globaldecl_t* func, compound_t* compound)
 {
@@ -526,8 +527,7 @@ static void semantics_compound(globaldecl_t* func, compound_t* compound)
 
     for(i=0; i<compound->decls.len; i++)
     {
-        list_pdecl_push(&scope, &compound->decls.data[i]);
-        semantics_decl(&compound->decls.data[i]);
+        semantics_decl(&compound->decls.data[i], false);
     }
 
     for(i=0; i<compound->stmnts.len; i++)
@@ -551,8 +551,25 @@ static void semantics_funcdef(globaldecl_t* func)
     list_pdecl_resize(&scope, scopesize);
 }
 
-static void semantics_decl(decl_t* decl)
+static void semantics_decl(decl_t* decl, bool global)
 {
+    expr_t *constexpr;
+
+    list_pdecl_push(&scope, decl);
+
+    if(global)
+    {
+        if(decl->expr)
+        {
+            assert(decl->expr->op == EXPROP_ASSIGN && decl->expr->operands[1]);
+            semantics_expr(decl->expr->operands[1]);
+            type_cpy(&decl->expr->type, &decl->type);
+            constexpr = constexpr_eval(decl->expr->operands[1]);
+            parse_freeexpr(decl->expr->operands[1]);
+            decl->expr->operands[1] = constexpr;
+        }
+        return;
+    }
     if(decl->expr)
         semantics_expr(decl->expr);
 }
@@ -565,7 +582,7 @@ void semantics(void)
 
     for(i=0; i<ast.len; i++)
     {
-        semantics_decl(&ast.data[i].decl);
+        semantics_decl(&ast.data[i].decl, true);
         if(ast.data[i].hasfuncdef)
             semantics_funcdef(&ast.data[i]);
     }

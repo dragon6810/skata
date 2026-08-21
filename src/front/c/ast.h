@@ -156,6 +156,7 @@ LIST_DECL(globaldecl_t, globaldecl)
 
 extern list_globaldecl_t ast;
 
+void parse_freeexpr(expr_t* expr);
 void parse_modifytypewithptr(type_t* type);
 void parse_type(type_t* type);
 bool parse_istype();
