@@ -7,7 +7,6 @@
 #include "back/regalloc.h"
 
 const char* armheader = 
-".text\n"
 ".global _main\n";
 
 const int stackpad = 16;
@@ -1024,9 +1023,14 @@ void back_gen(void)
 
     printf("%s", armheader);
 
-    printf("\n.section __TEXT,__text\n\n");
+    printf("\n.section __TEXT,__text,regular,pure_instructions\n\n");
     for(i=0; i<ir.defs.len; i++)
         armgen_funcdef(&ir.defs.data[i]);
+
+    printf("\n.section __DATA,__data\n\n");
+    for(i=0; i<ir.data.nbin; i++)
+        if(ir.data.bins[i].state == MAP_EL_FULL && !ir.data.bins[i].val.constant)
+            armgen_data(&ir.data.bins[i].val);
 
     printf("\n.section __TEXT,__const\n\n");
     for(i=0; i<ir.data.nbin; i++)

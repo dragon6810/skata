@@ -469,7 +469,7 @@ char* ir_gen_lvaladr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
 char* ir_gen_member(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
 {
     char *res;
-    ir_inst_t *inst;
+    ir_inst_t *inst, *symadr;
     char *locname;
     
     res = outreg ? outreg : ir_allocreg(funcdef, type_toprim(expr->type.type));
@@ -486,8 +486,16 @@ char* ir_gen_member(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
     }
     else
     {
-        inst->binary[1].type = IR_OPERAND_SYMBOL;
-        inst->binary[1].sym = locname;
+        symadr = gen_allocinst();
+        symadr->op = IR_OP_SYMADR;
+        symadr->binary[0].type = IR_OPERAND_REG;
+        symadr->binary[0].reg.name = ir_allocreg(funcdef, IR_PRIM_PTR);
+        symadr->binary[1].type = IR_OPERAND_SYMBOL;
+        symadr->binary[1].sym = locname;
+        gen_appendinst(funcdef, symadr);
+
+        inst->binary[1].type = IR_OPERAND_REG;
+        inst->binary[1].reg.name = strdup(symadr->binary[0].reg.name);
     }
 
     gen_appendinst(funcdef, inst);
@@ -498,7 +506,7 @@ char* ir_gen_member(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
 static char* ir_gen_fidadr(ir_funcdef_t* funcdef, uint64_t agg, uint64_t fid, char* base)
 {
     char *res;
-    ir_inst_t *inst;
+    ir_inst_t *inst, *symadr;
 
     res = ir_allocreg(funcdef, IR_PRIM_PTR);
 
@@ -513,8 +521,16 @@ static char* ir_gen_fidadr(ir_funcdef_t* funcdef, uint64_t agg, uint64_t fid, ch
     }
     else
     {
-        inst->binary[1].type = IR_OPERAND_SYMBOL;
-        inst->binary[1].sym = strdup(base);
+        symadr = gen_allocinst();
+        symadr->op = IR_OP_SYMADR;
+        symadr->binary[0].type = IR_OPERAND_REG;
+        symadr->binary[0].reg.name = ir_allocreg(funcdef, IR_PRIM_PTR);
+        symadr->binary[1].type = IR_OPERAND_SYMBOL;
+        symadr->binary[1].sym = strdup(base);
+        gen_appendinst(funcdef, symadr);
+
+        inst->binary[1].type = IR_OPERAND_REG;
+        inst->binary[1].reg.name = strdup(symadr->binary[0].reg.name);
     }
     list_ir_fid_init(&inst->fid.fids, 1);
     inst->fid.fids.data[0].fid = fid;
@@ -642,7 +658,7 @@ char* ir_gen_stringlit(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
 char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
 {
     char *res;
-    ir_inst_t *inst;
+    ir_inst_t *inst, *symadr;
     ir_inst_e opcode;
     char *locname;
 
@@ -682,8 +698,16 @@ char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
         }
         else
         {
-            inst->binary[1].type = IR_OPERAND_SYMBOL;
-            inst->binary[1].sym = locname;
+            symadr = gen_allocinst();
+            symadr->op = IR_OP_SYMADR;
+            symadr->binary[0].type = IR_OPERAND_REG;
+            symadr->binary[0].reg.name = ir_allocreg(funcdef, IR_PRIM_PTR);
+            symadr->binary[1].type = IR_OPERAND_SYMBOL;
+            symadr->binary[1].sym = locname;
+            gen_appendinst(funcdef, symadr);
+
+            inst->binary[1].type = IR_OPERAND_REG;
+            inst->binary[1].reg.name = strdup(symadr->binary[0].reg.name);
         }
         gen_appendinst(funcdef, inst);
         return res;
@@ -720,8 +744,16 @@ char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
         }
         else
         {
-            inst->binary[0].type = IR_OPERAND_SYMBOL;
-            inst->binary[0].sym = locname;
+            symadr = gen_allocinst();
+            symadr->op = IR_OP_SYMADR;
+            symadr->binary[0].type = IR_OPERAND_REG;
+            symadr->binary[0].reg.name = ir_allocreg(funcdef, IR_PRIM_PTR);
+            symadr->binary[1].type = IR_OPERAND_SYMBOL;
+            symadr->binary[1].sym = locname;
+            gen_appendinst(funcdef, symadr);
+
+            inst->binary[0].type = IR_OPERAND_REG;
+            inst->binary[0].reg.name = strdup(symadr->binary[0].reg.name);
         }
         inst->binary[1].type = IR_OPERAND_REG;
         inst->binary[1].reg.name = strdup(ir_gen_expr(funcdef, expr->operands[1], res));
@@ -751,8 +783,16 @@ char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
         }
         else
         {
-            inst->binary[1].type = IR_OPERAND_SYMBOL;
-            inst->binary[1].sym = locname;
+            symadr = gen_allocinst();
+            symadr->op = IR_OP_SYMADR;
+            symadr->binary[0].type = IR_OPERAND_REG;
+            symadr->binary[0].reg.name = ir_allocreg(funcdef, IR_PRIM_PTR);
+            symadr->binary[1].type = IR_OPERAND_SYMBOL;
+            symadr->binary[1].sym = locname;
+            gen_appendinst(funcdef, symadr);
+
+            inst->binary[1].type = IR_OPERAND_REG;
+            inst->binary[1].reg.name = strdup(symadr->binary[0].reg.name);
         }
         gen_appendinst(funcdef, inst);
         return res;
