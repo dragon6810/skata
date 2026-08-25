@@ -308,7 +308,9 @@ static char* ir_gen_cast(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
     return res;
 }
 
-list_strpair_t varnames;
+list_strpair_t globalvars;
+list_pdecl_t globdecls; // indexes match with globalvars
+list_strpair_t varnames; // local only
 list_pdecl_t vardecls; // indexes match with varnames
 
 // return string belongs to the varnames
@@ -319,6 +321,10 @@ static char* ir_gen_varname(const char* cname)
     for(i=varnames.len-1; i>=0; i--)
         if(!strcmp(cname, varnames.data[i].a))
             return varnames.data[i].b;
+
+    for(i=0; i<globalvars.len; i++)
+        if(!strcmp(cname, globalvars.data[i].a))
+            return globalvars.data[i].b;
 
     assert(0);
     return NULL;
@@ -333,6 +339,10 @@ static bool ir_gen_vararray(const char* cname)
     for(i=varnames.len-1; i>=0; i--)
         if(!strcmp(cname, varnames.data[i].a))
             return vardecls.data[i]->type.type == TYPE_ARR;
+    
+    for(i=0; i<globalvars.len; i++)
+        if(!strcmp(cname, globalvars.data[i].a))
+            return globdecls.data[i]->type.type == TYPE_ARR;
 
     assert(0);
     return false;
@@ -460,6 +470,7 @@ char* ir_gen_member(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
 {
     char *res;
     ir_inst_t *inst;
+    char *locname;
     
     res = outreg ? outreg : ir_allocreg(funcdef, type_toprim(expr->type.type));
 
@@ -467,8 +478,17 @@ char* ir_gen_member(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
     inst->op = IR_OP_LOAD;
     inst->binary[0].type = IR_OPERAND_REG;
     inst->binary[0].reg.name = strdup(res);
-    inst->binary[1].type = IR_OPERAND_REG;
-    inst->binary[1].reg.name = ir_gen_lvaladr(funcdef, expr, NULL);
+    locname = ir_gen_lvaladr(funcdef, expr, NULL);
+    if(strncmp(locname, "global.", 7))
+    {
+        inst->binary[1].type = IR_OPERAND_REG;
+        inst->binary[1].reg.name = locname;
+    }
+    else
+    {
+        inst->binary[1].type = IR_OPERAND_SYMBOL;
+        inst->binary[1].sym = locname;
+    }
 
     gen_appendinst(funcdef, inst);
 
@@ -486,8 +506,16 @@ static char* ir_gen_fidadr(ir_funcdef_t* funcdef, uint64_t agg, uint64_t fid, ch
     inst->op = IR_OP_FIDADR;
     inst->binary[0].type = IR_OPERAND_REG;
     inst->binary[0].reg.name = strdup(res);
-    inst->binary[1].type = IR_OPERAND_REG;
-    inst->binary[1].reg.name = strdup(base);
+    if(strncmp(base, "global.", 7))
+    {
+        inst->binary[1].type = IR_OPERAND_REG;
+        inst->binary[1].reg.name = strdup(base);
+    }
+    else
+    {
+        inst->binary[1].type = IR_OPERAND_SYMBOL;
+        inst->binary[1].sym = strdup(base);
+    }
     list_ir_fid_init(&inst->fid.fids, 1);
     inst->fid.fids.data[0].fid = fid;
     inst->fid.fids.data[0].typeid = 0;
@@ -616,6 +644,7 @@ char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
     char *res;
     ir_inst_t *inst;
     ir_inst_e opcode;
+    char *locname;
 
     if(outreg)
         res = outreg;
@@ -645,8 +674,17 @@ char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
         inst->op = ir_gen_vararray(expr->msg) ? IR_OP_MOVE : IR_OP_LOAD;
         inst->binary[0].type = IR_OPERAND_REG;
         inst->binary[0].reg.name = strdup(res);
-        inst->binary[1].type = IR_OPERAND_REG;
-        inst->binary[1].reg.name = strdup(ir_gen_varname(expr->msg));
+        locname = strdup(ir_gen_varname(expr->msg));
+        if(strncmp(locname, "global.", 7))
+        {
+            inst->binary[1].type = IR_OPERAND_REG;
+            inst->binary[1].reg.name = locname;
+        }
+        else
+        {
+            inst->binary[1].type = IR_OPERAND_SYMBOL;
+            inst->binary[1].sym = locname;
+        }
         gen_appendinst(funcdef, inst);
         return res;
     case EXPROP_STRING:
@@ -674,8 +712,17 @@ char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
         
         inst = gen_allocinst();
         inst->op = IR_OP_STORE;
-        inst->binary[0].type = IR_OPERAND_REG;
-        inst->binary[0].reg.name = ir_gen_lvaladr(funcdef, expr->operands[0], NULL);
+        locname = ir_gen_lvaladr(funcdef, expr->operands[0], NULL);
+        if(strncmp(locname, "global.", 7))
+        {
+            inst->binary[0].type = IR_OPERAND_REG;
+            inst->binary[0].reg.name = locname;
+        }
+        else
+        {
+            inst->binary[0].type = IR_OPERAND_SYMBOL;
+            inst->binary[0].sym = locname;
+        }
         inst->binary[1].type = IR_OPERAND_REG;
         inst->binary[1].reg.name = strdup(ir_gen_expr(funcdef, expr->operands[1], res));
         gen_appendinst(funcdef, inst);
@@ -692,14 +739,21 @@ char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
         gen_appendinst(funcdef, inst);
         return res;
     case EXPROP_INDEX:
-        // load from base + index*typesize; ir_gen_lvaladr handles the offset,
-        // whereas expr->operand would alias operands[0] (the base) and drop the index
         inst = gen_allocinst();
         inst->op = IR_OP_LOAD;
         inst->binary[0].type = IR_OPERAND_REG;
         inst->binary[0].reg.name = strdup(res);
-        inst->binary[1].type = IR_OPERAND_REG;
-        inst->binary[1].reg.name = ir_gen_lvaladr(funcdef, expr, NULL);
+        locname = ir_gen_lvaladr(funcdef, expr, NULL);
+        if(strncmp(locname, "global.", 7))
+        {
+            inst->binary[1].type = IR_OPERAND_REG;
+            inst->binary[1].reg.name = locname;
+        }
+        else
+        {
+            inst->binary[1].type = IR_OPERAND_SYMBOL;
+            inst->binary[1].sym = locname;
+        }
         gen_appendinst(funcdef, inst);
         return res;
     case EXPROP_CALL:
@@ -1029,9 +1083,30 @@ static void ir_gen_globaldecl(globaldecl_t *globdecl)
     ir_funcdef_t funcdef;
     list_pexpr_t initializers;
     uint64_t oldvarstack;
+    strpair_t globpair;
+    ir_data_t globdata;
+    int namelen;
 
     if(!globdecl->hasfuncdef)
+    {
+        globpair.a = strdup(globdecl->decl.ident);
+        globpair.b = malloc(namelen = snprintf(NULL, 0, "global.%s", globdecl->decl.ident) + 1);
+        snprintf(globpair.b, namelen, "global.%s", globdecl->decl.ident);
+
+        // TODO: actually make constant and static a thing
+        globdata.constant = false;
+        globdata.dontlink = true;
+        globdata.name = strdup(globpair.b);
+        list_u8_init(&globdata.data, ir_primbytesize(type_toprim(globdecl->decl.type.type)));
+        // TODO: use the initialized value
+        memset(globdata.data.data, 0, globdata.data.len);
+        map_str_ir_data_set(&ir.data, globpair.b, globdata);
+        list_u8_free(&globdata.data);
+
+        list_strpair_ppush(&globalvars, &globpair);
+        list_pdecl_push(&globdecls, &globdecl->decl);
         return;
+    }
 
     oldvarstack = varnames.len;
 
@@ -1101,6 +1176,8 @@ void gen(void)
 
     nstringliterals = 0;
 
+    list_strpair_init(&globalvars, 0);
+    list_pdecl_init(&globdecls, 0);
     list_strpair_init(&varnames, 0);
     list_pdecl_init(&vardecls, 0);
 
@@ -1112,6 +1189,8 @@ void gen(void)
 
     list_pdecl_free(&vardecls);
     list_strpair_free(&varnames);
+    list_pdecl_free(&globdecls);
+    list_strpair_free(&globalvars);
 }
 
 void ir_free(void)

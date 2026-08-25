@@ -504,8 +504,10 @@ static void ir_fidloadstores(ir_funcdef_t* funcdef)
             else
                 operand = &inst->binary[0];
             
+            if(operand->type == IR_OPERAND_SYMBOL)
+                continue;
+
             reg = map_str_ir_reg_get(&funcdef->regs, operand->reg.name);
-            assert(reg);
 
             if(reg->def->op != IR_OP_FIDADR)
                 continue;
