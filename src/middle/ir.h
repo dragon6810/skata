@@ -339,6 +339,7 @@ LIST_DECL(ir_funcdef_t, ir_funcdef)
 typedef struct
 {
     bool dontlink; // 'static' in c
+    bool dontsymbol; // 'L' prefix in asm, if dontsymbol then dontlink must be set
     bool constant;
     char *name;
     list_u8_t data;

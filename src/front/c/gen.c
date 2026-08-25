@@ -641,6 +641,7 @@ char* ir_gen_stringlit(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
     gen_appendinst(funcdef, inst);
 
     data.dontlink = true;
+    data.dontsymbol = true;
     data.constant = true;
     data.name = strdup(inst->binary[1].sym);
     // TODO: escape sequences and stuff
@@ -1135,7 +1136,8 @@ static void ir_gen_globaldecl(globaldecl_t *globdecl)
 
         // TODO: actually make constant and static a thing
         globdata.constant = false;
-        globdata.dontlink = true;
+        globdata.dontlink = false;
+        globdata.dontsymbol = false;
         globdata.name = strdup(globpair.b);
         list_u8_init(&globdata.data, ir_primbytesize(type_toprim(globdecl->decl.type.type)));
         // TODO: use the initialized value

@@ -7,7 +7,7 @@
 #include "back/regalloc.h"
 
 const char* armheader = 
-".global _main\n";
+"";
 
 const int stackpad = 16;
 
@@ -145,8 +145,8 @@ static void armgen_operand(ir_funcdef_t* funcdef, ir_operand_t* operand)
         // shouldnt funcs be here too? i forget what i was doing when doing func calls.
         datasym = map_str_ir_data_get(&ir.data, operand->sym);
         assert(datasym);
-        if(datasym->dontlink)
-            printf("l");
+        if(datasym->dontsymbol)
+            printf("L");
         printf("_%s", datasym->name);
         break;
     default:
@@ -1005,8 +1005,8 @@ static void armgen_data(ir_data_t* data)
 {
     int i;
 
-    if(data->dontlink)
-        printf("l");
+    if(data->dontsymbol)
+        printf("L");
     printf("_%s:\n  .byte", data->name);
     for(i=0; i<data->data.len; i++)
     {
@@ -1022,6 +1022,13 @@ void back_gen(void)
     int i;
 
     printf("%s", armheader);
+
+    for(i=0; i<ir.data.nbin; i++)
+        if(ir.data.bins[i].state == MAP_EL_FULL && !ir.data.bins[i].val.dontlink)
+            printf(".globl _%s\n", ir.data.bins[i].val.name);
+    // TODO: only do this for non-static
+    for(i=0; i<ir.defs.len; i++)
+            printf(".globl _%s\n", ir.defs.data[i].name);
 
     printf("\n.section __TEXT,__text,regular,pure_instructions\n\n");
     for(i=0; i<ir.defs.len; i++)
