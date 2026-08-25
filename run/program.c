@@ -1,7 +1,15 @@
-// char *str = "hello";
-int x = 0;
+struct s
+{
+	int a;
+	int b;
+};
 
 int main()
 {
-	return x;
+	struct s var;
+
+	var.a = 0;
+	var.b = 2;
+
+	return var.a + var.b;
 }

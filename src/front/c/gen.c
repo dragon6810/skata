@@ -1130,6 +1130,8 @@ static void ir_gen_globaldecl(globaldecl_t *globdecl)
 
     if(!globdecl->hasfuncdef)
     {
+        if(globdecl->decl.form != DECL_VAR)
+            return;
         globpair.a = strdup(globdecl->decl.ident);
         globpair.b = malloc(namelen = snprintf(NULL, 0, "global.%s", globdecl->decl.ident) + 1);
         snprintf(globpair.b, namelen, "global.%s", globdecl->decl.ident);
