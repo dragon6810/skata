@@ -1136,14 +1136,23 @@ static void ir_gen_globaldecl(globaldecl_t *globdecl)
         globpair.b = malloc(namelen = snprintf(NULL, 0, "global.%s", globdecl->decl.ident) + 1);
         snprintf(globpair.b, namelen, "global.%s", globdecl->decl.ident);
 
-        // TODO: actually make constant and static a thing
-        globdata.constant = false;
-        globdata.dontlink = false;
+        globdata.constant = globdecl->decl.type.isconst;
+        globdata.dontlink = globdecl->decl.type.isstatic;
         globdata.dontsymbol = false;
         globdata.name = strdup(globpair.b);
         list_u8_init(&globdata.data, ir_primbytesize(type_toprim(globdecl->decl.type.type)));
-        // TODO: use the initialized value
         memset(globdata.data.data, 0, globdata.data.len);
+        
+        if(globdecl->decl.expr)
+        {
+            assert(globdecl->decl.expr->op == EXPROP_ASSIGN);
+            assert(globdecl->decl.expr->type.type >= TYPE_I8);
+            assert(globdecl->decl.expr->type.type <= TYPE_U64);
+            assert(globdecl->decl.expr->operands[1]->op == EXPROP_LIT);
+
+            memcpy(globdata.data.data, &globdecl->decl.expr->operands[1]->u64, globdata.data.len);
+        }
+
         map_str_ir_data_set(&ir.data, globpair.b, globdata);
         list_u8_free(&globdata.data);
 

@@ -331,6 +331,8 @@ void parse_type(type_t* type)
     type->line = parse_getline();
     type->column = parse_getcol();
 
+    type->isconst = type->isstatic = false;
+
     unsign = false;
 
     typestart = curtok;
@@ -375,6 +377,18 @@ void parse_type(type_t* type)
             if(unsign)
                 error(true, typestart->line, typestart->column, "duplicate specifier in declaration.\n");
             unsign = true;
+        }
+        else if(!strcmp(tokstr, "const"))
+        {
+            if(type->isconst)
+                error(true, typestart->line, typestart->column, "duplicate qualifier in declaration.\n");
+            type->isconst = true;
+        }
+        else if(!strcmp(tokstr, "static"))
+        {
+            if(type->isstatic)
+                error(true, typestart->line, typestart->column, "duplicate storage specifier in declaration.\n");
+            type->isstatic = true;
         }
         else
             break;

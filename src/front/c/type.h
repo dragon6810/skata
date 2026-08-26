@@ -40,6 +40,9 @@ LIST_DECL(type_t, type)
 
 typedef struct type_s
 {
+    bool isconst;
+    bool isstatic;
+
     type_e type;
 
     union

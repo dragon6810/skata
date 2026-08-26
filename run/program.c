@@ -1,15 +1,6 @@
-struct s
-{
-	int a;
-	int b;
-};
+const int x = 1;
 
 int main()
 {
-	struct s var;
-
-	var.a = 0;
-	var.b = 2;
-
-	return var.a + var.b;
+	return x;
 }

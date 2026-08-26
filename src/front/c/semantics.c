@@ -178,6 +178,8 @@ static void semantics_assignexpr(expr_t* expr)
 
     if(!expr->operands[0]->lval)
         error(true, expr->line, expr->col, "expression is not assignable\n");
+    if(expr->operands[0]->type.isconst)
+        error(true, expr->line, expr->col, "assigning to a constant\n");
 
     expr->type = expr->operands[0]->type;
     if(!semantics_typecmp(&expr->type, &expr->operands[1]->type))
@@ -562,6 +564,7 @@ static void semantics_decl(decl_t* decl, bool global)
         if(decl->expr)
         {
             assert(decl->expr->op == EXPROP_ASSIGN && decl->expr->operands[1]);
+            
             semantics_expr(decl->expr->operands[1]);
             type_cpy(&decl->expr->type, &decl->type);
             constexpr = constexpr_eval(decl->expr->operands[1]);
