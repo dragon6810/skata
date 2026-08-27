@@ -622,11 +622,35 @@ char* ir_gen_structassign(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
 
 static uint64_t nstringliterals;
 
+char* ir_gen_stringlitsymbol(char* str)
+{
+    ir_data_t data;
+    int len;
+    char *outname;
+
+    data.dontlink = true;
+    data.dontsymbol = true;
+    data.constant = true;
+    len = snprintf(NULL, 0, ".str.%llu", nstringliterals) + 1;
+    data.name = malloc(len + 1);
+    snprintf(data.name, len, ".str.%llu", nstringliterals);
+    outname = strdup(data.name);
+    data.align = 1;
+    // TODO: escape sequences and stuff
+    data.type = IR_DATA_BYTES;
+    list_u8_init(&data.bytes, strlen(str) + 1);
+    strcpy((char*) data.bytes.data, str);
+    map_str_ir_data_set(&ir.data, data.name, data);
+    ir_freedata(&data);
+
+    nstringliterals++;
+
+    return outname;
+}
+
 char* ir_gen_stringlit(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
 {
     ir_inst_t *inst;
-    int len;
-    ir_data_t data;
 
     assert(expr->op == EXPROP_STRING);
 
@@ -635,22 +659,9 @@ char* ir_gen_stringlit(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
     inst->binary[0].type = IR_OPERAND_REG;
     inst->binary[0].reg.name = strdup(outreg);
     inst->binary[1].type = IR_OPERAND_SYMBOL;
-    len = snprintf(NULL, 0, ".str.%llu", nstringliterals) + 1;
-    inst->binary[1].sym = malloc(len + 1);
-    snprintf(inst->binary[1].sym, len, ".str.%llu", nstringliterals);
+    inst->binary[1].sym = ir_gen_stringlitsymbol(expr->msg);
     gen_appendinst(funcdef, inst);
-
-    data.dontlink = true;
-    data.dontsymbol = true;
-    data.constant = true;
-    data.name = strdup(inst->binary[1].sym);
-    // TODO: escape sequences and stuff
-    list_u8_init(&data.data, strlen(expr->msg) + 1);
-    strcpy((char*) data.data.data, expr->msg);
-    map_str_ir_data_set(&ir.data, data.name, data);
-    ir_freedata(&data);
-
-    nstringliterals++;
+    
     return outreg;
 }
 
@@ -1140,21 +1151,37 @@ static void ir_gen_globaldecl(globaldecl_t *globdecl)
         globdata.dontlink = globdecl->decl.type.isstatic;
         globdata.dontsymbol = false;
         globdata.name = strdup(globpair.b);
-        list_u8_init(&globdata.data, ir_primbytesize(type_toprim(globdecl->decl.type.type)));
-        memset(globdata.data.data, 0, globdata.data.len);
-        
-        if(globdecl->decl.expr)
-        {
-            assert(globdecl->decl.expr->op == EXPROP_ASSIGN);
-            assert(globdecl->decl.expr->type.type >= TYPE_I8);
-            assert(globdecl->decl.expr->type.type <= TYPE_U64);
-            assert(globdecl->decl.expr->operands[1]->op == EXPROP_LIT);
 
-            memcpy(globdata.data.data, &globdecl->decl.expr->operands[1]->u64, globdata.data.len);
+        assert(globdecl->decl.expr->op == EXPROP_ASSIGN);
+
+        if(globdecl->decl.expr->operands[1]->op == EXPROP_LIT)
+        {
+            globdata.type = IR_DATA_BYTES;
+            list_u8_init(&globdata.bytes, ir_primbytesize(type_toprim(globdecl->decl.type.type)));
+            globdata.align = globdata.bytes.len;
+            memset(globdata.bytes.data, 0, globdata.bytes.len);
+            if(globdecl->decl.expr)
+            {
+                assert(globdecl->decl.expr->type.type >= TYPE_I8);
+                assert(globdecl->decl.expr->type.type <= TYPE_U64);
+                memcpy(globdata.bytes.data, &globdecl->decl.expr->operands[1]->u64, globdata.bytes.len);
+            }
+        }
+        else if(globdecl->decl.expr->operands[1]->op == EXPROP_STRING)
+        {
+            globdata.type = IR_DATA_PTROFFS;
+            globdata.align = ir_primbytesize(IR_PRIM_PTR);
+            globdata.ptroffs.sym = ir_gen_stringlitsymbol(globdecl->decl.expr->operands[1]->msg);
+            globdata.ptroffs.offs = 0;
+        }
+        else
+        {
+            assert(0);
         }
 
         map_str_ir_data_set(&ir.data, globpair.b, globdata);
-        list_u8_free(&globdata.data);
+
+        ir_freedata(&globdata);
 
         list_strpair_ppush(&globalvars, &globpair);
         list_pdecl_push(&globdecls, &globdecl->decl);

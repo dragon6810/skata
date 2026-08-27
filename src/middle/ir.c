@@ -218,13 +218,39 @@ static void ir_copydata(ir_data_t* dst, ir_data_t* src)
 {
     *dst = *src;
     dst->name = strdup(dst->name);
-    list_u8_dup(&dst->data, &src->data);
+    switch(dst->type)
+    {
+    case IR_DATA_BSS:
+        break;
+    case IR_DATA_BYTES:
+        list_u8_dup(&dst->bytes, &src->bytes);
+        break;
+    case IR_DATA_PTROFFS:
+        if(dst->ptroffs.sym)
+            dst->ptroffs.sym = strdup(dst->ptroffs.sym);
+        break;
+    default:
+        assert(0);
+    }
 }
 
 void ir_freedata(ir_data_t* data)
 {
     free(data->name);
-    list_u8_free(&data->data);
+    switch(data->type)
+    {
+    case IR_DATA_BSS:
+        break;
+    case IR_DATA_BYTES:
+        list_u8_free(&data->bytes);
+        break;
+    case IR_DATA_PTROFFS:
+        if(data->ptroffs.sym)
+            free(data->ptroffs.sym);
+        break;
+    default:
+        assert(0);
+    }
 }
 
 MAP_DEF(char*, ir_reg_t, str, ir_reg, hash_str, map_strcmp, map_strcpy, ir_regcpy, map_freestr, ir_regfree)

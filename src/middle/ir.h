@@ -336,13 +336,32 @@ typedef struct ir_funcdef_s
 
 LIST_DECL(ir_funcdef_t, ir_funcdef)
 
+typedef enum
+{
+    IR_DATA_BSS=0,
+    IR_DATA_BYTES,
+    IR_DATA_PTROFFS,
+} ir_data_e;
+
 typedef struct
 {
     bool dontlink; // 'static' in c
     bool dontsymbol; // 'L' prefix in asm, if dontsymbol then dontlink must be set
     bool constant;
     char *name;
-    list_u8_t data;
+    uint64_t align;
+
+    ir_data_e type;
+    union
+    {
+        uint64_t bsslen;
+        list_u8_t bytes;
+        struct
+        {
+            char *sym;
+            uint64_t offs;
+        } ptroffs;
+    };
 } ir_data_t;
 
 MAP_DECL(char*, ir_data_t, str, ir_data)

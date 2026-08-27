@@ -394,16 +394,30 @@ void ir_dump_datadata(ir_data_t* data)
     int i;
 
     printf("  ");
-    for(i=0; i<data->data.len; i++)
+    switch(data->type)
     {
-        if(i)
-            printf(", ");
-        if(i && !(i%8))
-            printf("\n  ");
-        printf("\e[0;93m0x%02"PRIx8"\e[0m", data->data.data[i]);
+    case IR_DATA_BSS:
+        printf("\e[0;93m[%"PRIu64" bytes]\e[0m\n", data->bsslen);
+        break;
+    case IR_DATA_BYTES:
+        for(i=0; i<data->bytes.len; i++)
+        {
+            if(i)
+                printf(", ");
+            if(i && !(i%8))
+                printf("\n  ");
+            printf("\e[0;93m0x%02"PRIx8"\e[0m", data->bytes.data[i]);
+        }
+        printf("\n");
+        break;
+    case IR_DATA_PTROFFS:
+        assert(data->ptroffs.sym);
+        printf("\e[1;93m@%s\e[0m + \e[0;93m%"PRIu64"\e[0m\n",data->ptroffs.sym, data->ptroffs.offs);
+        break;
+    default:
+        assert(0);
+        break;
     }
-
-    printf("\n");
 }
 
 void ir_dump_data(ir_data_t* data)

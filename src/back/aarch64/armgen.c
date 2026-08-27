@@ -2,6 +2,7 @@
 
 #include <assert.h>
 #include <inttypes.h>
+#include "math.h"
 #include <stdio.h>
 
 #include "back/regalloc.h"
@@ -987,6 +988,7 @@ static void armgen_funcdef(ir_funcdef_t* funcdef)
 
     map_str_u64_alloc(&stackptrs);
 
+    printf(".align 2\n");
     printf("_%s:\n", funcdef->name);
 
     armgen_prolouge(funcdef);
@@ -1001,20 +1003,48 @@ static void armgen_funcdef(ir_funcdef_t* funcdef)
     map_str_u64_free(&stackptrs);
 }
 
+static void armgen_dataname(char* name)
+{
+    ir_data_t *data;
+
+    data = map_str_ir_data_get(&ir.data, name);
+    assert(data);
+    if(data->dontsymbol)
+        printf("L");
+    printf("_%s", name);
+}
+
 static void armgen_data(ir_data_t* data)
 {
     int i;
 
+    printf(".align %d\n", (int) ceilf(log2f(data->align)));
     if(data->dontsymbol)
         printf("L");
-    printf("_%s:\n  .byte", data->name);
-    for(i=0; i<data->data.len; i++)
+    printf("_%s:\n  ", data->name);
+    switch(data->type)
     {
-        if(i)
-            printf(",");
-        printf(" %"PRIu8, data->data.data[i]);
+    case IR_DATA_BYTES:
+        printf(".byte");
+        for(i=0; i<data->bytes.len; i++)
+        {
+            if(i)
+                printf(",");
+            printf(" %"PRIu8, data->bytes.data[i]);
+        }
+        printf("\n");
+        break;
+    case IR_DATA_PTROFFS:
+        assert(data->ptroffs.sym);
+        printf(".quad ");
+        armgen_dataname(data->ptroffs.sym);
+        if(data->ptroffs.offs)
+            printf(" + %"PRIu64, data->ptroffs.offs);
+        printf("\n");
+        break;
+    default:
+        assert(0);
     }
-    printf("\n");
 }
 
 void back_gen(void)
@@ -1036,11 +1066,28 @@ void back_gen(void)
 
     printf("\n.section __DATA,__data\n\n");
     for(i=0; i<ir.data.nbin; i++)
-        if(ir.data.bins[i].state == MAP_EL_FULL && !ir.data.bins[i].val.constant)
+    {
+        if(ir.data.bins[i].state == MAP_EL_FULL 
+        && (ir.data.bins[i].val.type == IR_DATA_BYTES || ir.data.bins[i].val.type == IR_DATA_PTROFFS)
+        && !ir.data.bins[i].val.constant)
             armgen_data(&ir.data.bins[i].val);
+    }
 
     printf("\n.section __TEXT,__const\n\n");
     for(i=0; i<ir.data.nbin; i++)
-        if(ir.data.bins[i].state == MAP_EL_FULL && ir.data.bins[i].val.constant)
+    {
+        if(ir.data.bins[i].state == MAP_EL_FULL 
+        && ir.data.bins[i].val.type == IR_DATA_BYTES 
+        && ir.data.bins[i].val.constant)
             armgen_data(&ir.data.bins[i].val);
+    }
+
+    printf("\n.section __DATA_CONST,__const\n\n");
+    for(i=0; i<ir.data.nbin; i++)
+    {
+        if(ir.data.bins[i].state == MAP_EL_FULL 
+        && ir.data.bins[i].val.type == IR_DATA_PTROFFS 
+        && ir.data.bins[i].val.constant)
+            armgen_data(&ir.data.bins[i].val);
+    }
 }

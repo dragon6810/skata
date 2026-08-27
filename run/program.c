@@ -1,6 +1,6 @@
-const int x = 1;
+const char* str = "hello";
 
 int main()
 {
-	return x;
+	return str[0];
 }
