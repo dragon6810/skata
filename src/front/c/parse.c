@@ -664,6 +664,7 @@ static void parse_arglist(decl_t* decl)
         if(!strcmp(parse_peekstr(0), ")"))
             break;
 
+        arg.form = DECL_VAR;
         parse_type(&arg.type);
         parse_modifytypewithptr(&arg.type);
         arg.ident = strdup(parse_eatform(TOKEN_IDENT));
