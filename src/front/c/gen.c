@@ -908,7 +908,7 @@ static void ir_gen_if(ir_funcdef_t* funcdef, ifstmnt_t* ifstmnt)
     jmpinst->unary.label = strdup(funcdef->blocks.data[funcdef->blocks.len-1].name);
 }
 
-static void ir_gen_while(ir_funcdef_t* funcdef, whilestmnt_t* whilestmnt)
+static void ir_gen_loop(ir_funcdef_t* funcdef, expr_t* condition, stmnt_t* body, expr_t* iter)
 {
     int conditionblock;
     ir_inst_t *inst, *brinst;
@@ -918,15 +918,28 @@ static void ir_gen_while(ir_funcdef_t* funcdef, whilestmnt_t* whilestmnt)
     // if true, jump to loop body
     brinst = inst = gen_allocinst();
     inst->op = IR_OP_BR;
-    inst->ternary[0].type = IR_OPERAND_REG;
-    inst->ternary[0].reg.name = ir_gen_expr(funcdef, whilestmnt->expr, NULL);
+    if(condition)
+    {
+        inst->ternary[0].type = IR_OPERAND_REG;
+        inst->ternary[0].reg.name = ir_gen_expr(funcdef, condition, NULL);
+    }
+    else
+    {
+        inst->ternary[0].type = IR_OPERAND_LIT;
+        inst->ternary[0].literal.type = IR_PRIM_U1;
+        inst->ternary[0].literal.u8 = 1;
+    }
     inst->ternary[1].type = IR_OPERAND_LABEL;
     gen_appendinst(funcdef, inst);
     
     // body
     gen_newblock(funcdef);
     inst->ternary[1].label = strdup(funcdef->blocks.data[funcdef->blocks.len-1].name);
-    ir_gen_statement(funcdef, whilestmnt->body);
+    ir_gen_statement(funcdef, body);
+    
+    gen_newblock(funcdef);
+    if(iter)
+        free(ir_gen_expr(funcdef, iter, NULL));
     // jump back to beginning
     inst = gen_allocinst();
     inst->op = IR_OP_JMP;
@@ -938,6 +951,18 @@ static void ir_gen_while(ir_funcdef_t* funcdef, whilestmnt_t* whilestmnt)
     gen_newblock(funcdef);
     brinst->ternary[2].type = IR_OPERAND_LABEL;
     brinst->ternary[2].label = strdup(funcdef->blocks.data[funcdef->blocks.len-1].name);
+}
+
+static void ir_gen_while(ir_funcdef_t* funcdef, whilestmnt_t* whilestmnt)
+{
+    ir_gen_loop(funcdef, whilestmnt->expr, whilestmnt->body, NULL);
+}
+
+static void ir_gen_for(ir_funcdef_t* funcdef, forstmnt_t* forstmnt)
+{
+    if(forstmnt->init)
+        free(ir_gen_expr(funcdef, forstmnt->init, NULL));
+    ir_gen_loop(funcdef, forstmnt->cond, forstmnt->body, forstmnt->iter);
 }
 
 static void ir_gen_statement(ir_funcdef_t *funcdef, stmnt_t *stmnt)
@@ -961,6 +986,10 @@ static void ir_gen_statement(ir_funcdef_t *funcdef, stmnt_t *stmnt)
         break;
     case STMNT_WHILE:
         ir_gen_while(funcdef, &stmnt->whilestmnt);
+        break;
+    case STMNT_FOR:
+        ir_gen_for(funcdef, &stmnt->forstmnt);
+        break;
     default:
         break;
     }

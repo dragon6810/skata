@@ -512,6 +512,12 @@ static void semantics_statement(globaldecl_t* func, stmnt_t* stmnt)
         semantics_condition(stmnt->whilestmnt.expr);
         semantics_statement(func, stmnt->whilestmnt.body);
         break;
+    case STMNT_FOR:
+        semantics_expr(stmnt->forstmnt.init);
+        semantics_condition(stmnt->forstmnt.cond);
+        semantics_expr(stmnt->forstmnt.iter);
+        semantics_statement(func, stmnt->forstmnt.body);
+        break;
     default:
         break;
     }

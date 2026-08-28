@@ -51,6 +51,10 @@ static void parse_printexpr_r(const expr_t* expr)
         nterms = 3;
         op = "?:";
         break;
+    case EXPROP_COMMA:
+        nterms = 2;
+        op = "=";
+        break;
     case EXPROP_ASSIGN:
         nterms = 2;
         op = "=";
@@ -174,7 +178,7 @@ static int parse_postfixopbp(exprop_e op)
     {
     case EXPROP_POSTINC:
     case EXPROP_POSTDEC:
-        return 11;
+        return 13;
     default:
         return 0;
     }
@@ -191,9 +195,9 @@ static int parse_prefixopbp(exprop_e op)
     case EXPROP_REF:
     case EXPROP_DEREF:
     case EXPROP_LOGICNOT:
-        return 10;
+        return 12;
     case EXPROP_CAST:
-        return 9;
+        return 11;
     default:
         return 0;
     }
@@ -204,8 +208,8 @@ static void parse_ternaryopbp(exprop_e op, int bp[2])
     switch(op)
     {
     case EXPROP_COND:
-        bp[0] = 4;
-        bp[1] = 3;
+        bp[0] = 6;
+        bp[1] = 5;
         break;
     default:
         bp[0] = bp[1] = 0;
@@ -217,19 +221,23 @@ static void parse_infixopbp(exprop_e op, int bp[2])
 {
     switch(op)
     {
+    case EXPROP_COMMA:
+        bp[0] = 1;
+        bp[1] = 2;
+        break;
     case EXPROP_ASSIGN:
-        bp[0] = 2;
-        bp[1] = 1;
+        bp[0] = 4;
+        bp[1] = 3;
         break;
     case EXPROP_ADD:
     case EXPROP_SUB:
-        bp[0] = 5;
-        bp[1] = 6;
+        bp[0] = 7;
+        bp[1] = 8;
         break;
     case EXPROP_MULT:
     case EXPROP_DIV:
-        bp[0] = 7;
-        bp[1] = 8;
+        bp[0] = 9;
+        bp[1] = 10;
         break;
     default:
         bp[0] = bp[1] = 0;
@@ -335,7 +343,9 @@ static expr_t* parse_expr_r(int minbp)
     while(1)
     {
         tokstr = parse_peekstr(0);
-        if(!strcmp(tokstr, "="))
+        if(!strcmp(tokstr, ","))
+            op = EXPROP_COMMA;
+        else if(!strcmp(tokstr, "="))
             op = EXPROP_ASSIGN;
         else if(!strcmp(tokstr, "+"))
             op = EXPROP_ADD;

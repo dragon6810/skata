@@ -597,6 +597,31 @@ static void parse_statement(stmnt_t* stmnt)
         return;
     }
 
+    if(!strcmp(parse_peekstr(0), "for"))
+    {
+        parse_eat();
+
+        stmnt->form = STMNT_FOR;
+        stmnt->forstmnt.init = stmnt->forstmnt.cond = stmnt->forstmnt.iter = NULL;
+        stmnt->forstmnt.body = NULL;
+
+        parse_eatstr("(");
+        if(strcmp(parse_peekstr(0), ";"))
+            stmnt->forstmnt.init = parse_expr();
+        parse_eatstr(";");
+        if(strcmp(parse_peekstr(0), ";"))
+            stmnt->forstmnt.cond = parse_expr();
+        parse_eatstr(";");
+        if(strcmp(parse_peekstr(0), ";"))
+            stmnt->forstmnt.iter = parse_expr();
+        parse_eatstr(")");
+
+        stmnt->forstmnt.body = malloc(sizeof(stmnt_t));
+        parse_statement(stmnt->forstmnt.body);
+
+        return;
+    }
+
     stmnt->form = STMNT_EXPR;
     stmnt->expr = parse_expr();
     parse_eatstr(";");
@@ -791,6 +816,25 @@ static void parse_printwhilestatement(stmnt_t* stmnt, int depth, bool last, char
     free(newleft);
 }
 
+static void parse_printforstatement(stmnt_t* stmnt, int depth, bool last, char* leftstr)
+{
+    char* newleft;
+
+    newleft = parse_printprefix(depth, last, leftstr);
+
+    printf("\e[1;32m<for-statement> \e[0;96m");
+    parse_printexpr(stmnt->forstmnt.init);
+    printf("; ");
+    parse_printexpr(stmnt->forstmnt.cond);
+    printf("; ");
+    parse_printexpr(stmnt->forstmnt.iter);
+    printf("\e[0m\n");
+
+    parse_printstatement(stmnt->forstmnt.body, depth + 1, true, newleft);
+
+    free(newleft);
+}
+
 static void parse_printcompound(compound_t* def, int depth, bool last, char* leftstr);
 
 static void parse_printstatement(stmnt_t* stmnt, int depth, bool last, char* leftstr)
@@ -811,6 +855,12 @@ static void parse_printstatement(stmnt_t* stmnt, int depth, bool last, char* lef
         break;
     case STMNT_WHILE:
         parse_printwhilestatement(stmnt, depth, last, leftstr);
+        break;
+    case STMNT_FOR:
+        parse_printforstatement(stmnt, depth, last, leftstr);
+        break;
+    default:
+        assert(0);
         break;
     }
 }

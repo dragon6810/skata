@@ -21,6 +21,7 @@ typedef enum
     STMNT_RETURN,
     STMNT_IF,
     STMNT_WHILE,
+    STMNT_FOR,
 } stmnttype_e;
 
 typedef enum
@@ -36,6 +37,7 @@ typedef enum
 
     // binary operators
     // use terms[0] and terms[1]
+    EXPROP_COMMA, // ,
     EXPROP_ASSIGN, // =
     EXPROP_ADD, // +
     EXPROP_SUB, // -
@@ -131,16 +133,24 @@ typedef struct whilestmnt_s
     stmnt_t *body;
 } whilestmnt_t;
 
+typedef struct forstmnt_s
+{
+    expr_t *init;
+    expr_t *cond;
+    expr_t *iter;
+    stmnt_t *body;
+} forstmnt_t;
+
 typedef struct stmnt_s
 {
     stmnttype_e form;
-
     union
     {
         expr_t *expr;
         compound_t compound;
         ifstmnt_t ifstmnt;
         whilestmnt_t whilestmnt;
+        forstmnt_t forstmnt;
     };
 } stmnt_t;
 
