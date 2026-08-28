@@ -461,7 +461,7 @@ static void parse_arraydims(type_t* type)
     while(!strcmp(parse_peekstr(0), "["))
     {
         parse_eat();
-        expr = parse_expr();
+        expr = parse_expr(false);
         len = intconstexpr_eval(expr);
         if(len < 0)
             error(true, expr->line, expr->col, "array length must not be less than zero\n");
@@ -508,7 +508,7 @@ static void parse_decl(decl_t* decl)
     if(!strcmp(parse_peekstr(0), "="))
     {
         curtok--;
-        decl->expr = parse_expr();
+        decl->expr = parse_expr(false);
     }
     else if(decl->type.isconst)
     {
@@ -536,7 +536,7 @@ static void parse_statement(stmnt_t* stmnt)
         parse_eat();
 
         stmnt->form = STMNT_RETURN;
-        stmnt->expr = parse_expr();
+        stmnt->expr = parse_expr(false);
         parse_eatstr(";");
         return;
     }
@@ -549,7 +549,7 @@ static void parse_statement(stmnt_t* stmnt)
 
         parse_eatstr("(");
         
-        stmnt->ifstmnt.expr = parse_expr();
+        stmnt->ifstmnt.expr = parse_expr(false);
         if(!stmnt->ifstmnt.expr)
         {
             error(false, parse_getexpectedline(), parse_getexpectedcol(), "expected expression\n");
@@ -581,7 +581,7 @@ static void parse_statement(stmnt_t* stmnt)
 
         parse_eatstr("(");
         
-        stmnt->whilestmnt.expr = parse_expr();
+        stmnt->whilestmnt.expr = parse_expr(false);
         if(!stmnt->whilestmnt.expr)
         {
             error(false, parse_getexpectedline(), parse_getexpectedcol(), "expected expression\n");
@@ -607,13 +607,13 @@ static void parse_statement(stmnt_t* stmnt)
 
         parse_eatstr("(");
         if(strcmp(parse_peekstr(0), ";"))
-            stmnt->forstmnt.init = parse_expr();
+            stmnt->forstmnt.init = parse_expr(false);
         parse_eatstr(";");
         if(strcmp(parse_peekstr(0), ";"))
-            stmnt->forstmnt.cond = parse_expr();
+            stmnt->forstmnt.cond = parse_expr(false);
         parse_eatstr(";");
         if(strcmp(parse_peekstr(0), ";"))
-            stmnt->forstmnt.iter = parse_expr();
+            stmnt->forstmnt.iter = parse_expr(false);
         parse_eatstr(")");
 
         stmnt->forstmnt.body = malloc(sizeof(stmnt_t));
@@ -623,7 +623,7 @@ static void parse_statement(stmnt_t* stmnt)
     }
 
     stmnt->form = STMNT_EXPR;
-    stmnt->expr = parse_expr();
+    stmnt->expr = parse_expr(false);
     parse_eatstr(";");
 
     return;
@@ -722,7 +722,7 @@ static void parse_globaldecl(void)
             decl.decl.expr->operands[0] = calloc(1, sizeof(expr_t));
             decl.decl.expr->operands[0]->op = EXPROP_VAR;
             decl.decl.expr->operands[0]->msg = strdup(decl.decl.ident);
-            decl.decl.expr->operands[1] = parse_expr();
+            decl.decl.expr->operands[1] = parse_expr(false);
         }
         parse_eatstr(";");
     }

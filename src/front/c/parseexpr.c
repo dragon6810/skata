@@ -83,6 +83,14 @@ static void parse_printexpr_r(const expr_t* expr)
         nterms = 2;
         op = "!=";
         break;
+    case EXPROP_LES:
+        nterms = 2;
+        op = "<";
+        break;
+    case EXPROP_GRT:
+        nterms = 2;
+        op = ">";
+        break;
     case EXPROP_NEG:
         nterms = 1;
         op = "-";
@@ -359,6 +367,10 @@ static expr_t* parse_expr_r(int minbp)
             op = EXPROP_EQ;
         else if(!strcmp(tokstr, "!="))
             op = EXPROP_NEQ;
+        else if(!strcmp(tokstr, "<"))
+            op = EXPROP_LES;
+        else if(!strcmp(tokstr, ">"))
+            op = EXPROP_GRT;
         else if(!strcmp(tokstr, "++"))
             op = EXPROP_POSTINC;
         else if(!strcmp(tokstr, "--"))
@@ -418,7 +430,7 @@ static expr_t* parse_expr_r(int minbp)
 
             while(strcmp(parse_peekstr(0), ")"))
             {
-                list_pexpr_push(&expr->variadic, parse_expr_r(0));
+                list_pexpr_push(&expr->variadic, parse_expr(true));
                 if(strcmp(parse_peekstr(0), ")"))
                     parse_eatstr(",");
             }
@@ -531,7 +543,16 @@ done:
     return expr;
 }
 
-expr_t* parse_expr(void)
+expr_t* parse_expr(bool islist)
 {
-    return parse_expr_r(0);
+    int minbp, bp[2];
+
+    minbp = 0;
+    if(islist)
+    {
+        parse_infixopbp(EXPROP_COMMA, bp);
+        minbp = bp[1];
+    }
+
+    return parse_expr_r(minbp);
 }

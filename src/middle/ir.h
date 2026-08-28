@@ -129,6 +129,8 @@ typedef enum
     IR_OP_FIDADR, // dst, src [fid]
     IR_OP_CMPEQ, // dst, a, b
     IR_OP_CMPNEQ, // dst, a, b
+    IR_OP_CMPLES, // dst, a, b
+    IR_OP_CMPGRT, // dst, a, b
     IR_OP_BR, // value, truelabel, falselabel
     IR_OP_JMP, // label
     IR_OP_PHI, // (VARIADIC); dst, label1, reg1, label2, reg2, ... labeln, regn

@@ -624,7 +624,23 @@ static void armgen_emitstore(ir_funcdef_t* funcdef, ir_inst_t* inst)
 
 static void armgen_emitmul(ir_funcdef_t* funcdef, ir_inst_t* inst)
 {
-    if(inst->ternary[2].type == IR_OPERAND_LIT)
+    assert(inst->ternary[1].type != IR_OPERAND_LIT || inst->ternary[2].type != IR_OPERAND_LIT);
+
+    if(inst->ternary[1].type == IR_OPERAND_LIT)
+    {
+        printf("  MOV %s, ", *map_u64_str_get(&scratchlist.data[0]->names, inst->ternary[1].literal.type));
+        armgen_operand(funcdef, &inst->ternary[1]);
+        printf("\n");
+
+        printf("  MUL ");
+        armgen_operand(funcdef, &inst->ternary[0]);
+        printf(", ");
+        armgen_operand(funcdef, &inst->ternary[2]);
+        printf(", %s\n", *map_u64_str_get(&scratchlist.data[0]->names, inst->ternary[1].literal.type));
+        
+        return;
+    }
+    else if(inst->ternary[2].type == IR_OPERAND_LIT)
     {
         printf("  MOV %s, ", *map_u64_str_get(&scratchlist.data[0]->names, inst->ternary[2].literal.type));
         armgen_operand(funcdef, &inst->ternary[2]);
@@ -707,6 +723,9 @@ static void armgen_inst(ir_funcdef_t* funcdef, ir_block_t* blk, int iinst, ir_in
         armgen_emitload(funcdef, inst);
         break;
     case IR_OP_CMPEQ:
+    case IR_OP_CMPNEQ:
+    case IR_OP_CMPLES:
+    case IR_OP_CMPGRT:
         /*
             CMP %a, %b
             CSET %dst, eq
@@ -727,30 +746,14 @@ static void armgen_inst(ir_funcdef_t* funcdef, ir_block_t* blk, int iinst, ir_in
         printf("\n");
         printf("  CSET ");
         armgen_operand(funcdef, &inst->ternary[0]);
-        printf(", eq\n");
-        break;
-    case IR_OP_CMPNEQ:
-        /*
-            CMP %a, %b
-            CSET %dst, neq
-        */
-        if(inst->ternary[1].type != IR_OPERAND_REG)
-        {
-            printf("  MOV %s, ", *map_u64_str_get(&scratchlist.data[0]->names, inst->ternary[1].literal.type));
-            armgen_operand(funcdef, &inst->ternary[1]);
-            printf("\n");
-        }
-        printf("  CMP ");
-        if(inst->ternary[1].type == IR_OPERAND_REG)
-            armgen_operand(funcdef, &inst->ternary[1]);
-        else
-            printf("%s", *map_u64_str_get(&scratchlist.data[0]->names, inst->ternary[1].literal.type));
-        printf(", ");
-        armgen_operand(funcdef, &inst->ternary[2]);
-        printf("\n");
-        printf("  CSET ");
-        armgen_operand(funcdef, &inst->ternary[0]);
-        printf(", ne\n");
+        if(inst->op == IR_OP_CMPEQ)
+            printf(", eq\n");
+        else if(inst->op == IR_OP_CMPNEQ)
+            printf(", ne\n");
+        else if(inst->op == IR_OP_CMPLES)
+            printf(", lt\n");
+        else if(inst->op == IR_OP_CMPGRT)
+            printf(", gt\n");
         break;
     case IR_OP_BR:
         /*

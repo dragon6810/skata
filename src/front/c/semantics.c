@@ -442,6 +442,8 @@ static void semantics_expr(expr_t* expr)
         break;
     case EXPROP_EQ:
     case EXPROP_NEQ:
+    case EXPROP_LES:
+    case EXPROP_GRT:
         semantics_truthybinaryexpr(expr);
         break;
     case EXPROP_NEG:

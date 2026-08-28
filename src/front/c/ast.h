@@ -45,6 +45,8 @@ typedef enum
     EXPROP_DIV, // /
     EXPROP_EQ, // == 
     EXPROP_NEQ, // !=
+    EXPROP_LES, // <
+    EXPROP_GRT, // >
 
     // unary operators
     EXPROP_NEG, // -
@@ -179,6 +181,6 @@ bool parse_eatstr(const char* str);
 const char* parse_eat(void);
 void parse_printexpr(const expr_t* expr);
 
-expr_t* parse_expr(void);
+expr_t* parse_expr(bool islist);
 
 #endif

@@ -1,4 +1,3 @@
-/* stretch: needs relational `<` in addition to `for` */
 int main()
 {
 	int i;

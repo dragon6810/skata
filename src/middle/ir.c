@@ -342,6 +342,8 @@ void ir_definedregs(set_str_t* set, ir_inst_t* inst)
     case IR_OP_MUL:
     case IR_OP_CMPEQ:
     case IR_OP_CMPNEQ:
+    case IR_OP_CMPLES:
+    case IR_OP_CMPGRT:
         set_str_add(set, inst->ternary[0].reg.name);
         break;
     case IR_OP_CALL:
@@ -389,6 +391,8 @@ void ir_accessedregs(set_str_t* set, ir_inst_t* inst)
     case IR_OP_MUL:
     case IR_OP_CMPEQ:
     case IR_OP_CMPNEQ:
+    case IR_OP_CMPLES:
+    case IR_OP_CMPGRT:
         if(inst->ternary[1].type == IR_OPERAND_REG) set_str_add(set, inst->ternary[1].reg.name);
         if(inst->ternary[2].type == IR_OPERAND_REG) set_str_add(set, inst->ternary[2].reg.name);
         break;
@@ -452,6 +456,8 @@ void ir_instoperands(list_pir_operand_t* list, ir_inst_t* inst)
     case IR_OP_MUL:
     case IR_OP_CMPEQ:
     case IR_OP_CMPNEQ:
+    case IR_OP_CMPLES:
+    case IR_OP_CMPGRT:
     case IR_OP_BR:
         noperands = 3;
         break;
@@ -589,6 +595,8 @@ int ir_ninstoperands(const ir_inst_t* inst)
     case IR_OP_MUL:
     case IR_OP_CMPEQ:
     case IR_OP_CMPNEQ:
+    case IR_OP_CMPLES:
+    case IR_OP_CMPGRT:
     case IR_OP_BR:
         return 3;
         break;

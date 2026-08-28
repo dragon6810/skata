@@ -198,6 +198,24 @@ void ir_dump_inst(ir_funcdef_t* funcdef, ir_inst_t* inst)
         ir_print_operand(funcdef, &inst->ternary[2]);
         printf("\n");
         break;
+    case IR_OP_CMPLES:
+        printf("  ");
+        ir_print_operand(funcdef, &inst->ternary[0]);
+        printf(" \e[0;95m:=\e[0m ");
+        ir_print_operand(funcdef, &inst->ternary[1]);
+        printf(" \e[0;95m<\e[0m ");
+        ir_print_operand(funcdef, &inst->ternary[2]);
+        printf("\n");
+        break;
+    case IR_OP_CMPGRT:
+        printf("  ");
+        ir_print_operand(funcdef, &inst->ternary[0]);
+        printf(" \e[0;95m:=\e[0m ");
+        ir_print_operand(funcdef, &inst->ternary[1]);
+        printf(" \e[0;95m>\e[0m ");
+        ir_print_operand(funcdef, &inst->ternary[2]);
+        printf("\n");
+        break;
     case IR_OP_BR:
         printf("  \e[0;95mbr\e[0m ");
         ir_print_operand(funcdef, &inst->ternary[0]);

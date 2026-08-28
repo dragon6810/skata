@@ -672,7 +672,7 @@ char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
     char *res;
     ir_inst_t *inst, *symadr;
     ir_inst_e opcode;
-    char *locname;
+    char *locname, *lval, *tempreg;
 
     if(outreg)
         res = outreg;
@@ -742,6 +742,46 @@ char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
     case EXPROP_NEQ:
         opcode = IR_OP_CMPNEQ;
         break;
+    case EXPROP_LES:
+        opcode = IR_OP_CMPLES;
+        break;
+    case EXPROP_GRT:
+        opcode = IR_OP_CMPGRT;
+        break;
+    case EXPROP_POSTINC:
+    case EXPROP_POSTDEC:
+        lval = ir_gen_lvaladr(funcdef, expr->operand, NULL);
+        
+        inst = gen_allocinst();
+        inst->op = IR_OP_LOAD;
+        inst->binary[0].type = IR_OPERAND_REG;
+        inst->binary[0].reg.name = strdup(res);
+        inst->binary[1].type = IR_OPERAND_REG;
+        inst->binary[1].reg.name = strdup(lval);
+        gen_appendinst(funcdef, inst);
+
+        inst = gen_allocinst();
+        inst->op = IR_OP_ADD;
+        inst->ternary[0].type = IR_OPERAND_REG;
+        inst->ternary[0].reg.name = strdup(tempreg = ir_allocreg(funcdef, type_toprim(expr->type.type)));
+        inst->ternary[1].type = IR_OPERAND_REG;
+        inst->ternary[1].reg.name = strdup(res);
+        inst->ternary[2].type = IR_OPERAND_LIT;
+        inst->ternary[2].literal.type = type_toprim(expr->type.type);
+        inst->ternary[2].literal.u64 = 1;
+        gen_appendinst(funcdef, inst);
+
+        inst = gen_allocinst();
+        inst->op = IR_OP_STORE;
+        inst->binary[0].type = IR_OPERAND_REG;
+        inst->binary[0].reg.name = strdup(lval);
+        inst->binary[1].type = IR_OPERAND_REG;
+        inst->binary[1].reg.name = strdup(tempreg);
+        gen_appendinst(funcdef, inst);
+
+        free(tempreg);
+        free(lval);
+        return res;
     case EXPROP_ASSIGN:
         if(expr->type.type == TYPE_STRUCT)
             return ir_gen_structassign(funcdef, expr, res);
