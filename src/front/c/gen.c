@@ -1152,31 +1152,39 @@ static void ir_gen_globaldecl(globaldecl_t *globdecl)
         globdata.dontsymbol = false;
         globdata.name = strdup(globpair.b);
 
-        assert(globdecl->decl.expr->op == EXPROP_ASSIGN);
+        if(globdecl->decl.expr)
+        {
+            assert(globdecl->decl.expr->op == EXPROP_ASSIGN);
 
-        if(globdecl->decl.expr->operands[1]->op == EXPROP_LIT)
-        {
-            globdata.type = IR_DATA_BYTES;
-            list_u8_init(&globdata.bytes, ir_primbytesize(type_toprim(globdecl->decl.type.type)));
-            globdata.align = globdata.bytes.len;
-            memset(globdata.bytes.data, 0, globdata.bytes.len);
-            if(globdecl->decl.expr)
+            if(globdecl->decl.expr->operands[1]->op == EXPROP_LIT)
             {
-                assert(globdecl->decl.expr->type.type >= TYPE_I8);
-                assert(globdecl->decl.expr->type.type <= TYPE_U64);
-                memcpy(globdata.bytes.data, &globdecl->decl.expr->operands[1]->u64, globdata.bytes.len);
+                globdata.type = IR_DATA_BYTES;
+                list_u8_init(&globdata.bytes, ir_primbytesize(type_toprim(globdecl->decl.type.type)));
+                globdata.align = globdata.bytes.len;
+                memset(globdata.bytes.data, 0, globdata.bytes.len);
+                if(globdecl->decl.expr)
+                {
+                    assert(globdecl->decl.expr->type.type >= TYPE_I8);
+                    assert(globdecl->decl.expr->type.type <= TYPE_U64);
+                    memcpy(globdata.bytes.data, &globdecl->decl.expr->operands[1]->u64, globdata.bytes.len);
+                }
             }
-        }
-        else if(globdecl->decl.expr->operands[1]->op == EXPROP_STRING)
-        {
-            globdata.type = IR_DATA_PTROFFS;
-            globdata.align = ir_primbytesize(IR_PRIM_PTR);
-            globdata.ptroffs.sym = ir_gen_stringlitsymbol(globdecl->decl.expr->operands[1]->msg);
-            globdata.ptroffs.offs = 0;
+            else if(globdecl->decl.expr->operands[1]->op == EXPROP_STRING)
+            {
+                globdata.type = IR_DATA_PTROFFS;
+                globdata.align = ir_primbytesize(IR_PRIM_PTR);
+                globdata.ptroffs.sym = ir_gen_stringlitsymbol(globdecl->decl.expr->operands[1]->msg);
+                globdata.ptroffs.offs = 0;
+            }
+            else
+            {
+                assert(0);
+            }
         }
         else
         {
-            assert(0);
+            globdata.type = IR_DATA_BSS;
+            globdata.bsslen = globdata.align = ir_primbytesize(type_toprim(globdecl->decl.type.type));
         }
 
         map_str_ir_data_set(&ir.data, globpair.b, globdata);

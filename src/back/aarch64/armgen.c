@@ -1024,6 +1024,9 @@ static void armgen_data(ir_data_t* data)
     printf("_%s:\n  ", data->name);
     switch(data->type)
     {
+    case IR_DATA_BSS:
+        printf(".space %"PRIu64"\n", data->bsslen);
+        break;
     case IR_DATA_BYTES:
         printf(".byte");
         for(i=0; i<data->bytes.len; i++)
@@ -1070,6 +1073,14 @@ void back_gen(void)
         if(ir.data.bins[i].state == MAP_EL_FULL 
         && (ir.data.bins[i].val.type == IR_DATA_BYTES || ir.data.bins[i].val.type == IR_DATA_PTROFFS)
         && !ir.data.bins[i].val.constant)
+            armgen_data(&ir.data.bins[i].val);
+    }
+
+    printf("\n.section __DATA,__bss\n\n");
+    for(i=0; i<ir.data.nbin; i++)
+    {
+        if(ir.data.bins[i].state == MAP_EL_FULL 
+        && ir.data.bins[i].val.type == IR_DATA_BSS)
             armgen_data(&ir.data.bins[i].val);
     }
 

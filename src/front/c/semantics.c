@@ -564,7 +564,7 @@ static void semantics_decl(decl_t* decl, bool global)
         if(decl->expr)
         {
             assert(decl->expr->op == EXPROP_ASSIGN && decl->expr->operands[1]);
-            
+
             semantics_expr(decl->expr->operands[1]);
             type_cpy(&decl->expr->type, &decl->type);
             constexpr = constexpr_eval(decl->expr->operands[1]);

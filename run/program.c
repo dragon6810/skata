@@ -1,6 +1,12 @@
-const char* str = "hello";
+unsigned short add(short a, int b)
+{
+	return a + b;
+}
 
 int main()
 {
-	return str[0];
+	long long x;
+
+	x = add(0, 1);
+	return x;
 }

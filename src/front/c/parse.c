@@ -251,8 +251,16 @@ void parse_modifytypewithptr(type_t* type)
         
         subtype = malloc(sizeof(type_t));
         memcpy(subtype, type, sizeof(type_t));
+        subtype->isstatic = false;
+
         type->type = TYPE_PTR;
         type->ptrtype = subtype;
+        type->isconst = false;
+        if(!strcmp(parse_peekstr(0), "const"))
+        {
+            parse_eat();
+            type->isconst = true;
+        }
     }
 }
 
@@ -501,6 +509,10 @@ static void parse_decl(decl_t* decl)
     {
         curtok--;
         decl->expr = parse_expr();
+    }
+    else if(decl->type.isconst)
+    {
+        error(true, parse_getexpectedline(), parse_getexpectedcol(), "constant variable must be initialized\n");
     }
 
     type_free(&type);
