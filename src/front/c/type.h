@@ -51,6 +51,7 @@ typedef struct type_s
         {
             type_t *ret;
             list_type_t args;
+            bool isvariadic;
         } func;
         struct
         {

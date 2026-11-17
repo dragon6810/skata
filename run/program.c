@@ -1,7 +1,7 @@
-int puts(const char* str);
+int printf(const char* fmt, ...);
 
 int main()
 {
-	puts("hello");
+	printf("number: %d\n", 42);
 	return 0;
 }

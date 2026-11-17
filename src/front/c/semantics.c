@@ -266,13 +266,14 @@ static void semantics_callexpr(expr_t* expr)
 
     if(expr->variadic.len < functype->func.args.len)
         error(true, expr->line, expr->col, "too few arguments to function call, expected %d\n");
-    if(expr->variadic.len > functype->func.args.len)
+    if(!functype->func.isvariadic && expr->variadic.len > functype->func.args.len)
         error(true, expr->line, expr->col, "too many arguments to function call\n");
 
-    for(i=0; i<functype->func.args.len; i++)
+    for(i=0; i<expr->variadic.len; i++)
     {
         semantics_expr(expr->variadic.data[i]);
-        semantics_cast(functype->func.args.data[i], expr->variadic.data[i]);
+        if(i < functype->func.args.len)
+            semantics_cast(functype->func.args.data[i], expr->variadic.data[i]);
     }
 
     type_cpy(&expr->type, functype->func.ret);
@@ -387,6 +388,7 @@ static void semantics_var(expr_t* expr)
     {
         expr->type.type = TYPE_FUNC;
         
+        expr->type.func.isvariadic = scope.data[i]->isvariadic;
         expr->type.func.ret = malloc(sizeof(type_t));
         type_cpy(expr->type.func.ret, &scope.data[i]->type);
 

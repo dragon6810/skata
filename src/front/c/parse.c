@@ -675,6 +675,13 @@ static void parse_arglist(decl_t* decl)
 
         if(strcmp(parse_peekstr(0), ")"))
             parse_eatstr(",");
+
+        if(!strcmp(parse_peekstr(0), "..."))
+        {
+            decl->isvariadic = true;
+            parse_eat();
+            break;
+        }
     }
 }
 
@@ -701,6 +708,7 @@ static void parse_globaldecl(void)
     if(decl.decl.form == DECL_VAR && !strcmp(parse_peekstr(0), "("))
     {   
         decl.decl.form = DECL_FUNC;
+        decl.decl.isvariadic = false;
 
         parse_eatstr("(");
         parse_arglist(&decl.decl);

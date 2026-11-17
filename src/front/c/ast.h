@@ -113,6 +113,7 @@ struct decl_s
 
     expr_t *expr;
     list_decl_t args;
+    bool isvariadic;
 };
 
 typedef struct stmnt_s stmnt_t;
