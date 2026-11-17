@@ -32,6 +32,7 @@ static ir_inst_t* gen_allocinst(void)
 
     inst = malloc(sizeof(ir_inst_t));
     inst->next = NULL;
+    inst->var = NULL;
 
     return inst;
 }
@@ -665,6 +666,102 @@ char* ir_gen_stringlit(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
     return outreg;
 }
 
+char* ir_gen_logicand(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
+{
+    ir_inst_t *inst, *branchinst;
+    char *res, *yesreg;
+    uint64_t branchblk, yesblk, mergeblk;
+
+    if(outreg)
+        res = outreg;
+    else
+        res = ir_allocreg(funcdef, type_toprim(expr->type.type));
+
+    inst = gen_allocinst();
+    inst->op = IR_OP_BR;
+    inst->ternary[0].type = IR_OPERAND_REG;
+    inst->ternary[0].reg.name = ir_gen_expr(funcdef, expr->operands[0], NULL);
+    inst->ternary[1].type = inst->ternary[2].type = IR_OPERAND_LABEL;
+    inst->ternary[1].label = inst->ternary[2].label = NULL;
+    gen_appendinst(funcdef, inst);
+    branchblk = funcdef->blocks.len - 1;
+    branchinst = insttail;
+
+    yesblk = gen_newblock(funcdef);
+    branchinst->ternary[1].label = strdup(funcdef->blocks.data[yesblk].name);
+    yesreg = ir_gen_expr(funcdef, expr->operands[1], NULL);
+    yesblk = funcdef->blocks.len - 1;
+
+    mergeblk = gen_newblock(funcdef);
+    branchinst->ternary[2].label = strdup(funcdef->blocks.data[mergeblk].name);
+
+    inst = gen_allocinst();
+    inst->op = IR_OP_PHI;
+    list_ir_operand_init(&inst->variadic, 5);
+    inst->variadic.data[0].type = IR_OPERAND_REG;
+    inst->variadic.data[0].reg.name = strdup(res);
+    inst->variadic.data[1].type = IR_OPERAND_LABEL;
+    inst->variadic.data[1].label = strdup(funcdef->blocks.data[branchblk].name);
+    inst->variadic.data[2].type = IR_OPERAND_LIT;
+    inst->variadic.data[2].literal.type = IR_PRIM_U1;
+    inst->variadic.data[2].literal.u64 = 0;
+    inst->variadic.data[3].type = IR_OPERAND_LABEL;
+    inst->variadic.data[3].label = strdup(funcdef->blocks.data[yesblk].name);
+    inst->variadic.data[4].type = IR_OPERAND_REG;
+    inst->variadic.data[4].reg.name = yesreg;
+    gen_appendinst(funcdef, inst);
+
+    return res;
+}
+
+char* ir_gen_logicor(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
+{
+    ir_inst_t *inst, *branchinst;
+    char *res, *noreg;
+    uint64_t branchblk, noblk, mergeblk;
+
+    if(outreg)
+        res = outreg;
+    else
+        res = ir_allocreg(funcdef, type_toprim(expr->type.type));
+
+    inst = gen_allocinst();
+    inst->op = IR_OP_BR;
+    inst->ternary[0].type = IR_OPERAND_REG;
+    inst->ternary[0].reg.name = ir_gen_expr(funcdef, expr->operands[0], NULL);
+    inst->ternary[1].type = inst->ternary[2].type = IR_OPERAND_LABEL;
+    inst->ternary[1].label = inst->ternary[2].label = NULL;
+    gen_appendinst(funcdef, inst);
+    branchblk = funcdef->blocks.len - 1;
+    branchinst = insttail;
+
+    noblk = gen_newblock(funcdef);
+    branchinst->ternary[2].label = strdup(funcdef->blocks.data[noblk].name);
+    noreg = ir_gen_expr(funcdef, expr->operands[1], NULL);
+    noblk = funcdef->blocks.len - 1;
+
+    mergeblk = gen_newblock(funcdef);
+    branchinst->ternary[1].label = strdup(funcdef->blocks.data[mergeblk].name);
+
+    inst = gen_allocinst();
+    inst->op = IR_OP_PHI;
+    list_ir_operand_init(&inst->variadic, 5);
+    inst->variadic.data[0].type = IR_OPERAND_REG;
+    inst->variadic.data[0].reg.name = strdup(res);
+    inst->variadic.data[1].type = IR_OPERAND_LABEL;
+    inst->variadic.data[1].label = strdup(funcdef->blocks.data[branchblk].name);
+    inst->variadic.data[2].type = IR_OPERAND_LIT;
+    inst->variadic.data[2].literal.type = IR_PRIM_U1;
+    inst->variadic.data[2].literal.u64 = 1;
+    inst->variadic.data[3].type = IR_OPERAND_LABEL;
+    inst->variadic.data[3].label = strdup(funcdef->blocks.data[noblk].name);
+    inst->variadic.data[4].type = IR_OPERAND_REG;
+    inst->variadic.data[4].reg.name = noreg;
+    gen_appendinst(funcdef, inst);
+
+    return res;
+}
+
 // if outreg is NULL, it will alloc a new register
 // YOU are responsible for the returned string, unless you gave outreg
 char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
@@ -896,11 +993,16 @@ char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
         inst->ternary[2].literal.u64 = 0;
         gen_appendinst(funcdef, inst);
         return res;
+    case EXPROP_LOGICAND:
+        return ir_gen_logicand(funcdef, expr, outreg);
+    case EXPROP_LOGICOR:
+        return ir_gen_logicor(funcdef, expr, outreg);
     case EXPROP_CAST:
         return ir_gen_cast(funcdef, expr, outreg);
     case EXPROP_MEMBER:
         return ir_gen_member(funcdef, expr, outreg);
     default:
+        printf("op %d\n", (int) expr->op);
         assert(0 && "unsupported op by IR");
         break;
     }

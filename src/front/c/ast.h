@@ -47,6 +47,8 @@ typedef enum
     EXPROP_NEQ, // !=
     EXPROP_LES, // <
     EXPROP_GRT, // >
+    EXPROP_LOGICAND, // &&
+    EXPROP_LOGICOR, // ||
 
     // unary operators
     EXPROP_NEG, // -

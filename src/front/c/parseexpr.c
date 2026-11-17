@@ -29,6 +29,7 @@ static void parse_printexpr_r(const expr_t* expr)
         case TYPE_I64:
             printf("%" PRIi64, expr->i64);
             break;
+        case TYPE_U1:
         case TYPE_U8:
         case TYPE_U16:
         case TYPE_U32:
@@ -90,6 +91,14 @@ static void parse_printexpr_r(const expr_t* expr)
     case EXPROP_GRT:
         nterms = 2;
         op = ">";
+        break;
+    case EXPROP_LOGICAND:
+        nterms = 2;
+        op = "&&";
+        break;
+    case EXPROP_LOGICOR:
+        nterms = 2;
+        op = "||";
         break;
     case EXPROP_NEG:
         nterms = 1;
@@ -186,7 +195,7 @@ static int parse_postfixopbp(exprop_e op)
     {
     case EXPROP_POSTINC:
     case EXPROP_POSTDEC:
-        return 13;
+        return 15;
     default:
         return 0;
     }
@@ -203,9 +212,9 @@ static int parse_prefixopbp(exprop_e op)
     case EXPROP_REF:
     case EXPROP_DEREF:
     case EXPROP_LOGICNOT:
-        return 12;
+        return 16;
     case EXPROP_CAST:
-        return 11;
+        return 15;
     default:
         return 0;
     }
@@ -216,8 +225,8 @@ static void parse_ternaryopbp(exprop_e op, int bp[2])
     switch(op)
     {
     case EXPROP_COND:
-        bp[0] = 6;
-        bp[1] = 5;
+        bp[0] = 10;
+        bp[1] = 9;
         break;
     default:
         bp[0] = bp[1] = 0;
@@ -237,15 +246,23 @@ static void parse_infixopbp(exprop_e op, int bp[2])
         bp[0] = 4;
         bp[1] = 3;
         break;
+    case EXPROP_LOGICOR:
+        bp[0] = 6;
+        bp[1] = 5;
+        break;
+    case EXPROP_LOGICAND:
+        bp[0] = 8;
+        bp[1] = 7;
+        break;
     case EXPROP_ADD:
     case EXPROP_SUB:
-        bp[0] = 7;
-        bp[1] = 8;
+        bp[0] = 11;
+        bp[1] = 12;
         break;
     case EXPROP_MULT:
     case EXPROP_DIV:
-        bp[0] = 9;
-        bp[1] = 10;
+        bp[0] = 13;
+        bp[1] = 14;
         break;
     default:
         bp[0] = bp[1] = 0;
@@ -367,6 +384,10 @@ static expr_t* parse_expr_r(int minbp)
             op = EXPROP_EQ;
         else if(!strcmp(tokstr, "!="))
             op = EXPROP_NEQ;
+        else if(!strcmp(tokstr, "&&"))
+            op = EXPROP_LOGICAND;
+        else if(!strcmp(tokstr, "||"))
+            op = EXPROP_LOGICOR;
         else if(!strcmp(tokstr, "<"))
             op = EXPROP_LES;
         else if(!strcmp(tokstr, ">"))

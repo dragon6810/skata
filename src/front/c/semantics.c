@@ -192,6 +192,17 @@ static void semantics_logicalnot(expr_t* expr)
     expr->type.type = TYPE_U1;
 }
 
+static void semantics_logicalcmp(expr_t* expr)
+{
+    assert(expr->op == EXPROP_LOGICAND || expr->op == EXPROP_LOGICOR);
+
+    semantics_expr(expr->operands[0]);
+    semantics_expr(expr->operands[1]);
+    semantics_truthify(expr->operands[0]);
+    semantics_truthify(expr->operands[1]);
+    expr->type.type = TYPE_U1;
+}
+
 static void semantics_derefexpr(expr_t* expr)
 {
     semantics_expr(expr->operand);
@@ -246,8 +257,6 @@ static void semantics_callexpr(expr_t* expr)
     int i;
 
     type_t *functype;
-
-    assert(expr->variadic.len);
 
     semantics_expr(expr->operand);
 
@@ -461,6 +470,10 @@ static void semantics_expr(expr_t* expr)
         break;
     case EXPROP_LOGICNOT:
         semantics_logicalnot(expr);
+        break;
+    case EXPROP_LOGICAND:
+    case EXPROP_LOGICOR:
+        semantics_logicalcmp(expr);
         break;
     case EXPROP_POS:
         semantics_noop(expr);
