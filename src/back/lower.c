@@ -203,6 +203,7 @@ static void elimcriticaledges(ir_funcdef_t* funcdef)
                 inst->unary.label = strdup(edge->name);
                 inst->next = NULL;
                 newblk->insts = inst;
+                newblk->branch = inst;
 
                 flow();
 

@@ -257,7 +257,12 @@ void ir_dump_inst(ir_funcdef_t* funcdef, ir_inst_t* inst)
         {
             ir_print_operand(funcdef, &inst->variadic.data[i]);
             if(i<inst->variadic.len-1)
-                printf(", ");
+            {
+                if(i-1 == inst->call.nfixed)
+                    printf(" ... ");
+                else
+                    printf(", ");
+            }
         }
         printf(")\n");
         break;

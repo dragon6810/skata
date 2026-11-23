@@ -434,8 +434,8 @@ static void semantics_expr(expr_t* expr)
         semantics_var(expr);
         break;
     case EXPROP_STRING:
-        // TODO: make const ptr when i add that
         expr->type.type = TYPE_PTR;
+        expr->type.isconst = true;
         expr->type.ptrtype = calloc(1, sizeof(type_t));
         expr->type.ptrtype->type = TYPE_I8;
         break;

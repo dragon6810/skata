@@ -1064,7 +1064,7 @@ void back_gen(void)
             printf(".globl _%s\n", ir.data.bins[i].val.name);
     // TODO: only do this for non-static
     for(i=0; i<ir.defs.len; i++)
-            printf(".globl _%s\n", ir.defs.data[i].name);
+        printf(".globl _%s\n", ir.defs.data[i].name);
 
     printf("\n.section __TEXT,__text,regular,pure_instructions\n\n");
     for(i=0; i<ir.defs.len; i++)

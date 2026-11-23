@@ -264,6 +264,7 @@ struct ir_inst_s
         {
             ir_type_t rettype;
             list_ir_type_t argtypes;
+            uint64_t nfixed; // the number of fixed, non-variadic arguments
         } call;
     };
 

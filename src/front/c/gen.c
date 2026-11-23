@@ -206,6 +206,8 @@ static char* ir_gen_funccall(ir_funcdef_t* funcdef, expr_t* expr, char* outreg)
     inst->op = IR_OP_CALL;
     list_ir_operand_init(&inst->variadic, 2);
 
+    inst->call.nfixed = expr->operand->type.func.args.len;
+
     inst->variadic.data[1].type = IR_OPERAND_SYMBOL;
     inst->variadic.data[1].sym = strdup(expr->operand->msg);
 
