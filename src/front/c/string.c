@@ -1,5 +1,6 @@
 #include "string.h"
 
+#include "front/error.h"
 #include "token.h"
 
 void string_concat(void)
@@ -32,7 +33,58 @@ void string_concat(void)
     }
 }
 
+static void string_procstring(token_t* tok)
+{
+    char *c;
+
+    list_char_t newstr;
+
+    for(c=tok->msg; *c; c++)
+        if(*c == '\\')
+            break;
+    if(!*c)
+        return;
+    
+    list_char_init(&newstr, 0);
+    for(c=tok->msg; *c; c++)
+    {
+        if(*c != '\\')
+        {
+            list_char_push(&newstr, *c);
+            continue;
+        }
+
+        switch(*(c+1))
+        {
+        case 'n':
+            list_char_push(&newstr, '\n');
+            c++;
+            break;
+        default:
+            error(true, tok->line, tok->column + 1 + (c-tok->msg), "unrecognized escape sequence\n");
+            break;
+        }
+    }
+
+    free(tok->msg);
+    tok->msg = malloc(newstr.len + 1);
+    memcpy(tok->msg, newstr.data, newstr.len);
+    tok->msg[newstr.len] = 0;
+    list_char_free(&newstr);
+}
+
 void string_process(void)
 {
+    int i;
+    token_t *tok;
 
+    for(i=0, tok=tokens.data; i<tokens.len; i++, tok++)
+    {
+        if(tok->form == TOKEN_EOF)
+            break;
+        if(tok->form != TOKEN_STRING)
+            continue;
+
+        string_procstring(tok);
+    }
 }
