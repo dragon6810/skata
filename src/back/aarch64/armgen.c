@@ -241,8 +241,6 @@ static void armgen_emittrunc(ir_funcdef_t* funcdef, ir_inst_t* inst)
         *map_u64_str_get(&src->hardreg->names, dst->type));
 }
 
-// byte size of a stack-passed argument, matching how emitcall reserves its
-// slot: a prim takes its own size, an aggregate is passed by pointer (8 bytes).
 static int armgen_stackargsize(ir_funcdef_t* funcdef, ir_operand_t* operand)
 {
     switch(operand->type)
@@ -257,8 +255,76 @@ static int armgen_stackargsize(ir_funcdef_t* funcdef, ir_operand_t* operand)
     }
 }
 
+static int64_t armgen_litval(ir_constant_t* lit)
+{
+    switch(lit->type)
+    {
+    case IR_PRIM_I8:
+        return lit->i8;
+    case IR_PRIM_U1:
+    case IR_PRIM_U8:
+        return lit->u8;
+    case IR_PRIM_I16:
+        return lit->i16;
+    case IR_PRIM_U16:
+        return lit->u16;
+    case IR_PRIM_I32:
+        return lit->i32;
+    case IR_PRIM_U32:
+        return lit->u32;
+    default:
+        return (int64_t) lit->u64;
+    }
+}
+
+// loads an arbitrary 64-bit immediate into the x register named dst. small
+// values use a single MOV (assembler picks MOVZ/MOVN), others MOVZ + MOVKs.
+static void armgen_emitmovimm64(const char* dst, int64_t val)
+{
+    int shift;
+    uint64_t chunk;
+
+    if(val >= -65536 && val <= 65535)
+    {
+        printf("  MOV %s, #%"PRIi64"\n", dst, val);
+        return;
+    }
+
+    printf("  MOVZ %s, #%"PRIu64"\n", dst, (uint64_t) val & 0xFFFF);
+    for(shift=16; shift<64; shift+=16)
+    {
+        chunk = ((uint64_t) val >> shift) & 0xFFFF;
+        if(chunk)
+            printf("  MOVK %s, #%"PRIu64", LSL #%d\n", dst, chunk, shift);
+    }
+}
+
+// widens assuming dst is 64 bit
+static void armgen_emitwiden(hardreg_t* dst, hardreg_t* src, ir_primitive_e prim)
+{
+    const char *instname;
+
+    switch(prim)
+    {
+    case IR_PRIM_I8:  instname = "SXTB"; break;
+    case IR_PRIM_I16: instname = "SXTH"; break;
+    case IR_PRIM_I32: instname = "SXTW"; break;
+    case IR_PRIM_U1:
+    case IR_PRIM_U8:  instname = "UXTB"; break;
+    case IR_PRIM_U16: instname = "UXTH"; break;
+    case IR_PRIM_U32: instname = "MOV";  break;
+    default:
+        printf("  MOV %s, %s\n", *map_u64_str_get(&dst->names, IR_PRIM_U64), *map_u64_str_get(&src->names, IR_PRIM_U64));
+        return;
+    }
+
+    printf("  %s %s, %s\n", instname, 
+        *map_u64_str_get(&dst->names, instname[0] == 'S' ? IR_PRIM_U64 : IR_PRIM_U32), 
+        *map_u64_str_get(&src->names, IR_PRIM_U32));
+}
+
 static void armgen_emitparamcopy(ir_funcdef_t* funcdef,
-    bool stackparam, uint64_t* stackoffs, uint64_t* regparam, ir_operand_t* operand)
+    bool stackparam, bool variadic, uint64_t* stackoffs, uint64_t* regparam, ir_operand_t* operand)
 {
     int i, argsize;
 
@@ -294,6 +360,28 @@ static void armgen_emitparamcopy(ir_funcdef_t* funcdef,
             break;
     scratch = scratchpool.bins[i].val;
 
+    if(variadic)
+    {
+        *stackoffs = back_alignup(*stackoffs, 8);
+
+        switch(operand->type)
+        {
+        case IR_OPERAND_REG:
+            reg = map_str_ir_reg_get(&funcdef->regs, operand->reg.name);
+            armgen_emitwiden(scratch, reg->hardreg, reg->type);
+            break;
+        case IR_OPERAND_LIT:
+            armgen_emitmovimm64(*map_u64_str_get(&scratch->names, IR_PRIM_U64), armgen_litval(&operand->literal));
+            break;
+        default:
+            assert(0);
+        }
+
+        printf("  STR %s, [sp, #%d]\n", *map_u64_str_get(&scratch->names, IR_PRIM_U64), (int) *stackoffs);
+        *stackoffs += 8;
+        return;
+    }
+
     argsize = armgen_stackargsize(funcdef, operand);
     *stackoffs = back_alignup(*stackoffs, argsize);
 
@@ -306,7 +394,28 @@ static void armgen_emitparamcopy(ir_funcdef_t* funcdef,
             *map_u64_str_get(&reg->hardreg->names, reg->type), (int) *stackoffs);
         break;
     case IR_OPERAND_LIT:
-        printf("  MOV %s, #%"PRIi64"\n", scratch->name, operand->literal.u64);
+        switch(operand->literal.type)
+        {
+        case IR_PRIM_I8:
+        case IR_PRIM_U8:
+            printf("  MOV %s, #%"PRIu8"\n", *map_u64_str_get(&scratch->names, IR_PRIM_U8), operand->literal.u8);
+            break;
+        case IR_PRIM_I16:
+        case IR_PRIM_U16:
+            printf("  MOV %s, #%"PRIu16"\n", *map_u64_str_get(&scratch->names, IR_PRIM_U16), operand->literal.u16);
+            break;
+        case IR_PRIM_I32:
+        case IR_PRIM_U32:
+            printf("  MOV %s, #%"PRIu32"\n", *map_u64_str_get(&scratch->names, IR_PRIM_U32), operand->literal.u32);
+            break;
+        case IR_PRIM_I64:
+        case IR_PRIM_U64:
+            printf("  MOV %s, #%"PRIu64"\n", *map_u64_str_get(&scratch->names, IR_PRIM_U64), operand->literal.u64);
+            break;
+        default:
+            assert(0);
+            break;
+        }
         printf("  %s %s, [sp, #%d]\n", armgen_storeinst(operand->literal.type),
             *map_u64_str_get(&scratch->names, operand->literal.type), (int) *stackoffs);
         break;
@@ -333,7 +442,7 @@ static void armgen_emitparams(ir_funcdef_t* funcdef, ir_inst_t* inst)
 
     for(i=2, nregarg=0; i<inst->variadic.len; i++)
     {
-        if(nregarg < parampool.len)
+        if(nregarg < parampool.len && i-2 < inst->call.nfixed)
         {
             nregarg++;
             continue;
@@ -352,6 +461,8 @@ static void armgen_emitparams(ir_funcdef_t* funcdef, ir_inst_t* inst)
                 if(set_u64_contains(&stackargs, i))
                 {
                     argsize = armgen_stackargsize(funcdef, &inst->variadic.data[i]);
+                    if(i-2 >= inst->call.nfixed && argsize < 8)
+                        argsize = 8;
                     stackspot = back_alignup(stackspot, argsize);
                     stackspot += argsize;
                 }
@@ -379,7 +490,7 @@ static void armgen_emitparams(ir_funcdef_t* funcdef, ir_inst_t* inst)
                 }
             }
 
-            armgen_emitparamcopy(funcdef, set_u64_contains(&stackargs, i), &stackspot, &nregarg, &inst->variadic.data[i]);
+            armgen_emitparamcopy(funcdef, set_u64_contains(&stackargs, i), i-2>=inst->call.nfixed, &stackspot, &nregarg, &inst->variadic.data[i]);
             set_u64_add(&emitted, i);
             change = true;
             break;
@@ -429,13 +540,13 @@ static void armgen_emitcall(ir_funcdef_t* funcdef, ir_block_t* blk, int iinst, i
     stacktotal = 0;
     for(i=2, nregparam=paramsize=0; i<inst->variadic.len; i++)
     {
-        if(nregparam < parampool.len)
+        if(nregparam < parampool.len && i-2 < inst->call.nfixed)
         {
             nregparam++;
             continue;
         }
 
-        if(inst->call.argtypes.data[i-2].type == IR_TYPE_PRIM)
+        if(i-2 < inst->call.nfixed && inst->call.argtypes.data[i-2].type == IR_TYPE_PRIM)
             argsize = ir_primbytesize(saved.bins[i].val->type);
         else
             argsize = ir_primbytesize(IR_PRIM_U64);
@@ -476,9 +587,6 @@ static void armgen_emitcall(ir_funcdef_t* funcdef, ir_block_t* blk, int iinst, i
     assert(inst->variadic.data[0].type == IR_OPERAND_REG);
     reg = map_str_ir_reg_get(&funcdef->regs, inst->variadic.data[0].reg.name);
 
-    // aggregate return: the dst pointer must reach x8, but emitparams will
-    // shuffle the arg registers (possibly clobbering dst's). stage it in a
-    // scratch reg first, then move it into x8 once the args are placed.
     if(inst->call.rettype.type == IR_TYPE_AGG)
         printf("  MOV %s, %s\n",
             *map_u64_str_get(&scratchlist.data[0]->names, IR_PRIM_PTR),
@@ -557,8 +665,6 @@ static void armgen_emitload(ir_funcdef_t* funcdef, ir_inst_t* inst)
     printf("\n");
 }
 
-// literals may have been written through a narrower union member,
-// so read them back through the member matching their type
 static uint64_t armgen_litvalue(ir_constant_t* literal)
 {
     switch(ir_primbytesize(literal->type))
