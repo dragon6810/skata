@@ -4,6 +4,7 @@
 
 #include "constexpr.h"
 #include "front/error.h"
+#include "string.h"
 #include "struct.h"
 #include "tag.h"
 #include "type.h"
@@ -1013,6 +1014,9 @@ static void parse_printglobaldecl(globaldecl_t* decl, int depth, bool last, char
 
 void parse(void)
 {
+    string_concat();
+    string_process();
+
     curtok = tokens.data;
     while(curtok->form != TOKEN_EOF)
         parse_globaldecl();
