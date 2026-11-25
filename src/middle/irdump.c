@@ -160,6 +160,16 @@ void ir_dump_inst(ir_funcdef_t* funcdef, ir_inst_t* inst)
         ir_print_operand(funcdef, &inst->ternary[2]);
         printf("\n");
         break;
+    case IR_OP_SDIV:
+    case IR_OP_UDIV:
+        printf("  ");
+        ir_print_operand(funcdef, &inst->ternary[0]);
+        printf(" \e[0;95m:=\e[0m ");
+        ir_print_operand(funcdef, &inst->ternary[1]);
+        printf(" \e[0;95m/\e[0m ");
+        ir_print_operand(funcdef, &inst->ternary[2]);
+        printf("\n");
+        break;
     case IR_OP_RET:
         printf("  ");
         printf("\e[0;95mreturn\e[0m ");

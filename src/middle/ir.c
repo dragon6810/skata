@@ -147,6 +147,8 @@ void ir_instfree(ir_inst_t* inst)
     case IR_OP_ADD:
     case IR_OP_SUB:
     case IR_OP_MUL:
+    case IR_OP_SDIV:
+    case IR_OP_UDIV:
     case IR_OP_CMPEQ:
     case IR_OP_BR:
         noperand = 3;
@@ -340,6 +342,8 @@ void ir_definedregs(set_str_t* set, ir_inst_t* inst)
     case IR_OP_ADD:
     case IR_OP_SUB:
     case IR_OP_MUL:
+    case IR_OP_SDIV:
+    case IR_OP_UDIV:
     case IR_OP_CMPEQ:
     case IR_OP_CMPNEQ:
     case IR_OP_CMPLES:
@@ -389,6 +393,8 @@ void ir_accessedregs(set_str_t* set, ir_inst_t* inst)
     case IR_OP_ADD:
     case IR_OP_SUB:
     case IR_OP_MUL:
+    case IR_OP_SDIV:
+    case IR_OP_UDIV:
     case IR_OP_CMPEQ:
     case IR_OP_CMPNEQ:
     case IR_OP_CMPLES:
@@ -454,6 +460,8 @@ void ir_instoperands(list_pir_operand_t* list, ir_inst_t* inst)
     case IR_OP_ADD:
     case IR_OP_SUB:
     case IR_OP_MUL:
+    case IR_OP_SDIV:
+    case IR_OP_UDIV:
     case IR_OP_CMPEQ:
     case IR_OP_CMPNEQ:
     case IR_OP_CMPLES:
@@ -593,6 +601,8 @@ int ir_ninstoperands(const ir_inst_t* inst)
     case IR_OP_ADD:
     case IR_OP_SUB:
     case IR_OP_MUL:
+    case IR_OP_SDIV:
+    case IR_OP_UDIV:
     case IR_OP_CMPEQ:
     case IR_OP_CMPNEQ:
     case IR_OP_CMPLES:

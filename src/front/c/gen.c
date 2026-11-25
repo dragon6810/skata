@@ -835,6 +835,27 @@ char* ir_gen_expr(ir_funcdef_t *funcdef, expr_t *expr, char* outreg)
     case EXPROP_MULT:
         opcode = IR_OP_MUL;
         break;
+    case EXPROP_DIV:
+        switch(expr->type.type)
+        {
+        case TYPE_I8:
+        case TYPE_I16:
+        case TYPE_I32:
+        case TYPE_I64:
+            opcode = IR_OP_SDIV;
+            break;
+        case TYPE_U1:
+        case TYPE_U8:
+        case TYPE_U16:
+        case TYPE_U32:
+        case TYPE_U64:
+            opcode = IR_OP_UDIV;
+            break;
+        default:
+            assert(0);
+            break;
+        }
+        break;
     case EXPROP_EQ:
         opcode = IR_OP_CMPEQ;
         break;

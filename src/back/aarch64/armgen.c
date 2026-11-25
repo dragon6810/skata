@@ -770,6 +770,63 @@ static void armgen_emitmul(ir_funcdef_t* funcdef, ir_inst_t* inst)
     printf("\n");
 }
 
+static void armgen_emitdiv(ir_funcdef_t* funcdef, ir_inst_t* inst)
+{
+    const char *instname;
+
+    assert(inst->ternary[1].type != IR_OPERAND_LIT || inst->ternary[2].type != IR_OPERAND_LIT);
+
+    switch(inst->op)
+    {
+    case IR_OP_SDIV:
+        instname = "SDIV";
+        break;
+    case IR_OP_UDIV:
+        instname = "UDIV";
+        break;
+    default:
+        assert(0);
+        break;
+    }
+
+    if(inst->ternary[1].type == IR_OPERAND_LIT)
+    {
+        printf("  MOV %s, ", *map_u64_str_get(&scratchlist.data[0]->names, inst->ternary[1].literal.type));
+        armgen_operand(funcdef, &inst->ternary[1]);
+        printf("\n");
+
+        printf("  %s ", instname);
+        armgen_operand(funcdef, &inst->ternary[0]);
+        printf(", ");
+        armgen_operand(funcdef, &inst->ternary[2]);
+        printf(", %s\n", *map_u64_str_get(&scratchlist.data[0]->names, inst->ternary[1].literal.type));
+        
+        return;
+    }
+    else if(inst->ternary[2].type == IR_OPERAND_LIT)
+    {
+        printf("  MOV %s, ", *map_u64_str_get(&scratchlist.data[0]->names, inst->ternary[2].literal.type));
+        armgen_operand(funcdef, &inst->ternary[2]);
+        printf("\n");
+
+        printf("  %s ", instname);
+        armgen_operand(funcdef, &inst->ternary[0]);
+        printf(", ");
+        armgen_operand(funcdef, &inst->ternary[1]);
+        printf(", %s\n", *map_u64_str_get(&scratchlist.data[0]->names, inst->ternary[2].literal.type));
+        
+        return;
+    }
+
+    printf("  %s ", instname);
+    armgen_operand(funcdef, &inst->ternary[0]);
+    printf(", ");
+    armgen_operand(funcdef, &inst->ternary[1]);
+    printf(", ");
+    armgen_operand(funcdef, &inst->ternary[2]);
+    printf("\n");
+}
+
 static void armgen_inst(ir_funcdef_t* funcdef, ir_block_t* blk, int iinst, ir_inst_t* inst)
 {
     switch(inst->op)
@@ -801,6 +858,10 @@ static void armgen_inst(ir_funcdef_t* funcdef, ir_block_t* blk, int iinst, ir_in
         break;
     case IR_OP_MUL:
         armgen_emitmul(funcdef, inst);
+        break;
+    case IR_OP_SDIV:
+    case IR_OP_UDIV:
+        armgen_emitdiv(funcdef, inst);
         break;
     case IR_OP_RET:
         if(funcdef->rettype.type == IR_TYPE_AGG)

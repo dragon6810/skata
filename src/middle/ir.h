@@ -121,6 +121,8 @@ typedef enum
     IR_OP_ADD, // dst, a, b
     IR_OP_SUB, // dst, a, b
     IR_OP_MUL, // dst, a, b,
+    IR_OP_SDIV, // dst, a, b,
+    IR_OP_UDIV, // dst, a, b,
     IR_OP_RET, // [value]
     IR_OP_STORE, // dst, src
     IR_OP_LOAD, // dst, src

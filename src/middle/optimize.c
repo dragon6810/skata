@@ -225,6 +225,50 @@ static void ir_eliminateconstantarithmetic(ir_funcdef_t* funcdef)
                         break;
                     }
                     break;
+                case IR_OP_SDIV:
+                    lit.type = prim;
+                    switch(prim)
+                    {
+                    case IR_PRIM_I8:
+                        lit.i8 = inst->ternary[1].literal.i8 / inst->ternary[2].literal.i8;
+                        break;
+                    case IR_PRIM_I16:
+                        lit.i16 = inst->ternary[1].literal.i16 / inst->ternary[2].literal.i16;
+                        break;
+                    case IR_PRIM_I32:
+                        lit.i32 = inst->ternary[1].literal.i32 / inst->ternary[2].literal.i32;
+                        break;
+                    case IR_PRIM_I64:
+                        lit.i64 = inst->ternary[1].literal.i64 / inst->ternary[2].literal.i64;
+                        break;
+                    default:
+                        assert(0);
+                        break;
+                    }
+                    break;
+                case IR_OP_UDIV:
+                    lit.type = prim;
+                    switch(prim)
+                    {
+                    case IR_PRIM_U1:
+                    case IR_PRIM_U8:
+                        lit.u8 = inst->ternary[1].literal.u8 / inst->ternary[2].literal.u8;
+                        break;
+                    case IR_PRIM_U16:
+                        lit.u16 = inst->ternary[1].literal.u16 / inst->ternary[2].literal.u16;
+                        break;
+                    case IR_PRIM_U32:
+                        lit.u32 = inst->ternary[1].literal.u32 / inst->ternary[2].literal.u32;
+                        break;
+                    case IR_PRIM_PTR:
+                    case IR_PRIM_U64:
+                        lit.u64 = inst->ternary[1].literal.u64 / inst->ternary[2].literal.u64;
+                        break;
+                    default:
+                        assert(0);
+                        break;
+                    }
+                    break;
                 case IR_OP_CMPEQ:
                     lit.type = prim;
                     switch(prim)
